@@ -1,0 +1,34 @@
+[
+  {
+    "id": 1,
+    "title": "Week 16 Reminder",
+    "message": "Don't forget league night this Thursday, November 20th at 7:00 PM. See you at Brunswick Lanes!",
+    "date": "2025-11-18",
+    "type": "reminder",
+    "priority": "normal"
+  },
+  {
+    "id": 2,
+    "title": "Holiday Tournament Registration Open",
+    "message": "Sign up for our annual Holiday Tournament on December 11th! Prizes for 1st, 2nd, and 3rd place. Contact your team captain to register.",
+    "date": "2025-11-15",
+    "type": "event",
+    "priority": "high"
+  },
+  {
+    "id": 3,
+    "title": "Playoff Picture Heating Up",
+    "message": "With only 17 weeks remaining, the race for playoff spots is getting intense! Top 8 teams advance. Check the standings and playoff bracket to see where your team stands.",
+    "date": "2025-11-13",
+    "type": "info",
+    "priority": "normal"
+  },
+  {
+    "id": 4,
+    "title": "Lane Assignments Posted",
+    "message": "Lane assignments for Week 16 have been posted. Check the schedule section for your team's lane assignment.",
+    "date": "2025-11-12",
+    "type": "info",
+    "priority": "low"
+  }
+]

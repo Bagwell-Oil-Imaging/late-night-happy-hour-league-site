@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "title": "League Night - Week 16",
+    "date": "2025-11-20T19:00:00",
+    "location": "Brunswick Lanes",
+    "type": "regular",
+    "description": "Regular Thursday night league bowling"
+  },
+  {
+    "id": 2,
+    "title": "League Night - Week 17",
+    "date": "2025-11-27T19:00:00",
+    "location": "Brunswick Lanes",
+    "type": "regular",
+    "description": "Regular Thursday night league bowling"
+  },
+  {
+    "id": 3,
+    "title": "League Night - Week 18",
+    "date": "2025-12-04T19:00:00",
+    "location": "Brunswick Lanes",
+    "type": "regular",
+    "description": "Regular Thursday night league bowling"
+  },
+  {
+    "id": 4,
+    "title": "Holiday Tournament",
+    "date": "2025-12-11T18:00:00",
+    "location": "Brunswick Lanes",
+    "type": "tournament",
+    "description": "Annual holiday singles tournament with prizes!"
+  },
+  {
+    "id": 5,
+    "title": "League Night - Week 19",
+    "date": "2025-12-18T19:00:00",
+    "location": "Brunswick Lanes",
+    "type": "regular",
+    "description": "Regular Thursday night league bowling"
+  },
+  {
+    "id": 6,
+    "title": "Pizza & Bowling Social",
+    "date": "2026-01-08T18:30:00",
+    "location": "Brunswick Lanes",
+    "type": "social",
+    "description": "New year celebration with pizza and casual bowling"
+  }
+]

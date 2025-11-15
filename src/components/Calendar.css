@@ -1,0 +1,106 @@
+.calendar-container {
+  background-color: var(--card-background);
+  padding: 30px;
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(248, 234, 204, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.calendar-container:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.section-title {
+  color: var(--secondary-color);
+  margin: 0 0 20px 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border-color);
+  font-size: 1.5rem;
+}
+
+.calendar-events {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.calendar-event {
+  display: flex;
+  gap: 15px;
+  padding: 18px;
+  background-color: rgba(248, 234, 204, 0.05);
+  border-radius: 3px;
+  border-left: 4px solid var(--accent-color);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(248, 234, 204, 0.1);
+}
+
+.calendar-event:hover {
+  transform: translateX(6px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  background-color: rgba(248, 234, 204, 0.08);
+}
+
+.calendar-event.tournament {
+  border-left-color: var(--secondary-color);
+}
+
+.calendar-event.social {
+  border-left-color: #ff6b9d;
+}
+
+.event-date {
+  text-align: center;
+  min-width: 60px;
+  padding: 10px;
+  background-color: var(--primary-color);
+  border-radius: 2px;
+}
+
+.date-day {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.date-full {
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--secondary-color);
+}
+
+.event-details {
+  flex: 1;
+}
+
+.event-details h3 {
+  margin: 0 0 5px 0;
+  color: var(--text-color);
+  font-size: 1.1rem;
+}
+
+.event-time,
+.event-location {
+  margin: 3px 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+  .calendar-container {
+    padding: 15px;
+  }
+
+  .calendar-event {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .event-date {
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+  }
+}

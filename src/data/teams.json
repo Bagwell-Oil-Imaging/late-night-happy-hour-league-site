@@ -1,0 +1,66 @@
+[
+  {
+    "id": 1,
+    "name": "Strike Force",
+    "captain": "Mike Johnson",
+    "wins": 11,
+    "losses": 4,
+    "points": 33
+  },
+  {
+    "id": 2,
+    "name": "Pinheads",
+    "captain": "Sarah Williams",
+    "wins": 10,
+    "losses": 5,
+    "points": 30
+  },
+  {
+    "id": 3,
+    "name": "Gutter Gang",
+    "captain": "Tom Anderson",
+    "wins": 9,
+    "losses": 6,
+    "points": 27
+  },
+  {
+    "id": 4,
+    "name": "Alley Cats",
+    "captain": "Jennifer Lee",
+    "wins": 9,
+    "losses": 6,
+    "points": 27
+  },
+  {
+    "id": 5,
+    "name": "Spare Me",
+    "captain": "David Chen",
+    "wins": 7,
+    "losses": 8,
+    "points": 21
+  },
+  {
+    "id": 6,
+    "name": "Bowl Movements",
+    "captain": "Rachel Davis",
+    "wins": 6,
+    "losses": 9,
+    "points": 18
+  },
+  {
+    "id": 7,
+    "name": "The Kingpins",
+    "captain": "Chris Martinez",
+    "wins": 5,
+    "losses": 10,
+    "points": 15
+  },
+  {
+    "id": 8,
+    "name": "Lucky Strikes",
+    "captain": "Amanda Wilson",
+    "wins": 3,
+    "losses": 12,
+    "points": 9
+  }
+]
