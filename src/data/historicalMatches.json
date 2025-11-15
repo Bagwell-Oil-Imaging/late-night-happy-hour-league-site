@@ -1,0 +1,162 @@
+[
+  {
+    "id": 1,
+    "week": 15,
+    "date": "2025-11-13",
+    "team1Id": 1,
+    "team2Id": 2,
+    "team1Score": 2345,
+    "team2Score": 2198,
+    "completed": true
+  },
+  {
+    "id": 2,
+    "week": 15,
+    "date": "2025-11-13",
+    "team1Id": 3,
+    "team2Id": 4,
+    "team1Score": 2267,
+    "team2Score": 2289,
+    "completed": true
+  },
+  {
+    "id": 3,
+    "week": 15,
+    "date": "2025-11-13",
+    "team1Id": 5,
+    "team2Id": 6,
+    "team1Score": 2156,
+    "team2Score": 2134,
+    "completed": true
+  },
+  {
+    "id": 4,
+    "week": 15,
+    "date": "2025-11-13",
+    "team1Id": 7,
+    "team2Id": 8,
+    "team1Score": 2045,
+    "team2Score": 2078,
+    "completed": true
+  },
+  {
+    "id": 5,
+    "week": 14,
+    "date": "2025-11-06",
+    "team1Id": 1,
+    "team2Id": 3,
+    "team1Score": 2412,
+    "team2Score": 2301,
+    "completed": true
+  },
+  {
+    "id": 6,
+    "week": 14,
+    "date": "2025-11-06",
+    "team1Id": 2,
+    "team2Id": 4,
+    "team1Score": 2234,
+    "team2Score": 2267,
+    "completed": true
+  },
+  {
+    "id": 7,
+    "week": 14,
+    "date": "2025-11-06",
+    "team1Id": 5,
+    "team2Id": 7,
+    "team1Score": 2189,
+    "team2Score": 2045,
+    "completed": true
+  },
+  {
+    "id": 8,
+    "week": 14,
+    "date": "2025-11-06",
+    "team1Id": 6,
+    "team2Id": 8,
+    "team1Score": 2123,
+    "team2Score": 2098,
+    "completed": true
+  },
+  {
+    "id": 9,
+    "week": 13,
+    "date": "2025-10-30",
+    "team1Id": 1,
+    "team2Id": 4,
+    "team1Score": 2387,
+    "team2Score": 2256,
+    "completed": true
+  },
+  {
+    "id": 10,
+    "week": 13,
+    "date": "2025-10-30",
+    "team1Id": 2,
+    "team2Id": 3,
+    "team1Score": 2312,
+    "team2Score": 2289,
+    "completed": true
+  },
+  {
+    "id": 11,
+    "week": 13,
+    "date": "2025-10-30",
+    "team1Id": 5,
+    "team2Id": 8,
+    "team1Score": 2178,
+    "team2Score": 2045,
+    "completed": true
+  },
+  {
+    "id": 12,
+    "week": 13,
+    "date": "2025-10-30",
+    "team1Id": 6,
+    "team2Id": 7,
+    "team1Score": 2145,
+    "team2Score": 2087,
+    "completed": true
+  },
+  {
+    "id": 13,
+    "week": 12,
+    "date": "2025-10-23",
+    "team1Id": 1,
+    "team2Id": 5,
+    "team1Score": 2423,
+    "team2Score": 2167,
+    "completed": true
+  },
+  {
+    "id": 14,
+    "week": 12,
+    "date": "2025-10-23",
+    "team1Id": 2,
+    "team2Id": 6,
+    "team1Score": 2298,
+    "team2Score": 2234,
+    "completed": true
+  },
+  {
+    "id": 15,
+    "week": 12,
+    "date": "2025-10-23",
+    "team1Id": 3,
+    "team2Id": 7,
+    "team1Score": 2356,
+    "team2Score": 2089,
+    "completed": true
+  },
+  {
+    "id": 16,
+    "week": 12,
+    "date": "2025-10-23",
+    "team1Id": 4,
+    "team2Id": 8,
+    "team1Score": 2278,
+    "team2Score": 2134,
+    "completed": true
+  }
+]

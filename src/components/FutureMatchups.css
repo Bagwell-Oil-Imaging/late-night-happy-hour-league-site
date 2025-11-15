@@ -1,0 +1,107 @@
+.future-matchups-container {
+  background-color: var(--card-background);
+  padding: 30px;
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(248, 234, 204, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.future-matchups-container:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.week-section {
+  margin-bottom: 30px;
+}
+
+.week-section:last-child {
+  margin-bottom: 0;
+}
+
+.week-title {
+  color: var(--accent-color);
+  margin: 0 0 15px 0;
+  font-size: 1.1rem;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+}
+
+.matchups-table-wrapper {
+  overflow-x: auto;
+}
+
+.matchups-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.matchups-table thead {
+  background-color: rgba(32, 44, 57, 0.5);
+}
+
+.matchups-table th {
+  padding: 12px;
+  text-align: left;
+  color: var(--secondary-color);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 2px solid rgba(248, 234, 204, 0.2);
+}
+
+.matchups-table th.center {
+  text-align: center;
+}
+
+.matchups-table tbody tr {
+  border-bottom: 1px solid rgba(248, 234, 204, 0.08);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.matchups-table tbody tr:hover {
+  background-color: rgba(248, 234, 204, 0.08);
+}
+
+.matchups-table td {
+  padding: 14px 12px;
+  color: var(--text-color);
+}
+
+.matchups-table td.center {
+  text-align: center;
+}
+
+.team-name {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.team-record {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.vs-cell {
+  color: var(--secondary-color);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .future-matchups-container {
+    padding: 15px;
+  }
+
+  .matchups-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .matchup-card {
+    padding: 15px;
+  }
+}

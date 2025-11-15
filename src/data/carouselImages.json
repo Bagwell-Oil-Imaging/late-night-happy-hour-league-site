@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "title": "Welcome to Late Night Happy Hour",
+    "description": "Join us every Thursday night for competitive bowling!",
+    "image": "https://assets.simpleviewinc.com/sv-cityofchesapeake/image/fetch/c_fill,h_396,q_75,w_704/https://assets.simpleviewinc.com/simpleview/image/upload/crm/chesapeake/AMFBowling0-aade16d45056a36_aade17ea-5056-a36a-060ee51c0323d76d.jpg",
+    "alt": "Modern bowling alley interior"
+  },
+  {
+    "id": 2,
+    "title": "Strike Force Leading the Pack",
+    "description": "Current league leaders with an impressive 11-4 record",
+    "image": "https://images.ctfassets.net/6gvyj3hhelpa/3Z3CUPcfJqD6J0LNfsgHRB/bf0194f4bb14bf5b4c6abd7236c9f4da/best_places_to_rent_for_birthday_parties_960x600_112124.jpg?w=3840&q=75&fm=webp",
+    "alt": "Bowling league action"
+  },
+  {
+    "id": 3,
+    "title": "Holiday Tournament Coming Soon",
+    "description": "December 11th - Sign up now for our annual tournament!",
+    "image": "https://almarlanes.com/wp-content/uploads/2018/11/LeagueBowling-1024x295.jpg",
+    "alt": "League bowling at alley"
+  }
+]

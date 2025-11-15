@@ -1,0 +1,50 @@
+[
+  {
+    "year": "2024-2025",
+    "startDate": "2024-09-01",
+    "endDate": "2025-05-31",
+    "champion": "Strike Force",
+    "teams": [
+      { "id": 1, "name": "Strike Force", "wins": 24, "losses": 8, "points": 1820 },
+      { "id": 2, "name": "Gutter Gang", "wins": 22, "losses": 10, "points": 1750 },
+      { "id": 3, "name": "Pin Crushers", "wins": 20, "losses": 12, "points": 1680 },
+      { "id": 4, "name": "Split Happens", "wins": 18, "losses": 14, "points": 1610 },
+      { "id": 5, "name": "Alley Cats", "wins": 16, "losses": 16, "points": 1540 },
+      { "id": 6, "name": "Spare Me", "wins": 14, "losses": 18, "points": 1470 },
+      { "id": 7, "name": "Rolling Thunder", "wins": 12, "losses": 20, "points": 1400 },
+      { "id": 8, "name": "The Kingpins", "wins": 10, "losses": 22, "points": 1330 }
+    ]
+  },
+  {
+    "year": "2023-2024",
+    "startDate": "2023-09-01",
+    "endDate": "2024-05-31",
+    "champion": "Pin Crushers",
+    "teams": [
+      { "id": 1, "name": "Pin Crushers", "wins": 25, "losses": 7, "points": 1890 },
+      { "id": 2, "name": "Strike Force", "wins": 23, "losses": 9, "points": 1820 },
+      { "id": 3, "name": "Alley Cats", "wins": 21, "losses": 11, "points": 1750 },
+      { "id": 4, "name": "Gutter Gang", "wins": 19, "losses": 13, "points": 1680 },
+      { "id": 5, "name": "The Kingpins", "wins": 17, "losses": 15, "points": 1610 },
+      { "id": 6, "name": "Rolling Thunder", "wins": 15, "losses": 17, "points": 1540 },
+      { "id": 7, "name": "Spare Me", "wins": 13, "losses": 19, "points": 1470 },
+      { "id": 8, "name": "Split Happens", "wins": 11, "losses": 21, "points": 1400 }
+    ]
+  },
+  {
+    "year": "2022-2023",
+    "startDate": "2022-09-01",
+    "endDate": "2023-05-31",
+    "champion": "Alley Cats",
+    "teams": [
+      { "id": 1, "name": "Alley Cats", "wins": 26, "losses": 6, "points": 1960 },
+      { "id": 2, "name": "Strike Force", "wins": 22, "losses": 10, "points": 1820 },
+      { "id": 3, "name": "The Kingpins", "wins": 20, "losses": 12, "points": 1750 },
+      { "id": 4, "name": "Pin Crushers", "wins": 18, "losses": 14, "points": 1680 },
+      { "id": 5, "name": "Rolling Thunder", "wins": 16, "losses": 16, "points": 1610 },
+      { "id": 6, "name": "Gutter Gang", "wins": 14, "losses": 18, "points": 1540 },
+      { "id": 7, "name": "Split Happens", "wins": 12, "losses": 20, "points": 1470 },
+      { "id": 8, "name": "Spare Me", "wins": 10, "losses": 22, "points": 1400 }
+    ]
+  }
+]

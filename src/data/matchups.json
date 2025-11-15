@@ -1,0 +1,162 @@
+[
+  {
+    "id": 1,
+    "week": 16,
+    "date": "2025-11-20",
+    "team1Id": 1,
+    "team2Id": 8,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 2,
+    "week": 16,
+    "date": "2025-11-20",
+    "team1Id": 2,
+    "team2Id": 7,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 3,
+    "week": 16,
+    "date": "2025-11-20",
+    "team1Id": 3,
+    "team2Id": 6,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 4,
+    "week": 16,
+    "date": "2025-11-20",
+    "team1Id": 4,
+    "team2Id": 5,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 5,
+    "week": 17,
+    "date": "2025-11-27",
+    "team1Id": 1,
+    "team2Id": 2,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 6,
+    "week": 17,
+    "date": "2025-11-27",
+    "team1Id": 3,
+    "team2Id": 4,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 7,
+    "week": 17,
+    "date": "2025-11-27",
+    "team1Id": 5,
+    "team2Id": 6,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 8,
+    "week": 17,
+    "date": "2025-11-27",
+    "team1Id": 7,
+    "team2Id": 8,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 9,
+    "week": 18,
+    "date": "2025-12-04",
+    "team1Id": 1,
+    "team2Id": 3,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 10,
+    "week": 18,
+    "date": "2025-12-04",
+    "team1Id": 2,
+    "team2Id": 4,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 11,
+    "week": 18,
+    "date": "2025-12-04",
+    "team1Id": 5,
+    "team2Id": 7,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 12,
+    "week": 18,
+    "date": "2025-12-04",
+    "team1Id": 6,
+    "team2Id": 8,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 13,
+    "week": 19,
+    "date": "2025-12-18",
+    "team1Id": 1,
+    "team2Id": 4,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 14,
+    "week": 19,
+    "date": "2025-12-18",
+    "team1Id": 2,
+    "team2Id": 3,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 15,
+    "week": 19,
+    "date": "2025-12-18",
+    "team1Id": 5,
+    "team2Id": 8,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  },
+  {
+    "id": 16,
+    "week": 19,
+    "date": "2025-12-18",
+    "team1Id": 6,
+    "team2Id": 7,
+    "team1Score": null,
+    "team2Score": null,
+    "completed": false
+  }
+]
