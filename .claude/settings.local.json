@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:www.google.com)"
+      "WebFetch(domain:www.google.com)",
+      "WebFetch(domain:www.leaguepals.com)",
+      "Bash(curl -s \"https://www.leaguepals.com/laneSchedule?league_id=688118301406d3982ec379a1&simple=false&withLeagueTime=true\" -o \"c:/Users/jaredb/Documents/Projects/Repos/late-night-happy-hour-league-site/leaguepals-data/lane-schedule.json\")",
+      "Bash(node -e \":*)"
     ],
     "deny": [],
     "ask": []
