@@ -171,7 +171,12 @@
 
 @media (max-width: 768px) {
   .league-seasons-container {
-    padding: 15px;
+    padding: 20px 16px;
+  }
+
+  .season-selector {
+    gap: 8px;
+    margin-bottom: 20px;
   }
 
   .season-button {
@@ -180,7 +185,7 @@
   }
 
   .season-year {
-    font-size: 1.25rem;
+    font-size: 1.3rem;
   }
 
   .season-info {
@@ -195,6 +200,63 @@
 
   .standings-table th,
   .standings-table td {
+    padding: 10px 6px;
+  }
+
+  /* Hide captain column on mobile */
+  .standings-table th:nth-child(3),
+  .standings-table td:nth-child(3) {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .league-seasons-container {
+    padding: 16px 12px;
+  }
+
+  .season-selector {
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .season-button {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+
+  .season-year {
+    font-size: 1.15rem;
+  }
+
+  .season-dates {
+    font-size: 0.85rem;
+  }
+
+  .champion-badge {
+    padding: 5px 12px;
+    font-size: 0.8rem;
+  }
+
+  .standings-table {
+    font-size: 0.8rem;
+  }
+
+  .standings-table th,
+  .standings-table td {
     padding: 8px 4px;
+    font-size: 0.75rem;
+  }
+
+  .standings-table th {
+    font-size: 0.7rem;
+  }
+
+  .rank {
+    font-size: 0.9rem;
+  }
+
+  .team-name {
+    font-size: 0.8rem;
   }
 }

@@ -90,17 +90,69 @@
 
 @media (max-width: 768px) {
   .calendar-container {
-    padding: 15px;
+    padding: 20px 16px;
+  }
+
+  .section-title {
+    font-size: 1.3rem;
+  }
+
+  .calendar-events {
+    gap: 12px;
+  }
+
+  .calendar-event {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .event-details h3 {
+    font-size: 1rem;
+  }
+
+  .event-time,
+  .event-location {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-container {
+    padding: 16px 12px;
+  }
+
+  .section-title {
+    font-size: 1.15rem;
+    margin-bottom: 16px;
   }
 
   .calendar-event {
     flex-direction: column;
     gap: 10px;
+    padding: 12px;
   }
 
   .event-date {
     width: 100%;
     display: flex;
     justify-content: space-around;
+    padding: 8px;
+  }
+
+  .date-day {
+    font-size: 0.75rem;
+  }
+
+  .date-full {
+    font-size: 0.9rem;
+  }
+
+  .event-details h3 {
+    font-size: 0.95rem;
+  }
+
+  .event-time,
+  .event-location {
+    font-size: 0.8rem;
   }
 }

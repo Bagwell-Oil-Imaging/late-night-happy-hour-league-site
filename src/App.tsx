@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import './App.css'
 import Header from './components/Header'
 import Carousel from './components/Carousel'
@@ -9,11 +10,20 @@ import FutureMatchups from './components/FutureMatchups'
 import LeagueSeasons from './components/LeagueSeasons'
 import PlayoffBracket from './components/PlayoffBracket'
 import PinnedAnnouncement from './components/PinnedAnnouncement'
+import AnnouncementsModal from './components/AnnouncementsModal'
+import announcementsData from './data/announcements.json'
+import type { Announcement } from './types'
 
 function App() {
+  const [showAnnouncements, setShowAnnouncements] = useState(false)
+  const announcements = announcementsData as Announcement[]
+
   return (
     <div className="app">
-      <Header />
+      <Header
+        onOpenAnnouncements={() => setShowAnnouncements(true)}
+        announcementsCount={announcements.length}
+      />
       <PinnedAnnouncement />
       <main className="main-content">
         <Carousel />
@@ -44,6 +54,11 @@ function App() {
       <footer className="footer">
         <p>&copy; 2025 Late Night Happy Hour Bowling League. All rights reserved.</p>
       </footer>
+      <AnnouncementsModal
+        announcements={announcements}
+        isOpen={showAnnouncements}
+        onClose={() => setShowAnnouncements(false)}
+      />
     </div>
   )
 }

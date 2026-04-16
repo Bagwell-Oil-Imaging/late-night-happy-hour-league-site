@@ -101,7 +101,15 @@
 
 @media (max-width: 768px) {
   .season-scores-container {
-    padding: 15px;
+    padding: 20px 16px;
+  }
+
+  .week-section {
+    margin-bottom: 24px;
+  }
+
+  .week-title {
+    font-size: 1rem;
   }
 
   .scores-table {
@@ -110,10 +118,44 @@
 
   .scores-table th,
   .scores-table td {
-    padding: 8px 4px;
+    padding: 10px 6px;
   }
 
   .scores-table .score {
     font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .season-scores-container {
+    padding: 16px 12px;
+  }
+
+  .week-title {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+  }
+
+  .scores-table {
+    font-size: 0.8rem;
+  }
+
+  .scores-table th,
+  .scores-table td {
+    padding: 8px 4px;
+    font-size: 0.75rem;
+  }
+
+  .scores-table th {
+    font-size: 0.7rem;
+    padding: 8px 4px;
+  }
+
+  .scores-table .score {
+    font-size: 0.9rem;
+  }
+
+  .scores-table .team-name {
+    font-size: 0.8rem;
   }
 }

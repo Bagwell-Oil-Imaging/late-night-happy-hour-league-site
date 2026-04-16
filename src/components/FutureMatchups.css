@@ -94,7 +94,24 @@
 
 @media (max-width: 768px) {
   .future-matchups-container {
-    padding: 15px;
+    padding: 20px 16px;
+  }
+
+  .week-section {
+    margin-bottom: 24px;
+  }
+
+  .week-title {
+    font-size: 1rem;
+  }
+
+  .matchups-table {
+    font-size: 0.85rem;
+  }
+
+  .matchups-table th,
+  .matchups-table td {
+    padding: 10px 6px;
   }
 
   .matchups-grid {
@@ -103,5 +120,42 @@
 
   .matchup-card {
     padding: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  .future-matchups-container {
+    padding: 16px 12px;
+  }
+
+  .week-title {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+  }
+
+  .matchups-table {
+    font-size: 0.8rem;
+  }
+
+  .matchups-table th,
+  .matchups-table td {
+    padding: 8px 4px;
+    font-size: 0.75rem;
+  }
+
+  .matchups-table th {
+    font-size: 0.7rem;
+  }
+
+  .team-name {
+    font-size: 0.8rem;
+  }
+
+  .team-record {
+    font-size: 0.75rem;
+  }
+
+  .vs-cell {
+    font-size: 0.7rem;
   }
 }

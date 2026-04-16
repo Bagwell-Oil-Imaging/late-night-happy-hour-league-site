@@ -96,7 +96,7 @@
 
 @media (max-width: 768px) {
   .standings-container {
-    padding: 15px;
+    padding: 20px 16px;
   }
 
   .standings-table {
@@ -105,11 +105,52 @@
 
   .standings-table th,
   .standings-table td {
-    padding: 8px 4px;
+    padding: 10px 6px;
   }
 
+  /* Hide captain column on mobile */
   .standings-table th:nth-child(3),
   .standings-table td:nth-child(3) {
     display: none;
+  }
+
+  .team-name {
+    font-size: 0.9rem;
+  }
+
+  .rank {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .standings-container {
+    padding: 16px 12px;
+  }
+
+  .standings-table {
+    font-size: 0.8rem;
+  }
+
+  .standings-table th,
+  .standings-table td {
+    padding: 8px 4px;
+    font-size: 0.75rem;
+  }
+
+  .standings-table th {
+    font-size: 0.7rem;
+  }
+
+  .team-name {
+    font-size: 0.85rem;
+  }
+
+  .rank {
+    font-size: 0.9rem;
+  }
+
+  .trophy {
+    font-size: 0.9rem;
   }
 }

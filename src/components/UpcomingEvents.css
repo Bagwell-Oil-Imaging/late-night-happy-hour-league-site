@@ -82,10 +82,78 @@
 
 @media (max-width: 768px) {
   .upcoming-events-container {
-    padding: 15px;
+    padding: 20px 16px;
+  }
+
+  .events-list {
+    gap: 12px;
   }
 
   .event-card {
-    padding: 15px;
+    padding: 18px;
+  }
+
+  .event-title {
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+  }
+
+  .event-description {
+    font-size: 0.9rem;
+  }
+
+  .info-item {
+    font-size: 0.85rem;
+  }
+
+  .info-label {
+    min-width: 60px;
+  }
+}
+
+@media (max-width: 480px) {
+  .upcoming-events-container {
+    padding: 16px 12px;
+  }
+
+  .event-card {
+    padding: 14px;
+  }
+
+  .event-type-badge {
+    position: static;
+    display: inline-block;
+    margin-bottom: 10px;
+    font-size: 0.7rem;
+    padding: 3px 10px;
+  }
+
+  .event-title {
+    font-size: 1rem;
+    margin-bottom: 8px;
+  }
+
+  .event-description {
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+  }
+
+  .event-info {
+    gap: 6px;
+  }
+
+  .info-item {
+    font-size: 0.8rem;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .info-label {
+    min-width: auto;
+    font-size: 0.75rem;
+  }
+
+  .info-value {
+    font-size: 0.8rem;
   }
 }
