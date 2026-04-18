@@ -1,0 +1,28 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   RequireAuth — Loading spinner overlay shown while Firebase resolves auth.
+   Uses the same CSS custom properties as the global design system.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Full-page centered container ─────────────────────────────────────────── */
+.require-auth-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-page);
+}
+
+/* ── Gold spinning ring ───────────────────────────────────────────────────── */
+.require-auth-spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 3px solid var(--border-default);
+  /* Only the top arc is gold — gives a clean "loading" appearance */
+  border-top-color: var(--gold-base);
+  animation: require-auth-spin 0.75s linear infinite;
+}
+
+@keyframes require-auth-spin {
+  to { transform: rotate(360deg); }
+}

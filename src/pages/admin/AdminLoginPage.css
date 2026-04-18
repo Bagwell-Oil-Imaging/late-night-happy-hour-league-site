@@ -1,0 +1,164 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   AdminLoginPage — Centered login card
+   Consistent with the "Alley After Dark" design system in index.css.
+   Uses the same CSS custom properties (--navy-*, --gold-*, --cream-*, etc.)
+   defined globally so no hard-coded color values appear here.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Full-page container — centers the card vertically and horizontally ── */
+.admin-login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+/* ── Login card surface ──────────────────────────────────────────────────── */
+.admin-login-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--card-highlight), var(--shadow-lg), var(--shadow-gold);
+  padding: var(--space-10) var(--space-8);
+  width: 100%;
+  max-width: 400px;
+}
+
+/* ── Card header: title + subtitle ──────────────────────────────────────── */
+.admin-login-header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.admin-login-title {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  color: var(--accent-bright);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin: 0 0 var(--space-2) 0;
+  line-height: 1;
+}
+
+.admin-login-subtitle {
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 0;
+}
+
+/* ── Form layout ─────────────────────────────────────────────────────────── */
+.admin-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* ── Individual field: label + input stacked ─────────────────────────────── */
+.admin-login-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-login-label {
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+
+.admin-login-input {
+  background-color: var(--bg-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  padding: var(--space-3) var(--space-4);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.admin-login-input::placeholder {
+  color: var(--cream-600);
+}
+
+.admin-login-input:focus {
+  border-color: var(--gold-base);
+  box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.15);
+}
+
+/* Dim input while a request is in flight */
+.admin-login-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Error message ──────────────────────────────────────────────────────── */
+.admin-login-error {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--red-bright);
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Submit button ──────────────────────────────────────────────────────── */
+.admin-login-button {
+  background-color: var(--gold-base);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--text-inverse);
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: var(--space-4) var(--space-6);
+  text-transform: uppercase;
+  transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  margin-top: var(--space-2);
+}
+
+.admin-login-button:hover:not(:disabled) {
+  background-color: var(--gold-bright);
+  box-shadow: 0 4px 16px rgba(240, 180, 41, 0.35);
+  transform: translateY(-1px);
+}
+
+.admin-login-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.admin-login-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Responsive: full-bleed card on very small screens ───────────────────── */
+@media (max-width: 480px) {
+  .admin-login-page {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .admin-login-card {
+    border-radius: 0;
+    max-width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}

@@ -1,0 +1,171 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   AdminLayout — Admin shell: top navigation bar + content area.
+   Uses the same CSS custom properties as the global "Alley After Dark"
+   design system defined in index.css. No hard-coded color values.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Shell wrapper — full viewport height flex column ────────────────────── */
+.admin-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-page);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOP NAVIGATION BAR
+═══════════════════════════════════════════════════════════════════════════ */
+
+.admin-nav {
+  /* Sunken bar sits below the page background to create visual separation */
+  background-color: var(--bg-sunken);
+  border-bottom: 1px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 0 var(--space-8);
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 100; /* Stay above panel content during scroll */
+}
+
+/* ── Brand / home link (left side) ──────────────────────────────────────── */
+.admin-nav-brand {
+  flex-shrink: 0;
+}
+
+.admin-nav-brand-link {
+  font-family: var(--font-heading);
+  font-size: var(--text-md);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent-bright);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.admin-nav-brand-link:hover {
+  color: var(--cream-100);
+}
+
+/* ── Panel navigation links (centre, fills available space) ─────────────── */
+.admin-nav-links {
+  /* Takes all remaining horizontal space to push logout to the right */
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Base nav link: ghost pill button */
+.admin-nav-link {
+  display: inline-block;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.admin-nav-link:hover {
+  background-color: rgba(240, 180, 41, 0.08);
+  color: var(--text-primary);
+}
+
+/* Active route: gold underline + brighter text */
+.admin-nav-link--active {
+  color: var(--accent);
+  background-color: rgba(240, 180, 41, 0.10);
+  box-shadow: inset 0 -2px 0 var(--gold-base);
+}
+
+/* ── Logout button (right side) ─────────────────────────────────────────── */
+.admin-nav-logout {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  padding: var(--space-2) var(--space-4);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.admin-nav-logout:hover {
+  background-color: rgba(239, 68, 68, 0.10);
+  border-color: var(--red-bright);
+  color: var(--red-bright);
+}
+
+.admin-nav-logout:active {
+  background-color: rgba(239, 68, 68, 0.18);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PANEL CONTENT AREA
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Fills remaining vertical space; provides consistent inner padding */
+.admin-content {
+  flex: 1;
+  padding: var(--space-8);
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  /* Tighten horizontal padding on mobile */
+  .admin-nav {
+    padding: 0 var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .admin-content {
+    padding: var(--space-5) var(--space-4);
+  }
+
+  /* Hide nav link labels — brand + icons only on small screens */
+  .admin-nav-links {
+    gap: 0;
+  }
+
+  .admin-nav-link {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+    letter-spacing: 0.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* On very small screens, allow nav to scroll horizontally */
+  .admin-nav {
+    overflow-x: auto;
+    padding: 0 var(--space-3);
+  }
+
+  .admin-nav-links {
+    flex-shrink: 0;
+  }
+}
