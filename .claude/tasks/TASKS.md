@@ -93,7 +93,7 @@ graph TD
     class P2S4 pending
     class P2S5 pending
     class P3S1 completed
-    class P3S2 pending
+    class P3S2 completed
     class P4S1 pending
     class P4S2 pending
     class P4S3 pending
@@ -144,7 +144,7 @@ graph TD
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
 | 1 | [TypeScript Schema Types](phase-3/sub-task-1.md) | completed | — | e143052 |
-| 2 | [Firestore Hooks (Generic + Domain)](phase-3/sub-task-2.md) | pending | sub-task-1, phase-1/sub-task-1 | — |
+| 2 | [Firestore Hooks (Generic + Domain)](phase-3/sub-task-2.md) | completed | sub-task-1, phase-1/sub-task-1 | a8e5399 |
 
 ### Phase 4: React Component Migration
 **Goal:** Replace all static JSON imports in all React components with Firestore hooks.
@@ -180,8 +180,8 @@ graph TD
 |-------|-------|-----------|--------|
 | Phase 1: Firebase Foundation | 3 | 2 | In progress |
 | Phase 2: Transform Script Rework | 5 | 1 | In progress |
-| Phase 3: React Foundation | 2 | 1 | In progress |
+| Phase 3: React Foundation | 2 | 2 | Completed |
 | Phase 4: Component Migration | 4 | 0 | Not started |
 | Phase 5: Admin CRUD UI | 3 | 0 | Not started |
 | Phase 6: Cleanup & Optimization | 3 | 0 | Not started |
-| **Total** | **20** | **3** | **15%** |
+| **Total** | **20** | **4** | **20%** |
