@@ -662,9 +662,156 @@ function buildBowlerStats() {
   return results
 }
 
+// ─── Firestore: leagueConfig Collection ──────────────────────────────────────
+
+/**
+ * Populates the `leagueConfig` Firestore collection with one document per season.
+ *
+ * Attempts to read `leaguepals-data/league-public.json` and maps known API fields
+ * to the canonical leagueConfig schema. Fields not available from the LeaguePals API
+ * (handicapPct, handicapBase, gamesPerNight, numTeams, bowlingCenter) are always
+ * set to known-good hardcoded values from league rules.
+ *
+ * If `league-public.json` is missing (e.g., not yet fetched), the function falls
+ * back to a full set of hardcoded defaults so the script remains runnable in any
+ * environment.
+ *
+ * The document is written directly with `db.collection('leagueConfig').doc(seasonYear).set()`
+ * rather than via `batchWrite()` because only one document is written per invocation
+ * and no batch chunking is needed.
+ *
+ * @param {string} seasonYear - Firestore document ID, e.g. "2025-2026"
+ * @returns {Promise<void>}
+ */
+async function populateLeagueConfig(seasonYear) {
+  if (!db) {
+    console.warn('[populateLeagueConfig] Skipping leagueConfig — Firestore not initialized')
+    return
+  }
+
+  // Path to the league public info from the LeaguePals API
+  const leaguePublicPath = join(RAW_DIR, 'league-public.json')
+
+  /** @type {object} Firestore document to write */
+  let doc
+
+  if (existsSync(leaguePublicPath)) {
+    // ── Source data exists: map API fields to canonical schema ────────────────
+    const raw = JSON.parse(readFileSync(leaguePublicPath, 'utf8'))
+
+    // The API response wraps the league object under a `data` key
+    const api = raw.data ?? raw
+
+    doc = {
+      seasonYear,
+
+      // League identity — fall back to a known name if the API name is absent
+      leagueName: api.name ?? 'Late Night Happy Hour Bowling League',
+      leagueType: api.leagueType ?? 'Mens',
+
+      // Schedule info
+      weekday: api.weekday ?? 'Thursday',
+      startTime: api.time ?? '8:20 PM',
+
+      // Facility info — not in the LeaguePals API; always use hardcoded value
+      bowlingCenter: 'Unknown',
+
+      // Sanction number (LeaguePals stores it as a number; normalize to integer)
+      sanctionNumber: typeof api.sanction === 'number' ? api.sanction : 0,
+
+      // Team / bowler counts — `numTeams` is not in the API so we hardcode it
+      numTeams: 13,
+      bowlersPerTeam: typeof api.numPlayers === 'number' ? api.numPlayers : 4,
+
+      // Per-night games — not available in the LeaguePals API; hardcode from rules
+      gamesPerNight: 3,
+
+      // Season length from payment/fee structure
+      totalWeeks: typeof api.paymentWeeks === 'number' ? api.paymentWeeks : 33,
+
+      // Physical setup
+      numLanes: typeof api.numLanes === 'number' ? api.numLanes : 26,
+
+      // Handicap formula — these values are defined by league rules, not the API
+      handicapPct: 0.85,
+      handicapBase: 220,
+
+      // Blind score: API field is `againstBlindScorePct` (a percentage value 0-100).
+      // Convert to a decimal fraction (e.g., 10 → 0.10) if the API value looks like
+      // a whole-number percentage, otherwise use it as-is.
+      blindScorePct: (() => {
+        const raw = api.againstBlindScorePct
+        if (typeof raw !== 'number') return 0.9
+        // Values > 1 are assumed to be whole-number percentages (e.g., 10 means 10%)
+        return raw > 1 ? raw / 100 : raw
+      })(),
+
+      // Minimum games needed for an average to count this season
+      minGamesForAvg: typeof api.minGamesforAvg === 'number' ? api.minGamesforAvg : 3,
+
+      // Minimum games bowled in prior season to use entering average
+      prevSeasonMinGames: typeof api.previousGamesMin === 'number' ? api.previousGamesMin : 21,
+
+      // Position round scheduling description
+      positionRoundSchedule: api.positionRounds ?? 'Every other night',
+
+      // Financial fields
+      dues: typeof api.dues === 'number' ? api.dues : 0,
+      lineage: typeof api.lineage === 'number' ? api.lineage : 0,
+      entryFee: typeof api.entryFee === 'number' ? api.entryFee : 0,
+
+      // LeaguePals internal ID for cross-referencing
+      leaguePalsId: api._id ?? '',
+    }
+
+    console.log('[populateLeagueConfig] Mapped fields from league-public.json')
+  } else {
+    // ── league-public.json not found: use full hardcoded defaults ─────────────
+    console.warn('[populateLeagueConfig] league-public.json not found — using hardcoded defaults')
+
+    doc = {
+      seasonYear,
+      leagueName: 'Late Night Happy Hour Bowling League',
+      leagueType: 'Mens',
+      weekday: 'Thursday',
+      startTime: '8:20 PM',
+      bowlingCenter: 'Unknown',
+      sanctionNumber: 0,
+      numTeams: 13,
+      bowlersPerTeam: 4,
+      gamesPerNight: 3,
+      totalWeeks: 33,
+      numLanes: 26,
+      handicapPct: 0.85,
+      handicapBase: 220,
+      blindScorePct: 0.9,
+      minGamesForAvg: 3,
+      prevSeasonMinGames: 21,
+      positionRoundSchedule: 'Every other night',
+      dues: 0,
+      lineage: 0,
+      entryFee: 0,
+      leaguePalsId: '',
+    }
+  }
+
+  // Single-document write — no batch needed since there is exactly one config doc per season
+  await db.collection('leagueConfig').doc(seasonYear).set(doc)
+  console.log(`[leagueConfig] Wrote document "${seasonYear}"`)
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-function main() {
+/**
+ * Main async entry point — orchestrates all transform and Firestore population steps.
+ *
+ * Synchronous steps (local JSON file writes) run first so the output files are
+ * always produced regardless of Firestore availability. Async Firestore population
+ * steps run afterward and are awaited so any write errors are surfaced at the end.
+ *
+ * @returns {Promise<void>}
+ */
+async function main() {
   console.log('LeaguePals Data Transformer')
   console.log(`Active teams: ${teamIdMap.size}`)
   console.log(`Schedule weeks: ${(schedule.schedule ?? []).length}\n`)
@@ -716,6 +863,17 @@ function main() {
   teams
     .sort((a, b) => b.points - a.points)
     .forEach((t, i) => console.log(`  ${String(i+1).padStart(2)}. ${t.name.padEnd(28)} W:${t.wins} L:${t.losses} T:${t.ties} Pts:${t.points}`))
+
+  // ── Firestore population ─────────────────────────────────────────────────────
+  // Each populate* function is a no-op when db === null (Firestore not configured).
+  // Additional populate functions for teams, bowlers, scores, etc. will be added
+  // in subsequent sub-tasks (phase-2/sub-task-3 through sub-task-5).
+
+  console.log('\n─────────────────────────────────────────')
+  console.log('Firestore population...')
+
+  // 6. Write league configuration document for the current season
+  await populateLeagueConfig('2025-2026')
 }
 
 main()
