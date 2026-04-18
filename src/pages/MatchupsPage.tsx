@@ -1,28 +1,60 @@
+/**
+ * @file MatchupsPage.tsx
+ * @component MatchupsPage
+ *
+ * Scoreboard page showing team-vs-team matchup results for each week of the
+ * season. The user navigates weeks via the WeekSelector; clicking a row opens
+ * MatchupDetailModal for the full team breakdown.
+ *
+ * Data is sourced entirely from Firestore:
+ *  - `useMatchupDetails` — team aggregate scores (replaces weeklyMatchupDetails.json)
+ *  - `useMatchups`       — lightweight matchup records used only for week-range
+ *                          detection (replaces historicalMatches.json)
+ *
+ * Field renames from the pre-migration schema:
+ *  - `gameTotals.g1/g2/g3` → `game1Total/game2Total/game3Total` (TeamSummary)
+ */
+
 import { useMemo, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import WeekSelector from '../components/WeekSelector'
 import MatchupDetailModal from '../components/MatchupDetailModal'
 import BowlerProfileModal from '../components/BowlerProfileModal'
-import historicalData from '../data/historicalMatches.json'
-import matchupDetailsData from '../data/weeklyMatchupDetails.json'
-import type { Matchup, MatchupDetail } from '../types'
+import { useMatchups, useMatchupDetails } from '../hooks'
+import type { MatchupDetail } from '../types'
 import './MatchupsPage.css'
 
+/**
+ * Determines how many points a team scored in a single game/series comparison.
+ *
+ * @param myScore  - This team's score for the game
+ * @param oppScore - Opponent's score for the same game
+ * @returns 1 for a win, 0.5 for a tie, 0 for a loss
+ */
 function calcPoints(myScore: number, oppScore: number): number {
   if (myScore > oppScore) return 1
   if (myScore === oppScore) return 0.5
   return 0
 }
 
+/**
+ * Calculates the 4-point breakdown (3 games + series) for both teams in a
+ * matchup. Uses handicap-adjusted per-game totals.
+ *
+ * @param detail - Full MatchupDetail with team1/team2 aggregates
+ * @returns Object containing team1 and team2 point totals (sum is always 4)
+ */
 function getMatchPoints(detail: MatchupDetail): { team1: number; team2: number } {
   const t1hcp = detail.team1.handicapPerGame
   const t2hcp = detail.team2.handicapPerGame
-  const t1g1 = detail.team1.gameTotals.g1 + t1hcp
-  const t2g1 = detail.team2.gameTotals.g1 + t2hcp
-  const t1g2 = detail.team1.gameTotals.g2 + t1hcp
-  const t2g2 = detail.team2.gameTotals.g2 + t2hcp
-  const t1g3 = detail.team1.gameTotals.g3 + t1hcp
-  const t2g3 = detail.team2.gameTotals.g3 + t2hcp
+
+  // game1Total/game2Total/game3Total replace the old gameTotals.g1/g2/g3 fields
+  const t1g1 = detail.team1.game1Total + t1hcp
+  const t2g1 = detail.team2.game1Total + t2hcp
+  const t1g2 = detail.team1.game2Total + t1hcp
+  const t2g2 = detail.team2.game2Total + t2hcp
+  const t1g3 = detail.team1.game3Total + t1hcp
+  const t2g3 = detail.team2.game3Total + t2hcp
 
   const t1 =
     calcPoints(t1g1, t2g1) +
@@ -33,16 +65,30 @@ function getMatchPoints(detail: MatchupDetail): { team1: number; team2: number }
   return { team1: t1, team2: 4 - t1 }
 }
 
+/**
+ * MatchupsPage component.
+ *
+ * @returns Full matchups page JSX with week selector, scoreboard table, and
+ *   detail/bowler modals. Returns a loading placeholder while Firestore data
+ *   is in flight.
+ */
 function MatchupsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
-  const [selectedMatchupId, setSelectedMatchupId] = useState<number | null>(null)
+  const [selectedMatchupId, setSelectedMatchupId] = useState<string | null>(null)
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null)
 
-  const matches = historicalData as Matchup[]
-  const matchupDetails = matchupDetailsData as MatchupDetail[]
+  // Fetch lightweight matchup records to determine the latest completed week
+  const { data: matchups, loading: matchupsLoading } = useMatchups('2025-2026')
 
-  const completedMatches = useMemo(() => matches.filter(m => m.completed), [matches])
+  // Fetch full team-aggregate detail records for scoreboard display
+  const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails('2025-2026')
+
+  const loading = matchupsLoading || detailsLoading
+  if (loading) return <div className="loading">Loading matchups…</div>
+
+  // Determine the highest week that has been completed to default the selector
+  const completedMatches = useMemo(() => matchups.filter(m => m.completed), [matchups])
   const latestWeek = useMemo(() =>
     completedMatches.length ? Math.max(...completedMatches.map(m => m.week)) : 1,
     [completedMatches]
@@ -51,6 +97,7 @@ function MatchupsPage() {
   const currentWeek = parseInt(searchParams.get('week') ?? String(latestWeek), 10)
   const setWeek = (week: number) => setSearchParams({ week: String(week) })
 
+  // Filter matchup details to only the selected week
   const weekMatchups = useMemo(() =>
     matchupDetails.filter(m => m.week === currentWeek),
     [matchupDetails, currentWeek]
@@ -58,6 +105,7 @@ function MatchupsPage() {
 
   const weekDate = weekMatchups[0]?.date
 
+  // Build the week list for the jump selector from available detail records
   const weekList = useMemo(() => {
     const seen = new Map<number, string>()
     for (const m of matchupDetails) {
@@ -117,11 +165,12 @@ function MatchupsPage() {
                   <tr
                     key={match.id}
                     className="matchup-row"
-                    onClick={() => setSelectedMatchupId(match.id)}
+                    // Firestore document ID is now a string — matches MatchupDetailModal's prop type
+                    onClick={() => setSelectedMatchupId(match.id ?? null)}
                     title="Click for full bowler breakdown"
                   >
                     <td className={`col-team-left team-cell ${t1Won ? 'winner' : ''}`}>
-                      {match.team1.name}
+                      {match.team1.teamName}
                     </td>
                     <td className={`col-pts center pts-cell ${t1Won ? 'pts-winner' : ''}`}>
                       {pts.team1 % 1 === 0 ? pts.team1 : pts.team1.toFixed(1)}
@@ -157,7 +206,7 @@ function MatchupsPage() {
                       {pts.team2 % 1 === 0 ? pts.team2 : pts.team2.toFixed(1)}
                     </td>
                     <td className={`col-team-right team-cell ${t2Won ? 'winner' : ''}`}>
-                      {match.team2.name}
+                      {match.team2.teamName}
                     </td>
                   </tr>
                 )

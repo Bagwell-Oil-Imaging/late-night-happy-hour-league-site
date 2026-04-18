@@ -18,6 +18,7 @@
  *  useBowler           – Single bowler by Firestore document ID (leaguePalsId)
  *  useBowlerScores     – All scores for a bowler, optionally by season
  *  useMatchups         – All matchups for a season, optionally by week
+ *  useMatchupDetails   – All matchup details for a season, optionally by week
  *  useMatchupDetail    – Single matchup detail by matchup document ID
  *  useScheduleWeeks    – All schedule weeks for a season, sorted by date
  *  useSeasons          – All seasons, sorted by year desc
@@ -162,6 +163,32 @@ export function useMatchups(seasonYear: string, week?: number) {
         ];
 
   return useCollection<Matchup>('matchups', constraints);
+}
+
+/**
+ * Subscribes to all `MatchupDetail` documents for a given season, optionally
+ * filtered to a specific week. Results are ordered by week ascending.
+ *
+ * Useful for pages that need team-level aggregate scores across multiple weeks
+ * (e.g. TeamsPage, MatchupsPage scoreboard).
+ *
+ * @param seasonYear - Four-digit season year string
+ * @param week       - Optional week number to narrow results to a single week
+ * @returns `{ data: MatchupDetail[], loading, error }`
+ */
+export function useMatchupDetails(seasonYear: string, week?: number) {
+  const constraints =
+    week !== undefined
+      ? [
+          where('seasonYear', '==', seasonYear),
+          where('week', '==', week),
+        ]
+      : [
+          where('seasonYear', '==', seasonYear),
+          orderBy('week', 'asc'),
+        ];
+
+  return useCollection<MatchupDetail>('matchupDetails', constraints);
 }
 
 /**

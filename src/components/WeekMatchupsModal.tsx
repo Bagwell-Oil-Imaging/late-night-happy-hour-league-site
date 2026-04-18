@@ -1,18 +1,27 @@
 /**
- * WeekMatchupsModal — shows all matchup pairings for a selected schedule week.
+ * @file WeekMatchupsModal.tsx
+ * @component WeekMatchupsModal
  *
- * For completed weeks, displays scores and win/loss state, and lets the user
- * drill into the full bowler breakdown via MatchupDetailModal.
+ * Overlay modal showing all matchup pairings for a selected schedule week.
+ *
+ * For completed weeks, displays team scores and win/loss state, and lets the
+ * user drill into the full team breakdown via MatchupDetailModal.
  * For upcoming weeks, shows the scheduled team pairings without scores.
+ *
+ * Data is sourced from Firestore via `useMatchupDetails` and `useMatchups`
+ * hooks — no static JSON imports.
+ *
+ * Field renames from the pre-migration schema:
+ *  - `gameTotals.g1/g2/g3` → `game1Total/game2Total/game3Total` (TeamSummary)
+ *  - `weekEntry.dataWeek`   → `weekEntry.week`  (ScheduleWeek schema change)
+ *  - `team.id` (number)     → `team1Id`/`team2Id` + `leaguePalsId` (string)
  */
 
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import matchupDetailsData from '../data/weeklyMatchupDetails.json'
-import upcomingMatchupsData from '../data/matchups.json'
-import teamsData from '../data/teams.json'
+import { useMatchupDetails, useMatchups, useTeams } from '../hooks'
 import MatchupDetailModal from './MatchupDetailModal'
-import type { ScheduleWeek, MatchupDetail, Matchup, Team } from '../types'
+import type { ScheduleWeek, MatchupDetail } from '../types'
 import './WeekMatchupsModal.css'
 
 interface WeekMatchupsModalProps {
@@ -21,16 +30,29 @@ interface WeekMatchupsModalProps {
   onClose: () => void
 }
 
+/**
+ * WeekMatchupsModal component.
+ *
+ * @param weekEntry - The schedule-week entry driving the modal content, or null
+ *   when the modal should be hidden.
+ * @param onClose   - Callback invoked when the modal requests dismissal.
+ * @returns Modal JSX, or null when weekEntry is null.
+ */
 function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
   const navigate = useNavigate()
   const isOpen = weekEntry !== null
 
-  /** ID of the individual matchup the user drilled into (completed weeks only). */
-  const [detailMatchupId, setDetailMatchupId] = useState<number | null>(null)
+  /** Firestore document ID of the individual matchup the user drilled into. */
+  const [detailMatchupId, setDetailMatchupId] = useState<string | null>(null)
 
-  const matchupDetails = matchupDetailsData as MatchupDetail[]
-  const upcomingMatchups = upcomingMatchupsData as Matchup[]
-  const teams = teamsData as Team[]
+  // Fetch all matchup detail records (completed weeks scoreboard)
+  const { data: matchupDetails } = useMatchupDetails('2025-2026')
+
+  // Fetch lightweight matchup records for upcoming week pairings
+  const { data: upcomingMatchups } = useMatchups('2025-2026')
+
+  // Fetch teams to build a leaguePalsId → name lookup for upcoming pairings
+  const { data: teams } = useTeams('2025-2026')
 
   /* ── Lock body scroll while open ────────────────────────────────────────── */
   useEffect(() => {
@@ -53,38 +75,56 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
     return () => document.removeEventListener('keydown', handleEscape)
   }, [isOpen, onClose, detailMatchupId])
 
-  /* ── Pre-build team name lookup ──────────────────────────────────────────── */
+  /* ── Pre-build team name lookup: leaguePalsId → name ─────────────────────
+     leaguePalsId replaces the old numeric `id` field on the Team interface.   */
   const teamNameMap = useMemo(() => {
-    const map: Record<number, string> = {}
-    for (const t of teams) map[t.id] = t.name
+    const map: Record<string, string> = {}
+    for (const t of teams) map[t.leaguePalsId] = t.name
     return map
   }, [teams])
 
-  /* ── Matchup data for the selected week ──────────────────────────────────── */
+  /* ── Matchup data for the selected week ──────────────────────────────────
+     ScheduleWeek.dataWeek was removed in the new schema; `week` is now the
+     canonical week number on both ScheduleWeek and MatchupDetail.             */
   const completedMatchups = useMemo(() => {
     if (!weekEntry || weekEntry.status !== 'completed') return []
-    return matchupDetails.filter(m => m.week === weekEntry.dataWeek)
+    return matchupDetails.filter(m => m.week === weekEntry.week)
   }, [weekEntry, matchupDetails])
 
   const upcomingPairings = useMemo(() => {
     if (!weekEntry || weekEntry.status !== 'upcoming') return []
-    return upcomingMatchups.filter(m => m.week === weekEntry.dataWeek)
+    return upcomingMatchups.filter(m => m.week === weekEntry.week)
   }, [weekEntry, upcomingMatchups])
 
-  /* ── Point calculation helper (mirrors MatchupsPage logic) ──────────────── */
-  function calcPts(mine: number, theirs: number) {
+  /* ── Point calculation helpers (mirrors MatchupsPage logic) ──────────────── */
+
+  /**
+   * Returns 1/0.5/0 for win/tie/loss on a single game comparison.
+   *
+   * @param mine   - This team's score
+   * @param theirs - Opponent's score
+   */
+  function calcPts(mine: number, theirs: number): number {
     if (mine > theirs) return 1
     if (mine === theirs) return 0.5
     return 0
   }
 
+  /**
+   * Calculates the 4-point breakdown for both teams in a completed matchup.
+   * Uses `game1Total/game2Total/game3Total` (renamed from `gameTotals.g1/g2/g3`).
+   *
+   * @param detail - MatchupDetail with team1/team2 aggregates
+   * @returns `{ team1, team2 }` point totals summing to 4
+   */
   function getMatchPoints(detail: MatchupDetail) {
     const h1 = detail.team1.handicapPerGame
     const h2 = detail.team2.handicapPerGame
     const t1 =
-      calcPts(detail.team1.gameTotals.g1 + h1, detail.team2.gameTotals.g1 + h2) +
-      calcPts(detail.team1.gameTotals.g2 + h1, detail.team2.gameTotals.g2 + h2) +
-      calcPts(detail.team1.gameTotals.g3 + h1, detail.team2.gameTotals.g3 + h2) +
+      // game1Total/game2Total/game3Total replace the old gameTotals.g1/g2/g3 fields
+      calcPts(detail.team1.game1Total + h1, detail.team2.game1Total + h2) +
+      calcPts(detail.team1.game2Total + h1, detail.team2.game2Total + h2) +
+      calcPts(detail.team1.game3Total + h1, detail.team2.game3Total + h2) +
       calcPts(detail.team1.totalSeries, detail.team2.totalSeries)
     return { team1: t1, team2: 4 - t1 }
   }
@@ -162,7 +202,7 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
                       return (
                         <tr key={match.id} className="wm-row">
                           <td className={`wm-col-team wm-left wm-team-cell ${t1Won ? 'wm-winner' : ''}`}>
-                            {match.team1.name}
+                            {match.team1.teamName}
                           </td>
                           <td className={`wm-col-pts center wm-pts-cell ${t1Won ? 'wm-pts-winner' : ''}`}>
                             {fmtPts(pts.team1)}
@@ -198,13 +238,13 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
                             {fmtPts(pts.team2)}
                           </td>
                           <td className={`wm-col-team wm-right wm-team-cell ${t2Won ? 'wm-winner' : ''}`}>
-                            {match.team2.name}
+                            {match.team2.teamName}
                           </td>
                           <td className="wm-col-action">
                             <button
                               className="wm-detail-btn"
-                              onClick={() => setDetailMatchupId(match.id)}
-                              aria-label={`View full breakdown for ${match.team1.name} vs ${match.team2.name}`}
+                              onClick={() => setDetailMatchupId(match.id ?? null)}
+                              aria-label={`View full breakdown for ${match.team1.teamName} vs ${match.team2.teamName}`}
                             >
                               Details
                             </button>
@@ -235,6 +275,7 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
                     {upcomingPairings.map(m => (
                       <tr key={m.id} className="wm-row wm-row--upcoming">
                         <td className="wm-col-team wm-left wm-team-cell">
+                          {/* team1Id/team2Id are now string leaguePalsId values */}
                           {teamNameMap[m.team1Id] ?? `Team ${m.team1Id}`}
                         </td>
                         <td className="wm-col-sep center wm-sep-cell">vs</td>

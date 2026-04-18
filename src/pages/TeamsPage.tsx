@@ -1,35 +1,74 @@
+/**
+ * @file TeamsPage.tsx
+ * @component TeamsPage
+ *
+ * Displays a per-team record and weekly results summary. The user selects a
+ * team via the pill selector; the view then shows each completed matchup with
+ * game totals and handicap breakdown.
+ *
+ * Data is sourced exclusively from Firestore via `useTeams` and
+ * `useMatchupDetails`. The legacy per-bowler breakdown has been removed
+ * because individual bowler scores are now stored in the separate
+ * `BowlerScore` collection rather than embedded in `MatchupDetail`.
+ */
+
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import teamsData from '../data/teams.json'
-import matchupDetailsData from '../data/weeklyMatchupDetails.json'
-import type { Team, MatchupDetail } from '../types'
+import { useTeams, useMatchupDetails } from '../hooks'
 import '../components/MatchupDetailModal.css'
 import './TeamsPage.css'
 
+/**
+ * TeamsPage component.
+ *
+ * @returns Full teams page JSX including team selector, record bar, and
+ *   per-week results cards. Returns a loading placeholder while Firestore
+ *   data is in flight.
+ */
 function TeamsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const teams = teamsData as Team[]
-  const matchupDetails = matchupDetailsData as MatchupDetail[]
 
+  // Fetch all teams and all matchup details for the current season
+  const { data: teams, loading: teamsLoading } = useTeams('2025-2026')
+  const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails('2025-2026')
+
+  // Show loading state while either dataset is still fetching
+  if (teamsLoading || detailsLoading) {
+    return <div className="loading">Loading teams…</div>
+  }
+
+  // Sort teams by points descending for the pill selector order
   const sortedTeams = useMemo(() =>
     [...teams].sort((a, b) => b.points - a.points),
     [teams]
   )
 
+  // Resolve the selected team from the URL query param, defaulting to first
   const teamIdParam = searchParams.get('team')
-  const selectedTeamId = teamIdParam ? parseInt(teamIdParam, 10) : sortedTeams[0]?.id
-  const selectedTeam = teams.find(t => t.id === selectedTeamId)
+  const selectedTeamId = teamIdParam ?? sortedTeams[0]?.leaguePalsId
+  const selectedTeam = teams.find(t => t.leaguePalsId === selectedTeamId)
 
+  // Filter matchup details where the selected team participated, sorted by week
   const teamMatchups = useMemo(() =>
     matchupDetails
-      .filter(m => m.team1.id === selectedTeamId || m.team2.id === selectedTeamId)
+      .filter(m =>
+        m.team1.teamId === selectedTeamId ||
+        m.team2.teamId === selectedTeamId
+      )
       .sort((a, b) => a.week - b.week),
     [matchupDetails, selectedTeamId]
   )
 
-  const selectTeam = (id: number) => setSearchParams({ team: String(id) })
+  /** Updates the URL query param to switch the active team selection. */
+  const selectTeam = (id: string) => setSearchParams({ team: id })
 
-  const formatDate = (dateString: string) => {
+  /**
+   * Formats a date string for display (e.g. "Jan 5").
+   *
+   * @param dateString - ISO date string, e.g. "2025-01-05"
+   * @returns Short month+day string
+   */
+  const formatDate = (dateString: string): string => {
     const d = new Date(dateString + 'T12:00:00')
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
@@ -38,13 +77,14 @@ function TeamsPage() {
     <div className="teams-page">
       <h2 className="section-title">Teams</h2>
 
+      {/* Team pill selector — ordered by standings */}
       <div className="team-selector-scroll">
         <div className="team-pills">
           {sortedTeams.map(team => (
             <button
-              key={team.id}
-              className={`team-pill ${team.id === selectedTeamId ? 'active' : ''}`}
-              onClick={() => selectTeam(team.id)}
+              key={team.leaguePalsId}
+              className={`team-pill ${team.leaguePalsId === selectedTeamId ? 'active' : ''}`}
+              onClick={() => selectTeam(team.leaguePalsId)}
             >
               {team.name}
             </button>
@@ -54,6 +94,7 @@ function TeamsPage() {
 
       {selectedTeam && (
         <div className="team-content">
+          {/* W–L–T record bar with points badge */}
           <div className="team-record-bar">
             <div className="team-record-name">{selectedTeam.name}</div>
             <div className="team-record-stats">
@@ -78,12 +119,14 @@ function TeamsPage() {
             </div>
           </div>
 
+          {/* Per-week matchup cards */}
           <div className="team-weeks-list">
             {teamMatchups.length === 0 ? (
               <p className="no-data">No match data available yet.</p>
             ) : (
               teamMatchups.map(match => {
-                const isTeam1 = match.team1.id === selectedTeamId
+                // Determine which side of the matchup this team is on
+                const isTeam1 = match.team1.teamId === selectedTeamId
                 const myTeam = isTeam1 ? match.team1 : match.team2
                 const oppTeam = isTeam1 ? match.team2 : match.team1
                 const won = myTeam.totalSeries > oppTeam.totalSeries
@@ -98,7 +141,7 @@ function TeamsPage() {
                         <span className="week-lane-label">Lane {myTeam.lane}</span>
                       </div>
                       <div className="week-result">
-                        <span className="opp-name">vs {oppTeam.name}</span>
+                        <span className="opp-name">vs {oppTeam.teamName}</span>
                         <span className={`result-chip ${won ? 'win' : lost ? 'loss' : 'tie'}`}>
                           {won ? 'WIN' : lost ? 'LOSS' : 'TIE'}
                         </span>
@@ -108,11 +151,13 @@ function TeamsPage() {
                       </div>
                     </div>
 
+                    {/* Game-by-game team totals — individual bowler rows are in the
+                        BowlerScore collection and displayed on the Bowlers page */}
                     <div className="scores-table-wrapper">
                       <table className="matchup-scores-table">
                         <thead>
                           <tr>
-                            <th className="col-name">Bowler</th>
+                            <th className="col-name"></th>
                             <th className="col-game">G1</th>
                             <th className="col-game">G2</th>
                             <th className="col-game">G3</th>
@@ -120,22 +165,12 @@ function TeamsPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {myTeam.bowlers.map((bowler, i) => (
-                            <tr key={i} className="bowler-row">
-                              <td className="col-name">{bowler.name}</td>
-                              <td className="col-game">{bowler.g1}</td>
-                              <td className="col-game">{bowler.g2}</td>
-                              <td className="col-game">{bowler.g3}</td>
-                              <td className="col-series">{bowler.series}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
+                          {/* Scratch team totals — game1Total/game2Total/game3Total (new schema) */}
                           <tr className="totals-row scratch-row">
                             <td className="col-name">Scratch</td>
-                            <td className="col-game">{myTeam.gameTotals.g1}</td>
-                            <td className="col-game">{myTeam.gameTotals.g2}</td>
-                            <td className="col-game">{myTeam.gameTotals.g3}</td>
+                            <td className="col-game">{myTeam.game1Total}</td>
+                            <td className="col-game">{myTeam.game2Total}</td>
+                            <td className="col-game">{myTeam.game3Total}</td>
                             <td className="col-series">{myTeam.scratchSeries}</td>
                           </tr>
                           <tr className="totals-row handicap-row">
@@ -147,12 +182,12 @@ function TeamsPage() {
                           </tr>
                           <tr className={`totals-row grand-total-row ${won ? 'winner' : ''}`}>
                             <td className="col-name">Total</td>
-                            <td className="col-game">{myTeam.gameTotals.g1 + myTeam.handicapPerGame}</td>
-                            <td className="col-game">{myTeam.gameTotals.g2 + myTeam.handicapPerGame}</td>
-                            <td className="col-game">{myTeam.gameTotals.g3 + myTeam.handicapPerGame}</td>
+                            <td className="col-game">{myTeam.game1Total + myTeam.handicapPerGame}</td>
+                            <td className="col-game">{myTeam.game2Total + myTeam.handicapPerGame}</td>
+                            <td className="col-game">{myTeam.game3Total + myTeam.handicapPerGame}</td>
                             <td className="col-series">{myTeam.totalSeries}</td>
                           </tr>
-                        </tfoot>
+                        </tbody>
                       </table>
                     </div>
                   </div>

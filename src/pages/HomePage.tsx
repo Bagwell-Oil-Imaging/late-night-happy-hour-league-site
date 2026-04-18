@@ -35,7 +35,8 @@ function HomePage() {
   const teams = teamsData as Team[]
   const navigate = useNavigate()
 
-  const [selectedMatchupId, setSelectedMatchupId] = useState<number | null>(null)
+  // matchupId is a string (Firestore document ID) after the Firestore migration
+  const [selectedMatchupId, setSelectedMatchupId] = useState<string | null>(null)
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null)
 
   const completedMatches = useMemo(() => matches.filter(m => m.completed), [matches])
