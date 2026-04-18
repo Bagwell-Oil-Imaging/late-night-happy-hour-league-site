@@ -87,7 +87,7 @@ graph TD
     class P1S1 completed
     class P1S2 completed
     class P1S3 pending
-    class P2S1 pending
+    class P2S1 completed
     class P2S2 pending
     class P2S3 pending
     class P2S4 pending
@@ -132,7 +132,7 @@ graph TD
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [firebase-admin Setup + Batch Write Helper](phase-2/sub-task-1.md) | pending | phase-1/sub-task-1 | — |
+| 1 | [firebase-admin Setup + Batch Write Helper](phase-2/sub-task-1.md) | completed | phase-1/sub-task-1 | cd9cd6f |
 | 2 | [leagueConfig Collection Mapping](phase-2/sub-task-2.md) | pending | sub-task-1 | — |
 | 3 | [Expanded Teams + Bowlers Mapping](phase-2/sub-task-3.md) | pending | sub-task-1 | — |
 | 4 | [bowlerScores: Blind/PreBowl/Substitute](phase-2/sub-task-4.md) | pending | sub-task-1 | — |
@@ -179,9 +179,9 @@ graph TD
 | Phase | Tasks | Completed | Status |
 |-------|-------|-----------|--------|
 | Phase 1: Firebase Foundation | 3 | 2 | In progress |
-| Phase 2: Transform Script Rework | 5 | 0 | Not started |
+| Phase 2: Transform Script Rework | 5 | 1 | In progress |
 | Phase 3: React Foundation | 2 | 1 | In progress |
 | Phase 4: Component Migration | 4 | 0 | Not started |
 | Phase 5: Admin CRUD UI | 3 | 0 | Not started |
 | Phase 6: Cleanup & Optimization | 3 | 0 | Not started |
-| **Total** | **20** | **2** | **10%** |
+| **Total** | **20** | **3** | **15%** |
