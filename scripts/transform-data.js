@@ -4,20 +4,132 @@
  * Reads raw LeaguePals API data from leaguepals-data/ and transforms it
  * into the JSON formats expected by the React site components in src/data/.
  *
+ * Also writes all transformed data directly to Firestore when a valid
+ * service account is configured via FIREBASE_SERVICE_ACCOUNT_PATH in .env.
+ *
  * Generates:
- *   src/data/teams.json           — Team[] (real names, W/L/T, points)
+ *   src/data/teams.json             — Team[] (real names, W/L/T, points)
  *   src/data/historicalMatches.json — Matchup[] (completed weeks with scores)
- *   src/data/matchups.json        — Matchup[] (upcoming weeks, no scores)
- *   src/data/seasons.json         — Season[] (2025-26 current season from standings)
+ *   src/data/matchups.json          — Matchup[] (upcoming weeks, no scores)
+ *   src/data/seasons.json           — Season[] (2025-26 current season from standings)
  *
  * Usage: node scripts/transform-data.js
  */
 
+// Load environment variables from .env before any other side-effectful code
+import 'dotenv/config'
+
 import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { join, dirname } from 'path'
+import { join, dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
+import { createRequire } from 'module'
+import admin from 'firebase-admin'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
+
+// createRequire lets us use require() semantics (including JSON loading) in ESM
+const _require = createRequire(import.meta.url)
+
+// ─── Firebase Admin Initialization ───────────────────────────────────────────
+
+/**
+ * Initializes firebase-admin using a service account JSON file.
+ * The path to the service account file is read from FIREBASE_SERVICE_ACCOUNT_PATH
+ * (defaults to ./service-account.json relative to the project root).
+ *
+ * If the file is missing or initialization fails for any reason, `db` is set to
+ * null and all Firestore writes are silently skipped — the transform continues
+ * to produce local JSON files as normal.
+ */
+
+// Resolve the service account path relative to the project root (one level up from scripts/)
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './service-account.json'
+
+/** @type {import('firebase-admin').firestore.Firestore|null} */
+let db
+try {
+  const serviceAccount = _require(resolve(join(__dirname, '..'), serviceAccountPath))
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) })
+  db = admin.firestore()
+  console.log('[firebase-admin] Initialized Firestore connection')
+} catch (err) {
+  console.warn('[firebase-admin] Could not initialize:', err.message)
+  console.warn('[firebase-admin] Set FIREBASE_SERVICE_ACCOUNT_PATH in .env to enable Firestore writes')
+  db = null
+}
+
+// ─── Firestore Batch Write Helpers ───────────────────────────────────────────
+
+/**
+ * Writes documents to a Firestore collection in batches of 500.
+ *
+ * Firestore batch operations are capped at 500 writes per batch. This helper
+ * automatically chunks the `docs` array so callers never need to think about
+ * the limit. If Firestore is not initialized (`db === null`), the function logs
+ * a warning and returns early — no error is thrown.
+ *
+ * @param {string} collectionName - Target Firestore collection name
+ * @param {Object[]} docs - Array of plain document data objects to write
+ * @param {Function|null} getDocId - Optional function(doc) => string that returns
+ *   a custom document ID for each doc. When null, Firestore auto-generates IDs.
+ * @returns {Promise<void>}
+ */
+async function batchWrite(collectionName, docs, getDocId = null) {
+  if (!db) {
+    console.warn(`[batchWrite] Skipping ${collectionName} — Firestore not initialized`)
+    return
+  }
+
+  const CHUNK_SIZE = 500
+  let written = 0
+
+  for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
+    const chunk = docs.slice(i, i + CHUNK_SIZE)
+    const batch = db.batch()
+
+    for (const doc of chunk) {
+      // Use caller-supplied ID function if provided, otherwise let Firestore auto-generate
+      const ref = getDocId
+        ? db.collection(collectionName).doc(getDocId(doc))
+        : db.collection(collectionName).doc()
+      batch.set(ref, doc)
+    }
+
+    await batch.commit()
+    written += chunk.length
+    console.log(`[${collectionName}] Wrote ${written}/${docs.length} documents`)
+  }
+}
+
+/**
+ * Deletes all documents in a Firestore collection, batched in groups of 500.
+ *
+ * Used before re-seeding a collection to ensure idempotent re-runs. If the
+ * collection is already empty, logs a message and returns early. If Firestore
+ * is not initialized, returns silently.
+ *
+ * @param {string} collectionName - Name of the collection to clear
+ * @returns {Promise<void>}
+ */
+async function clearCollection(collectionName) {
+  if (!db) { return }
+
+  const snapshot = await db.collection(collectionName).get()
+  if (snapshot.empty) {
+    console.log(`[clearCollection] ${collectionName} is already empty`)
+    return
+  }
+
+  const CHUNK_SIZE = 500
+  for (let i = 0; i < snapshot.docs.length; i += CHUNK_SIZE) {
+    const batch = db.batch()
+    snapshot.docs.slice(i, i + CHUNK_SIZE).forEach(doc => batch.delete(doc.ref))
+    await batch.commit()
+  }
+
+  console.log(`[clearCollection] Cleared ${snapshot.docs.length} docs from ${collectionName}`)
+}
+
 const ROOT = join(__dirname, '..')
 const RAW_DIR = join(ROOT, 'leaguepals-data')
 const TEAMS_RAW_DIR = join(RAW_DIR, 'teams')
