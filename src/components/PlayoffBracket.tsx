@@ -3,7 +3,11 @@ import type { Team } from '../types'
 import './PlayoffBracket.css'
 
 function PlayoffBracket() {
-  const teams = teamsData as Team[]
+  // Cast through unknown to bridge the legacy JSON shape to the current Team type.
+  // PlayoffBracket only accesses `wins` and `points`, which are present in both
+  // the old and new schema, so this cast is safe for the fields actually used.
+  // TODO: migrate PlayoffBracket to useTeams hook (phase-6 cleanup)
+  const teams = teamsData as unknown as Team[]
 
   // Sort teams by wins (descending), then by points
   const sortedTeams = [...teams].sort((a, b) => {

@@ -15,8 +15,7 @@ import SchedulePage from './pages/SchedulePage'
 import AdminLoginPage from './pages/admin/AdminLoginPage'
 import RequireAuth from './components/admin/RequireAuth'
 import AdminLayout from './components/admin/AdminLayout'
-import announcementsData from './data/announcements.json'
-import type { Announcement } from './types'
+import { useAnnouncements } from './hooks'
 
 /**
  * App root component.
@@ -34,7 +33,8 @@ import type { Announcement } from './types'
 function App() {
   const [showAnnouncements, setShowAnnouncements] = useState(false)
   const [showBylaws, setShowBylaws] = useState(false)
-  const announcements = announcementsData as Announcement[]
+  // Fetch live announcement count from Firestore for the Header badge
+  const { data: announcements } = useAnnouncements()
 
   return (
     <Routes>
@@ -110,7 +110,6 @@ function App() {
             </footer>
             <BylawsModal isOpen={showBylaws} onClose={() => setShowBylaws(false)} />
             <AnnouncementsModal
-              announcements={announcements}
               isOpen={showAnnouncements}
               onClose={() => setShowAnnouncements(false)}
             />

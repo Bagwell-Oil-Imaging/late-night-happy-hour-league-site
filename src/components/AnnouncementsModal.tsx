@@ -1,50 +1,73 @@
+/**
+ * @file AnnouncementsModal.tsx
+ * @module components/AnnouncementsModal
+ *
+ * Full-screen modal overlay that lists all active announcements fetched from
+ * Firestore. The `useAnnouncements` hook handles expiry filtering and sort order
+ * (pinned first, then by priority, then by date descending), so no additional
+ * sorting logic is needed here.
+ *
+ * Keyboard shortcut: Escape closes the modal.
+ * Click outside the modal content also closes it.
+ */
+
 import { useEffect } from 'react'
-import type { Announcement } from '../types'
+import { useAnnouncements } from '../hooks'
 import './AnnouncementsModal.css'
 
+/** Props accepted by the AnnouncementsModal component */
 interface AnnouncementsModalProps {
-  announcements: Announcement[]
+  /** Controls whether the modal is visible */
   isOpen: boolean
+  /** Callback invoked when the user requests the modal to close */
   onClose: () => void
 }
 
-function AnnouncementsModal({ announcements, isOpen, onClose }: AnnouncementsModalProps) {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = 'unset'
-    }
+/**
+ * Formats an ISO date string into a human-readable short date.
+ *
+ * @param dateString - ISO date string (e.g. "2025-09-15")
+ * @returns Formatted string like "Sep 15, 2025"
+ */
+function formatDate(dateString: string): string {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
 
-    return () => {
-      document.body.style.overflow = 'unset'
-    }
+/**
+ * AnnouncementsModal — displays all active announcements in a scrollable modal.
+ *
+ * Fetches announcement data live from Firestore. The modal locks body scroll
+ * while open and restores it on unmount. An Escape key listener is also
+ * registered while the modal is open.
+ *
+ * @param isOpen  - Whether the modal should be rendered
+ * @param onClose - Handler to call when the modal should be dismissed
+ */
+function AnnouncementsModal({ isOpen, onClose }: AnnouncementsModalProps) {
+  // Fetch all active (non-expired) announcements from Firestore
+  const { data: announcements, loading } = useAnnouncements()
+
+  // Lock body scroll while the modal is open to prevent background scrolling
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : 'unset'
+    return () => { document.body.style.overflow = 'unset' }
   }, [isOpen])
 
+  // Allow Escape key to dismiss the modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose()
-      }
+      if (e.key === 'Escape' && isOpen) onClose()
     }
-
     document.addEventListener('keydown', handleEscape)
     return () => document.removeEventListener('keydown', handleEscape)
   }, [isOpen, onClose])
 
   if (!isOpen) return null
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
-  }
-
-  const sortedAnnouncements = [...announcements]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -59,8 +82,20 @@ function AnnouncementsModal({ announcements, isOpen, onClose }: AnnouncementsMod
             ✕
           </button>
         </div>
+
         <div className="modal-body">
-          {sortedAnnouncements.map((announcement) => (
+          {/* Loading state */}
+          {loading && (
+            <p style={{ color: '#888', textAlign: 'center' }}>Loading announcements…</p>
+          )}
+
+          {/* Empty state */}
+          {!loading && announcements.length === 0 && (
+            <p style={{ color: '#888', textAlign: 'center' }}>No announcements at this time.</p>
+          )}
+
+          {/* Announcement list — hook already returns sorted, non-expired items */}
+          {!loading && announcements.map((announcement) => (
             <div key={announcement.id} className="announcement-item">
               <div className="announcement-header">
                 <h3 className="announcement-title">{announcement.title}</h3>

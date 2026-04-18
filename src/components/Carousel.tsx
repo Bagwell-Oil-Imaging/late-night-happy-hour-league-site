@@ -1,15 +1,38 @@
+/**
+ * @file Carousel.tsx
+ * @module components/Carousel
+ *
+ * Auto-advancing hero image carousel that displays league photos fetched live
+ * from Firestore. Images are sorted by their `order` field (ascending) via the
+ * `useCarouselImages` hook.
+ *
+ * Behavior:
+ * - Renders nothing while data is loading or when the image list is empty
+ * - Auto-advances every 5 seconds; resets timer when manually navigated
+ * - Previous/next buttons and dot indicators allow manual navigation
+ * - Uses `image.imageUrl` (Firestore field name, renamed from legacy `image.image`)
+ */
+
 import { useState, useEffect } from 'react'
-import carouselData from '../data/carouselImages.json'
-import type { CarouselImage } from '../types'
+import { useCarouselImages } from '../hooks'
 import './Carousel.css'
 
+/**
+ * Carousel component — hero image slideshow for the home page.
+ *
+ * Fetches carousel images from Firestore sorted by display order. Returns null
+ * while loading or when no images are configured, keeping the layout clean.
+ * Auto-advances slides every 5 seconds using a `setInterval` that is properly
+ * cleaned up on unmount or when the image count changes.
+ */
 function Carousel() {
   const [currentIndex, setCurrentIndex] = useState(0)
-  const images = carouselData as CarouselImage[]
+  const { data: images, loading } = useCarouselImages()
 
-  if (images.length === 0) return null
-
+  // Auto-advance slides every 5 seconds; effect re-runs if image count changes
   useEffect(() => {
+    if (images.length === 0) return
+
     const interval = setInterval(() => {
       setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length)
     }, 5000)
@@ -17,16 +40,25 @@ function Carousel() {
     return () => clearInterval(interval)
   }, [images.length])
 
-  const goToSlide = (index: number) => {
-    setCurrentIndex(index)
-  }
+  // Render nothing while loading to avoid a flash of broken layout
+  if (loading) return null
 
+  // Render nothing if no images are configured in Firestore
+  if (images.length === 0) return null
+
+  /** Navigate to the previous slide (wraps around) */
   const goToPrevious = () => {
     setCurrentIndex((prevIndex) => (prevIndex - 1 + images.length) % images.length)
   }
 
+  /** Navigate to the next slide (wraps around) */
   const goToNext = () => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length)
+  }
+
+  /** Jump directly to a specific slide index */
+  const goToSlide = (index: number) => {
+    setCurrentIndex(index)
   }
 
   return (
@@ -36,8 +68,12 @@ function Carousel() {
           ‹
         </button>
         <div className="carousel-slide">
+          {/*
+           * imageUrl is the Firestore field name (renamed from the legacy `image` field).
+           * The CarouselImage type in types/index.ts documents this rename.
+           */}
           <img
-            src={images[currentIndex].image}
+            src={images[currentIndex].imageUrl}
             alt={images[currentIndex].alt}
             className="carousel-image"
           />
@@ -50,6 +86,8 @@ function Carousel() {
           ›
         </button>
       </div>
+
+      {/* Dot indicators — one per image */}
       <div className="carousel-indicators">
         {images.map((_, index) => (
           <button
