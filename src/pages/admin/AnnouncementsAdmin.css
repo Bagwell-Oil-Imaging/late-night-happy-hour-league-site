@@ -1,0 +1,281 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   AnnouncementsAdmin — CRUD panel styles.
+   Inherits the "Alley After Dark" design-system variables from index.css.
+   All colours use CSS custom properties; no hard-coded values.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Page header row (title + New button) ───────────────────────────────── */
+.admin-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+}
+
+.admin-panel-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+/* ── Primary action button (New / Save) ─────────────────────────────────── */
+.admin-btn-primary {
+  background-color: var(--accent);
+  color: var(--bg-page);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-5);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.admin-btn-primary:hover {
+  background-color: var(--accent-bright);
+}
+
+/* ── Secondary / neutral button (Cancel) ───────────────────────────────── */
+.admin-btn-secondary {
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-5);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.admin-btn-secondary:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+/* ── Danger button (Delete) ─────────────────────────────────────────────── */
+.admin-btn-danger {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.admin-btn-danger:hover {
+  color: var(--red-bright);
+  border-color: var(--red-bright);
+}
+
+/* ── Small edit button ──────────────────────────────────────────────────── */
+.admin-btn-edit {
+  background: none;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+  margin-right: var(--space-2);
+}
+
+.admin-btn-edit:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── Inline form card ───────────────────────────────────────────────────── */
+.admin-form-card {
+  background-color: var(--bg-sunken);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.admin-form-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-5) 0;
+}
+
+/* ── Form grid — two columns on wide, one on narrow ────────────────────── */
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Full-width field that spans both columns */
+.admin-form-field--full {
+  grid-column: 1 / -1;
+}
+
+/* ── Individual form field ──────────────────────────────────────────────── */
+.admin-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.admin-form-label {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Inputs, selects, and textareas share a common style */
+.admin-form-input,
+.admin-form-select,
+.admin-form-textarea {
+  background-color: var(--bg-page);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+  transition: border-color var(--transition-fast);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-form-input:focus,
+.admin-form-select:focus,
+.admin-form-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.admin-form-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* ── Checkbox row ───────────────────────────────────────────────────────── */
+.admin-form-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-5); /* visually align with labelled fields */
+}
+
+.admin-form-checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.admin-form-checkbox-label {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+/* ── Form action row (Save / Cancel) ────────────────────────────────────── */
+.admin-form-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+/* ── Data table ─────────────────────────────────────────────────────────── */
+.admin-table-wrapper {
+  overflow-x: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.admin-table th {
+  background-color: var(--bg-sunken);
+  border-bottom: 2px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.admin-table td {
+  border-bottom: 1px solid var(--border-default);
+  padding: var(--space-3) var(--space-4);
+  vertical-align: middle;
+}
+
+.admin-table tr:hover td {
+  background-color: rgba(240, 180, 41, 0.04);
+}
+
+/* Pinned badge */
+.admin-badge-pinned {
+  display: inline-block;
+  background-color: rgba(240, 180, 41, 0.15);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  padding: 1px 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Empty state */
+.admin-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  padding: var(--space-6) 0;
+  text-align: center;
+}
+
+/* Loading state */
+.admin-loading {
+  color: var(--text-muted);
+  padding: var(--space-6) 0;
+  text-align: center;
+}
+
+/* Error state */
+.admin-error {
+  color: var(--red-bright);
+  padding: var(--space-4);
+  border: 1px solid var(--red-bright);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-4);
+}

@@ -1,0 +1,6 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   EventsAdmin — CRUD panel styles.
+   Re-uses the shared admin panel class names defined in AnnouncementsAdmin.css.
+   This file exists to allow per-panel overrides; currently a thin import shim.
+═══════════════════════════════════════════════════════════════════════════ */
+@import './AnnouncementsAdmin.css';

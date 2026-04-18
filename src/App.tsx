@@ -15,6 +15,9 @@ import SchedulePage from './pages/SchedulePage'
 import AdminLoginPage from './pages/admin/AdminLoginPage'
 import RequireAuth from './components/admin/RequireAuth'
 import AdminLayout from './components/admin/AdminLayout'
+import AnnouncementsAdmin from './pages/admin/AnnouncementsAdmin'
+import EventsAdmin from './pages/admin/EventsAdmin'
+import CarouselAdmin from './pages/admin/CarouselAdmin'
 import { useAnnouncements } from './hooks'
 
 /**
@@ -61,18 +64,9 @@ function App() {
            * phase-5/sub-task-2 (Announcements, Events, Carousel) and
            * phase-5/sub-task-3 (Documents).
            */}
-          <Route
-            path="announcements"
-            element={<div className="admin-placeholder">Announcements Admin (coming soon)</div>}
-          />
-          <Route
-            path="events"
-            element={<div className="admin-placeholder">Events Admin (coming soon)</div>}
-          />
-          <Route
-            path="carousel"
-            element={<div className="admin-placeholder">Carousel Admin (coming soon)</div>}
-          />
+          <Route path="announcements" element={<AnnouncementsAdmin />} />
+          <Route path="events" element={<EventsAdmin />} />
+          <Route path="carousel" element={<CarouselAdmin />} />
           <Route
             path="documents"
             element={<div className="admin-placeholder">Documents Admin (coming soon)</div>}
