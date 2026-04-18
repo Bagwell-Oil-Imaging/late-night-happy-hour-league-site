@@ -98,7 +98,7 @@ graph TD
     class P4S2 pending
     class P4S3 pending
     class P4S4 pending
-    class P5S1 pending
+    class P5S1 completed
     class P5S2 pending
     class P5S3 pending
     class P6S1 pending
@@ -161,7 +161,7 @@ graph TD
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [Auth Login + Route Guard + Admin Layout](phase-5/sub-task-1.md) | pending | phase-1/sub-task-1 | — |
+| 1 | [Auth Login + Route Guard + Admin Layout](phase-5/sub-task-1.md) | completed | phase-1/sub-task-1 | c554c80 |
 | 2 | [Announcements + Events + Carousel CRUD](phase-5/sub-task-2.md) | pending | sub-task-1 | — |
 | 3 | [Documents Admin + PDF Upload + Versioning](phase-5/sub-task-3.md) | pending | sub-task-1 | — |
 
@@ -182,6 +182,6 @@ graph TD
 | Phase 2: Transform Script Rework | 5 | 1 | In progress |
 | Phase 3: React Foundation | 2 | 2 | Completed |
 | Phase 4: Component Migration | 4 | 0 | Not started |
-| Phase 5: Admin CRUD UI | 3 | 0 | Not started |
+| Phase 5: Admin CRUD UI | 3 | 1 | In progress |
 | Phase 6: Cleanup & Optimization | 3 | 0 | Not started |
-| **Total** | **20** | **4** | **20%** |
+| **Total** | **20** | **5** | **25%** |
