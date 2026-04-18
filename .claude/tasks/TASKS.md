@@ -86,7 +86,7 @@ graph TD
     %% Apply status classes
     class P1S1 completed
     class P1S2 completed
-    class P1S3 pending
+    class P1S3 completed
     class P2S1 completed
     class P2S2 pending
     class P2S3 pending
@@ -125,7 +125,7 @@ graph TD
 |---|----------|--------|------------|--------|
 | 1 | [Security Rules + Firebase Config](phase-1/sub-task-1.md) | completed | — | f8d255d |
 | 2 | [Seed Script (12 collections)](phase-1/sub-task-2.md) | completed | sub-task-1 | 0fbcb83 |
-| 3 | [Run Seed + Validation Script](phase-1/sub-task-3.md) | pending | sub-task-2 | — |
+| 3 | [Run Seed + Validation Script](phase-1/sub-task-3.md) | completed | sub-task-2 | 3881d1b |
 
 ### Phase 2: Transform Script Rework
 **Goal:** Rework `scripts/transform-data.js` to write directly to Firestore using the corrected schema.
@@ -178,10 +178,10 @@ graph TD
 
 | Phase | Tasks | Completed | Status |
 |-------|-------|-----------|--------|
-| Phase 1: Firebase Foundation | 3 | 2 | In progress |
+| Phase 1: Firebase Foundation | 3 | 3 | Complete |
 | Phase 2: Transform Script Rework | 5 | 1 | In progress |
 | Phase 3: React Foundation | 2 | 2 | Completed |
 | Phase 4: Component Migration | 4 | 0 | Not started |
 | Phase 5: Admin CRUD UI | 3 | 1 | In progress |
 | Phase 6: Cleanup & Optimization | 3 | 0 | Not started |
-| **Total** | **20** | **5** | **25%** |
+| **Total** | **20** | **6** | **30%** |
