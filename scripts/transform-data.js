@@ -19,7 +19,7 @@
 // Load environment variables from .env before any other side-effectful code
 import 'dotenv/config'
 
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs'
 import { join, dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
@@ -800,6 +800,298 @@ async function populateLeagueConfig(seasonYear) {
   console.log(`[leagueConfig] Wrote document "${seasonYear}"`)
 }
 
+// ─── Firestore: teams Collection ─────────────────────────────────────────────
+
+/**
+ * Populates the `teams` Firestore collection with one document per active team.
+ *
+ * Primary data source: `leaguepals-data/standings.json`, which contains rich
+ * team-level stats (average, scratchPins, totalPins, pctWon, highGame,
+ * pointsWon, pointsLost) that the local JSON transform was previously
+ * discarding.
+ *
+ * Fallback: `src/data/teams.json` — the locally-built file produced by
+ * `buildTeams()`. This is used when standings.json is missing (unlikely in
+ * practice but guards against accidental file removal during development).
+ * Fallback docs have stub zeroes for all stats fields.
+ *
+ * Document ID: LeaguePals MongoDB ObjectId string (`team._id`). This is the
+ * canonical FK used by all downstream Firestore collections (bowlers,
+ * bowlerScores, matchups) so stable string IDs are required from the start.
+ *
+ * The `captainBowlerId` field is intentionally left null; it will be set by
+ * the admin UI in Phase 5 after bowler documents are created.
+ *
+ * @param {string} seasonYear - e.g. "2025-2026". Stored on every document for
+ *   easy query filtering.
+ * @returns {Promise<void>}
+ */
+async function populateTeams(seasonYear) {
+  if (!db) {
+    console.warn('[populateTeams] Skipping teams — Firestore not initialized')
+    return
+  }
+
+  /** @type {object[]} */
+  let docs
+
+  const standingsPath = join(RAW_DIR, 'standings.json')
+
+  if (existsSync(standingsPath)) {
+    // ── Primary path: use standings.json for full stat coverage ───────────────
+    const raw = JSON.parse(readFileSync(standingsPath, 'utf8'))
+    const standingsList = raw.data?.standings ?? []
+
+    docs = standingsList.map((entry, index) => {
+      const team = entry.team ?? {}
+
+      return {
+        // Firestore document identity
+        leaguePalsId: team._id ?? '',
+
+        // Display order follows standings rank (1 = best record)
+        displayId: index + 1,
+
+        // Season FK — every doc tagged for easy cross-season queries
+        seasonYear,
+
+        // Team name and captain info
+        name: team.name ?? '',
+
+        // Phase 5 admin will resolve the captain's bowler document ID
+        captainBowlerId: null,
+
+        // Win / loss record
+        wins: entry.wins ?? 0,
+        losses: entry.losses ?? 0,
+        ties: entry.ties ?? 0,
+
+        // Points-based standings
+        pointsWon: entry.pointsWon ?? 0,
+        pointsLost: entry.pointsLost ?? 0,
+
+        // Win percentage — LeaguePals stores this as a string ("48.21");
+        // parse to a float so Firestore can do numeric comparisons/sorting.
+        pctWon: parseFloat(entry.pctWon ?? '0') || 0,
+
+        // Team-level pin statistics
+        average: entry.average ?? 0,
+        scratchPins: entry.scratchPins ?? 0,
+        totalPins: entry.totalPins ?? 0,
+
+        // maxGame from the standings API maps to highGame in our schema
+        highGame: entry.maxGame ?? 0,
+      }
+    })
+
+    console.log(`[populateTeams] Mapped ${docs.length} teams from standings.json`)
+  } else {
+    // ── Fallback path: derive from the locally built teams.json ───────────────
+    // This path is a safety net; stats fields are zeroed out because the local
+    // JSON only carries W/L/points — not the richer stats from the API.
+    console.warn('[populateTeams] standings.json not found — falling back to src/data/teams.json')
+
+    const localTeamsPath = join(OUT_DIR, 'teams.json')
+    const localTeams = existsSync(localTeamsPath)
+      ? JSON.parse(readFileSync(localTeamsPath, 'utf8'))
+      : buildTeams()
+
+    docs = localTeams.map(team => ({
+      leaguePalsId: String(team.id), // placeholder — not a real ObjectId
+      displayId: team.id,
+      seasonYear,
+      name: team.name ?? '',
+      captainBowlerId: null,
+      wins: team.wins ?? 0,
+      losses: team.losses ?? 0,
+      ties: team.ties ?? 0,
+      pointsWon: team.points ?? 0,
+      pointsLost: 0,
+      pctWon: 0,
+      average: 0,
+      scratchPins: 0,
+      totalPins: 0,
+      highGame: 0,
+    }))
+  }
+
+  // Use the LeaguePals ObjectId as the Firestore document ID so that all
+  // collections sharing this FK can be joined without an extra lookup step.
+  await batchWrite('teams', docs, doc => doc.leaguePalsId)
+}
+
+// ─── Firestore: bowlers Collection ───────────────────────────────────────────
+
+/**
+ * Populates the `bowlers` Firestore collection with one document per active
+ * bowler for the given season.
+ *
+ * Primary data source: individual team JSON files at
+ * `leaguepals-data/teams/{teamId}.json`. Each file's `.data` array contains
+ * rich per-bowler stats (highGame, highGameHdcp, highSeries, highSeriesHdcp,
+ * gamesPlayed, blindWeeksTotal, blindWeeksRow, indPointsWon, etc.) that were
+ * not exposed through the old local JSON pipeline.
+ *
+ * Intentionally excluded fields (privacy / unused):
+ *   birthDate, dexterity, isFemale, dontIdentify, isJunior, classification
+ *
+ * Fallback: `src/data/bowlerStats.json` — used when no team files are found
+ * (rare; only during initial dev bootstrapping). The bowler name is split into
+ * firstName/lastName on whitespace, stats are zeroed for missing fields.
+ *
+ * Document ID: LeaguePals MongoDB ObjectId string (`player._id`). Used as FK
+ * in the `bowlerScores` collection and for admin captain-assignment.
+ *
+ * @param {string} seasonYear - e.g. "2025-2026". Stored on every document for
+ *   easy query filtering.
+ * @returns {Promise<void>}
+ */
+async function populateBowlers(seasonYear) {
+  if (!db) {
+    console.warn('[populateBowlers] Skipping bowlers — Firestore not initialized')
+    return
+  }
+
+  /** @type {object[]} */
+  let docs
+
+  // Glob all team JSON files present in the raw data directory.
+  // We use the directory listing rather than deriving IDs from standings so
+  // the function remains correct even if standings and the team files drift.
+  const teamFilePaths = readdirSync(TEAMS_RAW_DIR)
+    .filter(f => f.endsWith('.json'))
+    .map(f => join(TEAMS_RAW_DIR, f))
+
+  if (teamFilePaths.length > 0) {
+    // ── Primary path: individual team JSON files ──────────────────────────────
+    docs = []
+
+    for (const filePath of teamFilePaths) {
+      const raw = JSON.parse(readFileSync(filePath, 'utf8'))
+
+      // Team files store players in a `.data` array; the team-level object is
+      // available on each player as `.team` (ObjectId string) and `.teamName`.
+      const players = raw.data ?? []
+      if (players.length === 0) continue // skip vacant/bye teams
+
+      for (const player of players) {
+        // Derive the prior season year string from the current season.
+        // e.g. "2025-2026" → "2024-2025"
+        const [startYear] = (seasonYear ?? '2025-2026').split('-').map(Number)
+        const enteringAvgSeason = `${startYear - 1}-${startYear}`
+
+        docs.push({
+          // ── Document identity ─────────────────────────────────────────────
+          leaguePalsId: player._id ?? '',
+
+          // ── Season FK ────────────────────────────────────────────────────
+          seasonYear,
+
+          // ── Team FK (LeaguePals ObjectId string) ─────────────────────────
+          // `player.team` is the team's ObjectId stored on every player record
+          teamId: player.team ?? '',
+
+          // Denormalized team name so bowler queries don't need a join
+          teamName: player.teamName ?? '',
+
+          // ── Name fields ───────────────────────────────────────────────────
+          firstName: player.firstName ?? '',
+          lastName: player.lastName ?? '',
+          // Pre-computed full name for display convenience
+          name: `${player.firstName ?? ''} ${player.lastName ?? ''}`.trim(),
+
+          // ── Avatar ────────────────────────────────────────────────────────
+          // Intentionally null when no custom avatar has been uploaded
+          avatarUrl: player.avatar || null,
+
+          // ── Current-season average (integer) ─────────────────────────────
+          // `avg` is the truncated integer, `average` is the stored round number;
+          // fall back chain: realAvg (truncated) → average (stored)
+          average: player.realAvg ?? player.average ?? 0,
+
+          // Floating-point average for precision sorting / display
+          averageFloat: player.realAvgFloat ?? player.averageFloat ?? player.avg ?? 0,
+
+          // ── Prior-season entering average ─────────────────────────────────
+          enteringAvg: player.enteringAvg ?? 0,
+          // The season to which the entering average belongs (prior year)
+          enteringAvgSeason,
+
+          // ── Season high scores ────────────────────────────────────────────
+          highGame: player.highGame ?? 0,
+          // Handicap high game (scratch + per-game handicap)
+          highGameHdcp: player.highGameHdcp ?? 0,
+          highSeries: player.highSeries ?? 0,
+          // Handicap high series (scratch + 3-game handicap)
+          highSeriesHdcp: player.highSeriesHdcp ?? 0,
+
+          // ── Participation stats ───────────────────────────────────────────
+          gamesPlayed: player.gamesPlayed ?? 0,
+
+          // Blind weeks: total absent weeks and consecutive absent streak
+          blindWeeksTotal: player.blindWeeksTotal ?? 0,
+          blindWeeksRow: player.blindWeeksRow ?? 0,
+
+          // Individual match points won this season
+          indPointsWon: player.indPointsWon ?? 0,
+        })
+      }
+    }
+
+    console.log(`[populateBowlers] Mapped ${docs.length} bowlers from ${teamFilePaths.length} team files`)
+  } else {
+    // ── Fallback path: derive from the locally built bowlerStats.json ─────────
+    // This path is used only during development before team files are fetched.
+    // Stats beyond what buildBowlerStats() produces are zeroed.
+    console.warn('[populateBowlers] No team files found — falling back to src/data/bowlerStats.json')
+
+    const bowlerStatsPath = join(OUT_DIR, 'bowlerStats.json')
+    const rawStats = existsSync(bowlerStatsPath)
+      ? JSON.parse(readFileSync(bowlerStatsPath, 'utf8'))
+      : buildBowlerStats()
+
+    // Unwrap `.data` wrapper if present (some legacy formats wrap the array)
+    const statsArray = rawStats.data ?? rawStats
+
+    docs = statsArray.map(bowler => {
+      // Split "First Last" → firstName = first word, lastName = remainder
+      const nameParts = (bowler.name ?? '').trim().split(/\s+/)
+      const firstName = nameParts[0] ?? ''
+      const lastName = nameParts.slice(1).join(' ')
+
+      const [startYear] = (seasonYear ?? '2025-2026').split('-').map(Number)
+      const enteringAvgSeason = `${startYear - 1}-${startYear}`
+
+      return {
+        leaguePalsId: bowler.id ?? '',
+        seasonYear,
+        teamId: String(bowler.teamId ?? ''),
+        teamName: bowler.teamName ?? '',
+        firstName,
+        lastName,
+        name: bowler.name ?? '',
+        avatarUrl: null,
+        average: bowler.average ?? 0,
+        averageFloat: bowler.average ?? 0,
+        enteringAvg: bowler.enteringAvg ?? 0,
+        enteringAvgSeason,
+        highGame: bowler.highGame ?? 0,
+        highGameHdcp: 0,
+        highSeries: bowler.highSeries ?? 0,
+        highSeriesHdcp: 0,
+        gamesPlayed: 0,
+        blindWeeksTotal: 0,
+        blindWeeksRow: 0,
+        indPointsWon: 0,
+      }
+    })
+  }
+
+  // Use the LeaguePals ObjectId as the Firestore document ID — consistent FK
+  // referenced by bowlerScores and the admin captain-assignment tool.
+  await batchWrite('bowlers', docs, doc => doc.leaguePalsId)
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -866,14 +1158,18 @@ async function main() {
 
   // ── Firestore population ─────────────────────────────────────────────────────
   // Each populate* function is a no-op when db === null (Firestore not configured).
-  // Additional populate functions for teams, bowlers, scores, etc. will be added
-  // in subsequent sub-tasks (phase-2/sub-task-3 through sub-task-5).
 
   console.log('\n─────────────────────────────────────────')
   console.log('Firestore population...')
 
   // 6. Write league configuration document for the current season
   await populateLeagueConfig('2025-2026')
+
+  // 7. Write teams collection — full standings stats from LeaguePals API
+  await populateTeams('2025-2026')
+
+  // 8. Write bowlers collection — rich per-bowler stats from team roster files
+  await populateBowlers('2025-2026')
 }
 
 main()
