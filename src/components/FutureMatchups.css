@@ -1,161 +1,96 @@
 .future-matchups-container {
-  background-color: var(--card-background);
-  padding: 30px;
-  border-radius: 4px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(248, 234, 204, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  background-color: var(--bg-card);
+  padding: var(--space-8);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--card-highlight), var(--shadow-md);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
 }
 
 .future-matchups-container:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px);
+  box-shadow: var(--card-highlight), var(--shadow-lg);
 }
 
-.week-section {
-  margin-bottom: 30px;
-}
-
-.week-section:last-child {
-  margin-bottom: 0;
-}
+.week-section { margin-bottom: var(--space-8); }
+.week-section:last-child { margin-bottom: 0; }
 
 .week-title {
-  color: var(--accent-color);
-  margin: 0 0 15px 0;
-  font-size: 1.1rem;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-color);
-  font-weight: 600;
+  font-family: var(--font-heading);
+  color: var(--accent);
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-.matchups-table-wrapper {
-  overflow-x: auto;
-}
+.matchups-table-wrapper { overflow-x: auto; }
 
 .matchups-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
 }
 
-.matchups-table thead {
-  background-color: rgba(32, 44, 57, 0.5);
-}
+.matchups-table thead { background-color: var(--bg-sunken); }
 
 .matchups-table th {
-  padding: 12px;
+  padding: 11px 12px;
   text-align: left;
-  color: var(--secondary-color);
-  font-weight: 600;
-  font-size: 0.85rem;
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 1px;
-  border-bottom: 2px solid rgba(248, 234, 204, 0.2);
+  letter-spacing: 1.5px;
+  border-bottom: 1px solid var(--border-default);
 }
 
-.matchups-table th.center {
-  text-align: center;
-}
+.matchups-table th.center { text-align: center; }
 
 .matchups-table tbody tr {
-  border-bottom: 1px solid rgba(248, 234, 204, 0.08);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--transition-fast);
 }
 
-.matchups-table tbody tr:hover {
-  background-color: rgba(248, 234, 204, 0.08);
+.matchups-table tbody tr:nth-child(even) {
+  background-color: rgba(240, 180, 41, 0.025);
 }
 
-.matchups-table td {
-  padding: 14px 12px;
-  color: var(--text-color);
-}
+.matchups-table tbody tr:last-child { border-bottom: none; }
+.matchups-table tbody tr:hover { background-color: rgba(240, 180, 41, 0.06) !important; }
 
-.matchups-table td.center {
-  text-align: center;
-}
+.matchups-table td { padding: 12px; color: var(--text-primary); }
+.matchups-table td.center { text-align: center; }
 
-.team-name {
-  font-weight: 600;
-  color: var(--text-color);
-}
-
+.team-name  { font-weight: 600; }
 .team-record {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-family: var(--font-heading);
+  letter-spacing: 0.5px;
 }
-
 .vs-cell {
-  color: var(--secondary-color);
-  font-weight: 600;
-  font-size: 0.85rem;
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  letter-spacing: 1px;
 }
 
 @media (max-width: 768px) {
-  .future-matchups-container {
-    padding: 20px 16px;
-  }
-
-  .week-section {
-    margin-bottom: 24px;
-  }
-
-  .week-title {
-    font-size: 1rem;
-  }
-
-  .matchups-table {
-    font-size: 0.85rem;
-  }
-
+  .future-matchups-container { padding: var(--space-5) var(--space-4); }
+  .week-section { margin-bottom: var(--space-6); }
+  .matchups-table { font-size: var(--text-sm); }
   .matchups-table th,
-  .matchups-table td {
-    padding: 10px 6px;
-  }
-
-  .matchups-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .matchup-card {
-    padding: 15px;
-  }
+  .matchups-table td { padding: 10px 6px; }
 }
 
 @media (max-width: 480px) {
-  .future-matchups-container {
-    padding: 16px 12px;
-  }
-
-  .week-title {
-    font-size: 0.95rem;
-    margin-bottom: 12px;
-  }
-
-  .matchups-table {
-    font-size: 0.8rem;
-  }
-
+  .future-matchups-container { padding: var(--space-4) var(--space-3); }
   .matchups-table th,
-  .matchups-table td {
-    padding: 8px 4px;
-    font-size: 0.75rem;
-  }
-
-  .matchups-table th {
-    font-size: 0.7rem;
-  }
-
-  .team-name {
-    font-size: 0.8rem;
-  }
-
-  .team-record {
-    font-size: 0.75rem;
-  }
-
-  .vs-cell {
-    font-size: 0.7rem;
-  }
+  .matchups-table td { padding: 8px 4px; font-size: var(--text-xs); }
 }

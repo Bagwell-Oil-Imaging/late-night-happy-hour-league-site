@@ -1,0 +1,453 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   SCHEDULE PAGE — Season calendar + week-by-week table
+   "The Alley After Dark" design system
+════════════════════════════════════════════════════════════════════════════ */
+
+.schedule-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/* ── Page subtitle ─────────────────────────────────────────────────────────── */
+.schedule-subtitle {
+  margin-top: calc(-1 * var(--space-5));
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CALENDAR LEGEND
+══════════════════════════════════════════════════════════════════════════════ */
+
+.cal-legend {
+  display: flex;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.cal-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Bowling dot ────────────────────────────────────────────────────────────── */
+.cal-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cal-dot--completed { background: var(--green-glow); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+.cal-dot--upcoming  { background: var(--gold-base);  box-shadow: 0 0 6px rgba(240,180,41,0.5); }
+.cal-dot--skip      { background: var(--red-bright); opacity: 0.5; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MONTHLY CALENDARS
+══════════════════════════════════════════════════════════════════════════════ */
+
+.calendars-section {
+  /* No extra gap needed — grid handles it */
+}
+
+.calendars-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+
+/* ── Individual month card ──────────────────────────────────────────────────── */
+.month-calendar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-highlight), var(--shadow-sm);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.month-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  margin: 0;
+  text-align: center;
+}
+
+/* ── 7-column calendar grid ─────────────────────────────────────────────────── */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+/* Day-of-week headers */
+.cal-day-header {
+  text-align: center;
+  font-family: var(--font-heading);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+/* Date cells */
+.cal-cell {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+  user-select: none;
+}
+
+.cal-cell--empty {
+  /* No content */
+}
+
+.cal-day-num {
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+/* Bowling day cells */
+.cal-cell--completed { background: rgba(34, 197, 94, 0.08); }
+.cal-cell--upcoming  { background: rgba(240, 180, 41, 0.08); }
+.cal-cell--skip      { background: rgba(239, 68,  68,  0.06); }
+
+.cal-cell--completed .cal-day-num { color: var(--text-primary); }
+.cal-cell--upcoming  .cal-day-num { color: var(--accent); }
+.cal-cell--skip      .cal-day-num { color: var(--text-muted); opacity: 0.6; }
+
+/* Today highlight */
+.cal-cell--today {
+  outline: 1px solid var(--border-gold);
+  outline-offset: -1px;
+}
+
+/* Clickable (completed / upcoming) */
+.cal-cell--clickable {
+  cursor: pointer;
+}
+
+.cal-cell--clickable:hover {
+  background: rgba(240, 180, 41, 0.12) !important;
+}
+
+.cal-cell--clickable:hover .cal-day-num {
+  color: var(--accent-bright);
+}
+
+/* Dot indicator — positioned below the number */
+.cal-dot {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SCHEDULE TABLE
+══════════════════════════════════════════════════════════════════════════════ */
+
+.schedule-table-section {
+  /* Outer section wrapper */
+}
+
+.schedule-table-shell {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-default);
+  box-shadow: var(--card-highlight), var(--shadow-lg);
+  overflow-x: auto;
+}
+
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+/* ── Column widths ──────────────────────────────────────────────────────────── */
+.sch-col-week    { width: 64px; }
+.sch-col-date    { width: 130px; }
+.sch-col-matchups{ /* flexible */ }
+.sch-col-notes   { width: 140px; }
+.sch-col-action  { width: 130px; }
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+.schedule-table thead {
+  background: linear-gradient(180deg, #040810 0%, #07111e 100%);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.schedule-table th {
+  padding: 11px 16px;
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-size: 0.60rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  border-bottom: 2px solid rgba(240, 180, 41, 0.22);
+  text-align: left;
+}
+
+/* ── Row base ───────────────────────────────────────────────────────────────── */
+.sch-row {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--transition-fast);
+  animation: matchRowIn 0.32s var(--ease-out) both;
+}
+
+@keyframes matchRowIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.sch-row:last-child { border-bottom: none; }
+
+/* Completed rows: subtle green tint */
+.sch-row--completed {
+  background: rgba(34, 197, 94, 0.025);
+}
+
+/* Upcoming rows: gold tint */
+.sch-row--upcoming {
+  background: rgba(240, 180, 41, 0.03);
+}
+
+/* Skip rows: very muted red */
+.sch-row--skip {
+  background: rgba(239, 68, 68, 0.025);
+  opacity: 0.7;
+}
+
+.sch-row--completed:hover,
+.sch-row--upcoming:hover {
+  background: rgba(240, 180, 41, 0.055) !important;
+}
+
+/* ── Cells ──────────────────────────────────────────────────────────────────── */
+.schedule-table td {
+  padding: 14px 16px;
+  vertical-align: top;
+}
+
+/* ── Week badge ─────────────────────────────────────────────────────────────── */
+.sch-week-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.sch-week-badge--completed {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--green-glow);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+}
+
+.sch-week-badge--upcoming {
+  background: rgba(240, 180, 41, 0.12);
+  color: var(--accent);
+  border: 1px solid var(--border-strong);
+}
+
+.sch-week-badge--skip {
+  background: rgba(239, 68, 68, 0.10);
+  color: var(--red-bright);
+  border: 1px solid rgba(239, 68, 68, 0.20);
+  font-size: var(--text-xs);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ── Date cell ──────────────────────────────────────────────────────────────── */
+.sch-date-cell {
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Matchup pairs list ─────────────────────────────────────────────────────── */
+.sch-pairs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sch-pair-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sch-pair-team {
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+}
+
+.sch-pair-vs {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.sch-no-play {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.sch-no-play--dim {
+  opacity: 0.55;
+  font-style: italic;
+  font-size: var(--text-xs);
+}
+
+/* ── Notes cell ─────────────────────────────────────────────────────────────── */
+.sch-notes-cell {
+  vertical-align: middle;
+}
+
+.sch-skip-reason {
+  display: inline-block;
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--red-bright);
+  opacity: 0.8;
+}
+
+.sch-event-label {
+  display: inline-block;
+  background: rgba(240, 180, 41, 0.12);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ── Action column ──────────────────────────────────────────────────────────── */
+.sch-col-action {
+  vertical-align: middle;
+  text-align: right;
+}
+
+.sch-view-btn {
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 8px 14px;
+  text-transform: uppercase;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.sch-view-btn--completed {
+  background: rgba(34, 197, 94, 0.10);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+  color: var(--green-glow);
+}
+
+.sch-view-btn--completed:hover {
+  background: rgba(34, 197, 94, 0.20);
+  border-color: rgba(34, 197, 94, 0.40);
+}
+
+.sch-view-btn--upcoming {
+  background: rgba(240, 180, 41, 0.10);
+  border: 1px solid var(--border-default);
+  color: var(--accent);
+}
+
+.sch-view-btn--upcoming:hover {
+  background: rgba(240, 180, 41, 0.18);
+  border-color: var(--border-strong);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1100px) {
+  .calendars-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 860px) {
+  .calendars-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .calendars-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .sch-col-notes { display: none; }
+  .sch-col-date  { width: 100px; }
+  .sch-col-action{ width: 110px; }
+  .schedule-table td { padding: 10px 10px; }
+  .schedule-table th { padding: 9px 10px; letter-spacing: 1.5px; }
+}
+
+@media (max-width: 500px) {
+  .sch-pair-team { font-size: 0.60rem; }
+  .sch-view-btn  { padding: 6px 10px; font-size: 0.58rem; }
+}

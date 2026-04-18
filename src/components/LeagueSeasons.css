@@ -1,262 +1,170 @@
 .league-seasons-container {
-  background-color: var(--card-background);
-  padding: 30px;
-  border-radius: 4px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(248, 234, 204, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  background-color: var(--bg-card);
+  padding: var(--space-8);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--card-highlight), var(--shadow-md);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
 }
 
 .league-seasons-container:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px);
+  box-shadow: var(--card-highlight), var(--shadow-lg);
 }
 
 .season-selector {
   display: flex;
-  gap: 10px;
-  margin-bottom: 30px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-8);
   flex-wrap: wrap;
 }
 
 .season-button {
-  padding: 12px 24px;
-  background-color: rgba(248, 234, 204, 0.1);
-  border: 1px solid rgba(248, 234, 204, 0.2);
-  border-radius: 2px;
-  color: var(--text-color);
-  font-weight: 600;
-  font-size: 0.95rem;
+  padding: var(--space-2) var(--space-5);
+  background-color: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  letter-spacing: 1px;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--transition-base);
 }
 
 .season-button:hover {
-  background-color: rgba(248, 234, 204, 0.2);
-  border-color: rgba(248, 234, 204, 0.4);
-  transform: translateY(-2px);
+  border-color: var(--border-gold);
+  color: var(--accent);
+  background-color: rgba(240, 180, 41, 0.06);
+  transform: translateY(-1px);
 }
 
 .season-button.active {
-  background-color: var(--secondary-color);
-  color: var(--primary-color);
-  border-color: var(--secondary-color);
+  background-color: var(--accent);
+  color: var(--text-inverse);
+  border-color: var(--accent);
+  box-shadow: 0 0 16px rgba(240, 180, 41, 0.30);
 }
 
 .season-details {
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn var(--transition-base);
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.season-header {
-  margin-bottom: 25px;
-}
+.season-header { margin-bottom: var(--space-6); }
 
 .season-year {
-  color: var(--secondary-color);
-  margin: 0 0 10px 0;
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  margin: 0 0 var(--space-3) 0;
+  font-size: var(--text-2xl);
+  letter-spacing: 1px;
 }
 
 .season-info {
   display: flex;
-  gap: 20px;
+  gap: var(--space-5);
   flex-wrap: wrap;
   align-items: center;
 }
 
 .season-dates {
-  color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-family: var(--font-heading);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  letter-spacing: 0.5px;
 }
 
 .champion-badge {
-  background-color: rgba(248, 234, 204, 0.15);
-  padding: 6px 14px;
-  border-radius: 2px;
-  color: var(--secondary-color);
-  font-weight: 600;
-  font-size: 0.9rem;
-  border: 1px solid rgba(248, 234, 204, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background-color: rgba(240, 180, 41, 0.12);
+  padding: 4px 14px;
+  border-radius: var(--radius-pill);
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid var(--border-gold);
 }
 
-.standings-table-wrapper {
-  overflow-x: auto;
-}
+.standings-table-wrapper { overflow-x: auto; }
 
 .standings-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
 }
 
-.standings-table thead {
-  background-color: rgba(32, 44, 57, 0.5);
-}
+.standings-table thead { background-color: var(--bg-sunken); }
 
 .standings-table th {
-  padding: 16px 12px;
+  padding: 13px 12px;
   text-align: left;
-  color: var(--secondary-color);
-  font-weight: 600;
-  font-size: 0.85rem;
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 1px;
-  border-bottom: 2px solid rgba(248, 234, 204, 0.2);
+  letter-spacing: 1.5px;
+  border-bottom: 1px solid var(--border-default);
 }
 
-.standings-table th.center {
-  text-align: center;
-}
+.standings-table th.center { text-align: center; }
 
 .standings-table tbody tr {
-  border-bottom: 1px solid rgba(248, 234, 204, 0.08);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--transition-fast);
 }
 
-.standings-table tbody tr:hover {
-  background-color: rgba(248, 234, 204, 0.08);
-  transform: scale(1.01);
-}
+.standings-table tbody tr:nth-child(even) { background-color: rgba(240, 180, 41, 0.025); }
+.standings-table tbody tr:last-child { border-bottom: none; }
+.standings-table tbody tr:hover { background-color: rgba(240, 180, 41, 0.07) !important; }
 
-.standings-table tbody tr.top-three {
-  background-color: rgba(248, 234, 204, 0.12);
+.standings-table tbody tr:first-child {
+  background: linear-gradient(90deg, rgba(240, 180, 41, 0.14) 0%, rgba(240, 180, 41, 0.05) 40%, transparent 70%) !important;
+  border-left: 3px solid var(--accent);
 }
 
 .standings-table td {
-  padding: 16px 12px;
-  color: var(--text-color);
+  padding: 13px 12px;
+  color: var(--text-primary);
 }
 
-.standings-table td.center {
-  text-align: center;
-}
+.standings-table td.center { text-align: center; }
 
-.rank {
-  font-weight: bold;
-  color: var(--accent-color);
-  font-size: 1.1rem;
-}
-
-.team-name {
-  font-weight: 600;
-  color: var(--text-color);
-}
-
-.wins {
-  color: #4ade80;
-  font-weight: 600;
-}
-
-.losses {
-  color: #f87171;
-  font-weight: 600;
-}
-
-.points {
-  color: var(--secondary-color);
-  font-weight: bold;
-}
+.rank   { font-family: var(--font-heading); font-weight: 700; color: var(--accent); font-size: var(--text-lg); }
+.team-name { font-weight: 600; font-size: var(--text-md); }
+.standings-table tbody tr:first-child .team-name { color: var(--accent-bright); }
+.wins   { color: var(--win-color);  font-weight: 700; }
+.losses { color: var(--loss-color); font-weight: 600; }
+.points { font-family: var(--font-heading); font-weight: 700; font-size: var(--text-lg); }
+.standings-table tbody tr:first-child .points { color: var(--accent); }
 
 @media (max-width: 768px) {
-  .league-seasons-container {
-    padding: 20px 16px;
-  }
-
-  .season-selector {
-    gap: 8px;
-    margin-bottom: 20px;
-  }
-
-  .season-button {
-    padding: 10px 18px;
-    font-size: 0.85rem;
-  }
-
-  .season-year {
-    font-size: 1.3rem;
-  }
-
-  .season-info {
-    flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
-  }
-
-  .standings-table {
-    font-size: 0.85rem;
-  }
-
+  .league-seasons-container { padding: var(--space-5) var(--space-4); }
+  .season-selector { margin-bottom: var(--space-5); }
+  .season-year { font-size: var(--text-xl); }
+  .season-info { flex-direction: column; gap: var(--space-2); align-items: flex-start; }
+  .standings-table { font-size: var(--text-sm); }
   .standings-table th,
-  .standings-table td {
-    padding: 10px 6px;
-  }
-
-  /* Hide captain column on mobile */
+  .standings-table td { padding: 10px 8px; }
   .standings-table th:nth-child(3),
-  .standings-table td:nth-child(3) {
-    display: none;
-  }
+  .standings-table td:nth-child(3) { display: none; }
 }
 
 @media (max-width: 480px) {
-  .league-seasons-container {
-    padding: 16px 12px;
-  }
-
-  .season-selector {
-    gap: 6px;
-    margin-bottom: 16px;
-  }
-
-  .season-button {
-    padding: 8px 14px;
-    font-size: 0.8rem;
-  }
-
-  .season-year {
-    font-size: 1.15rem;
-  }
-
-  .season-dates {
-    font-size: 0.85rem;
-  }
-
-  .champion-badge {
-    padding: 5px 12px;
-    font-size: 0.8rem;
-  }
-
-  .standings-table {
-    font-size: 0.8rem;
-  }
-
+  .league-seasons-container { padding: var(--space-4) var(--space-3); }
   .standings-table th,
-  .standings-table td {
-    padding: 8px 4px;
-    font-size: 0.75rem;
-  }
-
-  .standings-table th {
-    font-size: 0.7rem;
-  }
-
-  .rank {
-    font-size: 0.9rem;
-  }
-
-  .team-name {
-    font-size: 0.8rem;
-  }
+  .standings-table td { padding: 9px 4px; font-size: var(--text-xs); }
 }

@@ -2206,74 +2206,81 @@
       "normalWeek": 16,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c763",
           "team1_id": "688118461406d3982ec37a9a",
           "team1_lane": 1,
           "team2_id": "6881183d1406d3982ec37a42",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c762",
           "team1_id": "688118371406d3982ec37a06",
           "team1_lane": 3,
           "team2_id": "688118321406d3982ec379c7",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c761",
           "team1_id": "6881183b1406d3982ec37a2f",
           "team1_lane": 5,
           "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c760",
           "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 7,
           "team2_id": "68811b528fce42526776f19f",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c75f",
           "team1_id": "688118441406d3982ec37a87",
           "team1_lane": 9,
           "team2_id": "688118351406d3982ec379f0",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c75e",
           "team1_id": "688118391406d3982ec37a1c",
           "team1_lane": 11,
           "team2_id": "688118301406d3982ec379ab",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c75d",
           "team1_id": "688118421406d3982ec37a6e",
           "team1_lane": 13,
           "team2_id": "68811b528fce42526776f1a6",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -2294,6 +2301,7 @@
       "isUSBC": true,
       "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -2315,74 +2323,81 @@
       "normalWeek": 17,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c76a",
           "team1_id": "688118441406d3982ec37a87",
           "team1_lane": 1,
           "team2_id": "6881183b1406d3982ec37a2f",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c769",
           "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 3,
           "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c768",
           "team1_id": "688118351406d3982ec379f0",
           "team1_lane": 5,
           "team2_id": "688118391406d3982ec37a1c",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c767",
           "team1_id": "688118301406d3982ec379ab",
           "team1_lane": 7,
           "team2_id": "688118321406d3982ec379c7",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c766",
           "team1_id": "688118461406d3982ec37a9a",
           "team1_lane": 9,
           "team2_id": "68811b528fce42526776f1a6",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c765",
           "team1_id": "68811b528fce42526776f19f",
           "team1_lane": 11,
           "team2_id": "688118421406d3982ec37a6e",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c764",
           "team1_id": "688118371406d3982ec37a06",
           "team1_lane": 13,
           "team2_id": "6881183d1406d3982ec37a42",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -2403,6 +2418,7 @@
       "isUSBC": true,
       "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -2424,74 +2440,81 @@
       "normalWeek": 18,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c771",
           "team1_id": "688118371406d3982ec37a06",
           "team1_lane": 1,
           "team2_id": "68811b528fce42526776f19f",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c770",
           "team1_id": "688118441406d3982ec37a87",
           "team1_lane": 3,
           "team2_id": "688118421406d3982ec37a6e",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c76f",
           "team1_id": "68811b528fce42526776f1a6",
           "team1_lane": 5,
           "team2_id": "688118301406d3982ec379ab",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c76e",
           "team1_id": "6881183d1406d3982ec37a42",
           "team1_lane": 7,
           "team2_id": "688118351406d3982ec379f0",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c76d",
           "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 9,
           "team2_id": "688118391406d3982ec37a1c",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c76c",
           "team1_id": "688118491406d3982ec37ac3",
           "team1_lane": 11,
           "team2_id": "688118461406d3982ec37a9a",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c76b",
           "team1_id": "688118321406d3982ec379c7",
           "team1_lane": 13,
           "team2_id": "6881183b1406d3982ec37a2f",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -2512,6 +2535,7 @@
       "isUSBC": true,
       "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -2533,74 +2557,81 @@
       "normalWeek": 19,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c778",
           "team1_id": "688118391406d3982ec37a1c",
           "team1_lane": 1,
           "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c777",
           "team1_id": "68811b528fce42526776f19f",
           "team1_lane": 3,
           "team2_id": "6881183d1406d3982ec37a42",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c776",
           "team1_id": "688118321406d3982ec379c7",
           "team1_lane": 5,
           "team2_id": "688118441406d3982ec37a87",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c775",
           "team1_id": "68811b528fce42526776f1a6",
           "team1_lane": 7,
           "team2_id": "6881183b1406d3982ec37a2f",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c774",
           "team1_id": "688118371406d3982ec37a06",
           "team1_lane": 9,
           "team2_id": "688118421406d3982ec37a6e",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c773",
           "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 11,
           "team2_id": "688118351406d3982ec379f0",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c772",
           "team1_id": "688118461406d3982ec37a9a",
           "team1_lane": 13,
           "team2_id": "688118301406d3982ec379ab",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -2621,6 +2652,7 @@
       "isUSBC": true,
       "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -2644,74 +2676,81 @@
       "normalWeek": 20,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c77f",
           "team1_id": "6881183b1406d3982ec37a2f",
           "team1_lane": 1,
           "team2_id": "688118401406d3982ec37a5b",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c77e",
           "team1_id": "688118351406d3982ec379f0",
           "team1_lane": 3,
           "team2_id": "688118371406d3982ec37a06",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c77d",
           "team1_id": "688118421406d3982ec37a6e",
           "team1_lane": 5,
           "team2_id": "688118461406d3982ec37a9a",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c77c",
           "team1_id": "688118321406d3982ec379c7",
           "team1_lane": 7,
           "team2_id": "6881183d1406d3982ec37a42",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c77b",
           "team1_id": "688118301406d3982ec379ab",
           "team1_lane": 9,
           "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c77a",
           "team1_id": "688118441406d3982ec37a87",
           "team1_lane": 11,
           "team2_id": "68811b528fce42526776f1a6",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c779",
           "team1_id": "688118391406d3982ec37a1c",
           "team1_lane": 13,
           "team2_id": "68811b528fce42526776f19f",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -2732,6 +2771,7 @@
       "isUSBC": true,
       "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -2755,74 +2795,81 @@
       "normalWeek": 21,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c786",
           "team1_id": "688118321406d3982ec379c7",
           "team1_lane": 1,
           "team2_id": "68811b528fce42526776f1a6",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c785",
           "team1_id": "688118391406d3982ec37a1c",
           "team1_lane": 3,
           "team2_id": "688118461406d3982ec37a9a",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c784",
           "team1_id": "688118491406d3982ec37ac3",
           "team1_lane": 5,
           "team2_id": "6881183d1406d3982ec37a42",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c783",
           "team1_id": "688118421406d3982ec37a6e",
           "team1_lane": 7,
           "team2_id": "688118401406d3982ec37a5b",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c782",
           "team1_id": "68811b528fce42526776f19f",
           "team1_lane": 9,
           "team2_id": "688118441406d3982ec37a87",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c781",
           "team1_id": "688118301406d3982ec379ab",
           "team1_lane": 11,
           "team2_id": "688118371406d3982ec37a06",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c780",
           "team1_id": "6881183b1406d3982ec37a2f",
           "team1_lane": 13,
           "team2_id": "688118351406d3982ec379f0",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -2843,6 +2890,7 @@
       "isUSBC": true,
       "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -2864,74 +2912,81 @@
       "normalWeek": 22,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c78d",
           "team1_id": "688118301406d3982ec379ab",
           "team1_lane": 1,
           "team2_id": "688118421406d3982ec37a6e",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c78c",
           "team1_id": "688118491406d3982ec37ac3",
           "team1_lane": 3,
           "team2_id": "68811b528fce42526776f1a6",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c78b",
           "team1_id": "688118371406d3982ec37a06",
           "team1_lane": 5,
           "team2_id": "6881183b1406d3982ec37a2f",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c78a",
           "team1_id": "688118391406d3982ec37a1c",
           "team1_lane": 7,
           "team2_id": "688118441406d3982ec37a87",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c789",
           "team1_id": "688118351406d3982ec379f0",
           "team1_lane": 9,
           "team2_id": "688118461406d3982ec37a9a",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c788",
           "team1_id": "688118321406d3982ec379c7",
           "team1_lane": 11,
           "team2_id": "68811b528fce42526776f19f",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c787",
           "team1_id": "6881183d1406d3982ec37a42",
           "team1_lane": 13,
           "team2_id": "688118401406d3982ec37a5b",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -2950,8 +3005,9 @@
       "isPositionRound": false,
       "isSkipped": false,
       "isUSBC": true,
-      "isLocked": false,
+      "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -2973,74 +3029,81 @@
       "normalWeek": 23,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c794",
           "team1_id": "6881183d1406d3982ec37a42",
           "team1_lane": 1,
           "team2_id": "688118441406d3982ec37a87",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c793",
           "team1_id": "688118301406d3982ec379ab",
           "team1_lane": 3,
           "team2_id": "688118401406d3982ec37a5b",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c792",
           "team1_id": "68811b528fce42526776f19f",
           "team1_lane": 5,
           "team2_id": "688118351406d3982ec379f0",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c791",
           "team1_id": "688118461406d3982ec37a9a",
           "team1_lane": 7,
           "team2_id": "688118371406d3982ec37a06",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c790",
           "team1_id": "688118491406d3982ec37ac3",
           "team1_lane": 9,
           "team2_id": "688118321406d3982ec379c7",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c78f",
           "team1_id": "688118421406d3982ec37a6e",
           "team1_lane": 11,
           "team2_id": "6881183b1406d3982ec37a2f",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c78e",
           "team1_id": "68811b528fce42526776f1a6",
           "team1_lane": 13,
           "team2_id": "688118391406d3982ec37a1c",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -3059,8 +3122,9 @@
       "isPositionRound": false,
       "isSkipped": false,
       "isUSBC": true,
-      "isLocked": false,
+      "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -3082,74 +3146,81 @@
       "normalWeek": 24,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c79b",
           "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 1,
           "team2_id": "688118461406d3982ec37a9a",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c79a",
           "team1_id": "688118321406d3982ec379c7",
           "team1_lane": 3,
           "team2_id": "688118391406d3982ec37a1c",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c799",
           "team1_id": "6881183d1406d3982ec37a42",
           "team1_lane": 5,
           "team2_id": "68811b528fce42526776f1a6",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c798",
           "team1_id": "68811b528fce42526776f19f",
           "team1_lane": 7,
           "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c797",
           "team1_id": "6881183b1406d3982ec37a2f",
           "team1_lane": 9,
           "team2_id": "688118301406d3982ec379ab",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c796",
           "team1_id": "688118371406d3982ec37a06",
           "team1_lane": 11,
           "team2_id": "688118441406d3982ec37a87",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c795",
           "team1_id": "688118351406d3982ec379f0",
           "team1_lane": 13,
           "team2_id": "688118421406d3982ec37a6e",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -3168,8 +3239,9 @@
       "isPositionRound": false,
       "isSkipped": false,
       "isUSBC": true,
-      "isLocked": false,
+      "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -3191,74 +3263,81 @@
       "normalWeek": 25,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7a2",
           "team1_id": "688118421406d3982ec37a6e",
           "team1_lane": 1,
           "team2_id": "688118321406d3982ec379c7",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7a1",
           "team1_id": "688118461406d3982ec37a9a",
           "team1_lane": 3,
           "team2_id": "6881183b1406d3982ec37a2f",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7a0",
           "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 5,
           "team2_id": "688118371406d3982ec37a06",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c79f",
           "team1_id": "688118351406d3982ec379f0",
           "team1_lane": 7,
           "team2_id": "688118301406d3982ec379ab",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c79e",
           "team1_id": "68811b528fce42526776f1a6",
           "team1_lane": 9,
           "team2_id": "68811b528fce42526776f19f",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c79d",
           "team1_id": "6881183d1406d3982ec37a42",
           "team1_lane": 11,
           "team2_id": "688118391406d3982ec37a1c",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c79c",
           "team1_id": "688118441406d3982ec37a87",
           "team1_lane": 13,
           "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -3277,8 +3356,9 @@
       "isPositionRound": false,
       "isSkipped": false,
       "isUSBC": true,
-      "isLocked": false,
+      "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -3300,74 +3380,81 @@
       "normalWeek": 26,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7a9",
           "team1_id": "688118371406d3982ec37a06",
           "team1_lane": 1,
           "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7a8",
           "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 3,
           "team2_id": "688118321406d3982ec379c7",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7a7",
           "team1_id": "688118301406d3982ec379ab",
           "team1_lane": 5,
           "team2_id": "68811b528fce42526776f19f",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7a6",
           "team1_id": "688118421406d3982ec37a6e",
           "team1_lane": 7,
           "team2_id": "688118391406d3982ec37a1c",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7a5",
           "team1_id": "6881183d1406d3982ec37a42",
           "team1_lane": 9,
           "team2_id": "6881183b1406d3982ec37a2f",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7a4",
           "team1_id": "688118461406d3982ec37a9a",
           "team1_lane": 11,
           "team2_id": "688118441406d3982ec37a87",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7a3",
           "team1_id": "688118351406d3982ec379f0",
           "team1_lane": 13,
           "team2_id": "68811b528fce42526776f1a6",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -3386,8 +3473,9 @@
       "isPositionRound": false,
       "isSkipped": false,
       "isUSBC": true,
-      "isLocked": false,
+      "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -3409,74 +3497,81 @@
       "normalWeek": 27,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7b0",
           "team1_id": "688118441406d3982ec37a87",
           "team1_lane": 1,
           "team2_id": "688118301406d3982ec379ab",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7af",
           "team1_id": "6881183d1406d3982ec37a42",
           "team1_lane": 3,
           "team2_id": "688118421406d3982ec37a6e",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7ae",
           "team1_id": "688118351406d3982ec379f0",
           "team1_lane": 5,
           "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7ad",
           "team1_id": "688118321406d3982ec379c7",
           "team1_lane": 7,
           "team2_id": "688118461406d3982ec37a9a",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7ac",
           "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 9,
           "team2_id": "68811b528fce42526776f1a6",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7ab",
           "team1_id": "688118391406d3982ec37a1c",
           "team1_lane": 11,
           "team2_id": "688118371406d3982ec37a06",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7aa",
           "team1_id": "68811b528fce42526776f19f",
           "team1_lane": 13,
           "team2_id": "6881183b1406d3982ec37a2f",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -3495,8 +3590,9 @@
       "isPositionRound": false,
       "isSkipped": false,
       "isUSBC": true,
-      "isLocked": false,
+      "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -3520,74 +3616,81 @@
       "normalWeek": 28,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7b7",
           "team1_id": "688118461406d3982ec37a9a",
           "team1_lane": 1,
           "team2_id": "68811b528fce42526776f19f",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7b6",
           "team1_id": "6881183b1406d3982ec37a2f",
           "team1_lane": 3,
           "team2_id": "688118391406d3982ec37a1c",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7b5",
           "team1_id": "688118371406d3982ec37a06",
           "team1_lane": 5,
           "team2_id": "68811b528fce42526776f1a6",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7b4",
           "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 7,
           "team2_id": "688118441406d3982ec37a87",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7b3",
           "team1_id": "688118321406d3982ec379c7",
           "team1_lane": 9,
           "team2_id": "688118351406d3982ec379f0",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7b2",
           "team1_id": "688118421406d3982ec37a6e",
           "team1_lane": 11,
           "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7b1",
           "team1_id": "688118301406d3982ec379ab",
           "team1_lane": 13,
           "team2_id": "6881183d1406d3982ec37a42",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -3606,8 +3709,9 @@
       "isPositionRound": false,
       "isSkipped": false,
       "isUSBC": true,
-      "isLocked": false,
+      "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -3632,78 +3736,85 @@
       "normalWeek": null,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
-          "_id": "6999de6037fe18ac13ee724f",
-          "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 1,
-          "team2_id": "688118391406d3982ec37a1c",
-          "team2_lane": 2
-        },
-        {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
-          "_id": "6999de6037fe18ac13ee724e",
-          "team1_id": "688118321406d3982ec379c7",
-          "team1_lane": 3,
-          "team2_id": "6881183d1406d3982ec37a42",
-          "team2_lane": 4
-        },
-        {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
-          "_id": "6999de6037fe18ac13ee724d",
-          "team1_id": "688118421406d3982ec37a6e",
-          "team1_lane": 5,
-          "team2_id": "688118441406d3982ec37a87",
-          "team2_lane": 6
-        },
-        {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
-          "_id": "6999de6037fe18ac13ee724c",
-          "team1_id": "688118301406d3982ec379ab",
-          "team1_lane": 7,
-          "team2_id": "688118351406d3982ec379f0",
-          "team2_lane": 8
-        },
-        {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
-          "_id": "6999de6037fe18ac13ee724b",
-          "team1_id": "68811b528fce42526776f1a6",
-          "team1_lane": 9,
-          "team2_id": "688118461406d3982ec37a9a",
-          "team2_lane": 10
-        },
-        {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
-          "_id": "6999de6037fe18ac13ee724a",
-          "team1_id": "688118371406d3982ec37a06",
-          "team1_lane": 11,
-          "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 12
-        },
-        {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
-          "_id": "6999de6037fe18ac13ee7249",
-          "team1_id": "6881183b1406d3982ec37a2f",
-          "team1_lane": 13,
+          "team2_lane": 2,
+          "team1_id": "688118491406d3982ec37ac3",
           "team2_id": "68811b528fce42526776f19f",
-          "team2_lane": 14
+          "_id": "69dd46caec842c2e5d7b2ac0",
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
+        },
+        {
+          "team1_lane": 3,
+          "team2_lane": 4,
+          "team1_id": "68811b528fce42526776f1a6",
+          "team2_id": "688118371406d3982ec37a06",
+          "_id": "69dd46caec842c2e5d7b2abf",
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
+        },
+        {
+          "team1_lane": 5,
+          "team2_lane": 6,
+          "team1_id": "688118321406d3982ec379c7",
+          "team2_id": "688118421406d3982ec37a6e",
+          "_id": "69dd46caec842c2e5d7b2abe",
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
+        },
+        {
+          "team1_lane": 7,
+          "team2_lane": 8,
+          "team1_id": "688118401406d3982ec37a5b",
+          "team2_id": "6881183b1406d3982ec37a2f",
+          "_id": "69dd46caec842c2e5d7b2abd",
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
+        },
+        {
+          "team1_lane": 9,
+          "team2_lane": 10,
+          "team1_id": "688118391406d3982ec37a1c",
+          "team2_id": "688118441406d3982ec37a87",
+          "_id": "69dd46caec842c2e5d7b2abc",
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
+        },
+        {
+          "team1_lane": 11,
+          "team2_lane": 12,
+          "team1_id": "6881183d1406d3982ec37a42",
+          "team2_id": "688118301406d3982ec379ab",
+          "_id": "69dd46caec842c2e5d7b2abb",
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
+        },
+        {
+          "team1_lane": 13,
+          "team2_lane": 14,
+          "team1_id": "688118461406d3982ec37a9a",
+          "team2_id": "688118351406d3982ec379f0",
+          "_id": "69dd46caec842c2e5d7b2aba",
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
-      "isCustom": false,
+      "isCustom": true,
       "isBakerGame": false,
       "isLadderBracket": false,
       "isBracket": false,
@@ -3715,11 +3826,12 @@
       "isDivPlayoff": false,
       "isDivPositionRound": false,
       "isReversePositionRound": false,
-      "isPositionRound": true,
+      "isPositionRound": false,
       "isSkipped": false,
       "isUSBC": false,
-      "isLocked": false,
+      "isLocked": true,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -3747,68 +3859,68 @@
           "shift": 0,
           "game": 0,
           "oppPerWeek": 0,
-          "_id": "696807f2fac7a3352327c7c5",
-          "team1_id": "688118421406d3982ec37a6e",
+          "_id": "69e1a994442ef7dda50a2193",
+          "team1_id": "688118321406d3982ec379c7",
           "team1_lane": 1,
-          "team2_id": "688118391406d3982ec37a1c",
+          "team2_id": "688118401406d3982ec37a5b",
           "team2_lane": 2
         },
         {
           "shift": 0,
           "game": 0,
           "oppPerWeek": 0,
-          "_id": "696807f2fac7a3352327c7c4",
-          "team1_id": "6881183d1406d3982ec37a42",
+          "_id": "69e1a994442ef7dda50a2192",
+          "team1_id": "688118391406d3982ec37a1c",
           "team1_lane": 3,
-          "team2_id": "6881183b1406d3982ec37a2f",
+          "team2_id": "6881183d1406d3982ec37a42",
           "team2_lane": 4
         },
         {
           "shift": 0,
           "game": 0,
           "oppPerWeek": 0,
-          "_id": "696807f2fac7a3352327c7c3",
-          "team1_id": "688118461406d3982ec37a9a",
+          "_id": "69e1a994442ef7dda50a2191",
+          "team1_id": "688118301406d3982ec379ab",
           "team1_lane": 5,
-          "team2_id": "688118441406d3982ec37a87",
+          "team2_id": "688118421406d3982ec37a6e",
           "team2_lane": 6
         },
         {
           "shift": 0,
           "game": 0,
           "oppPerWeek": 0,
-          "_id": "696807f2fac7a3352327c7c2",
-          "team1_id": "688118401406d3982ec37a5b",
+          "_id": "69e1a994442ef7dda50a2190",
+          "team1_id": "6881183b1406d3982ec37a2f",
           "team1_lane": 7,
-          "team2_id": "688118321406d3982ec379c7",
+          "team2_id": "688118441406d3982ec37a87",
           "team2_lane": 8
         },
         {
           "shift": 0,
           "game": 0,
           "oppPerWeek": 0,
-          "_id": "696807f2fac7a3352327c7c1",
-          "team1_id": "688118351406d3982ec379f0",
+          "_id": "69e1a994442ef7dda50a218f",
+          "team1_id": "688118491406d3982ec37ac3",
           "team1_lane": 9,
-          "team2_id": "68811b528fce42526776f1a6",
+          "team2_id": "688118461406d3982ec37a9a",
           "team2_lane": 10
         },
         {
           "shift": 0,
           "game": 0,
           "oppPerWeek": 0,
-          "_id": "696807f2fac7a3352327c7c0",
-          "team1_id": "688118371406d3982ec37a06",
+          "_id": "69e1a994442ef7dda50a218e",
+          "team1_id": "688118351406d3982ec379f0",
           "team1_lane": 11,
-          "team2_id": "688118491406d3982ec37ac3",
+          "team2_id": "688118371406d3982ec37a06",
           "team2_lane": 12
         },
         {
           "shift": 0,
           "game": 0,
           "oppPerWeek": 0,
-          "_id": "696807f2fac7a3352327c7bf",
-          "team1_id": "688118301406d3982ec379ab",
+          "_id": "69e1a994442ef7dda50a218d",
+          "team1_id": "68811b528fce42526776f1a6",
           "team1_lane": 13,
           "team2_id": "68811b528fce42526776f19f",
           "team2_lane": 14
@@ -3856,74 +3968,81 @@
       "normalWeek": null,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7cc",
           "team1_id": "688118421406d3982ec37a6e",
           "team1_lane": 1,
           "team2_id": "688118391406d3982ec37a1c",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7cb",
           "team1_id": "6881183d1406d3982ec37a42",
           "team1_lane": 3,
           "team2_id": "6881183b1406d3982ec37a2f",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7ca",
           "team1_id": "688118461406d3982ec37a9a",
           "team1_lane": 5,
           "team2_id": "688118441406d3982ec37a87",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7c9",
           "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 7,
           "team2_id": "688118321406d3982ec379c7",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7c8",
           "team1_id": "688118351406d3982ec379f0",
           "team1_lane": 9,
           "team2_id": "68811b528fce42526776f1a6",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7c7",
           "team1_id": "688118371406d3982ec37a06",
           "team1_lane": 11,
           "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7c6",
           "team1_id": "688118301406d3982ec379ab",
           "team1_lane": 13,
           "team2_id": "68811b528fce42526776f19f",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -3944,6 +4063,7 @@
       "isUSBC": false,
       "isLocked": false,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -3968,74 +4088,81 @@
       "gamesPerRound": 1,
       "matches": [
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7d3",
           "team1_id": "688118421406d3982ec37a6e",
           "team1_lane": 1,
           "team2_id": "688118391406d3982ec37a1c",
-          "team2_lane": 2
+          "team2_lane": 2,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7d2",
           "team1_id": "6881183d1406d3982ec37a42",
           "team1_lane": 3,
           "team2_id": "6881183b1406d3982ec37a2f",
-          "team2_lane": 4
+          "team2_lane": 4,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7d1",
           "team1_id": "688118461406d3982ec37a9a",
           "team1_lane": 5,
           "team2_id": "688118441406d3982ec37a87",
-          "team2_lane": 6
+          "team2_lane": 6,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7d0",
           "team1_id": "688118401406d3982ec37a5b",
           "team1_lane": 7,
           "team2_id": "688118321406d3982ec379c7",
-          "team2_lane": 8
+          "team2_lane": 8,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7cf",
           "team1_id": "688118351406d3982ec379f0",
           "team1_lane": 9,
           "team2_id": "68811b528fce42526776f1a6",
-          "team2_lane": 10
+          "team2_lane": 10,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7ce",
           "team1_id": "688118371406d3982ec37a06",
           "team1_lane": 11,
           "team2_id": "688118491406d3982ec37ac3",
-          "team2_lane": 12
+          "team2_lane": 12,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         },
         {
-          "shift": 0,
-          "game": 0,
-          "oppPerWeek": 0,
           "_id": "696807f2fac7a3352327c7cd",
           "team1_id": "688118301406d3982ec379ab",
           "team1_lane": 13,
           "team2_id": "68811b528fce42526776f19f",
-          "team2_lane": 14
+          "team2_lane": 14,
+          "oppPerWeek": 0,
+          "bracket": 0,
+          "game": 0,
+          "shift": 0
         }
       ],
       "splitMatches": [],
@@ -4056,6 +4183,7 @@
       "isUSBC": false,
       "isLocked": false,
       "isCutLine": false,
+      "oppPerWeekType": [],
       "oppPerWeek": 2,
       "isDiffMultiShift": false,
       "isSwitchPairLane": false,
@@ -4074,6 +4202,6 @@
   "bracketConfig": [],
   "disabledLanes": [],
   "shifts": [],
-  "__v": 696,
+  "__v": 902,
   "league_time": "8:20 PM"
 }

@@ -1,156 +1,141 @@
 .standings-container {
-  background-color: var(--card-background);
-  padding: 30px;
-  border-radius: 4px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(248, 234, 204, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  background-color: var(--bg-card);
+  padding: var(--space-8);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--card-highlight), var(--shadow-md);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
 }
 
 .standings-container:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  transform: translateY(-3px);
+  box-shadow: var(--card-highlight), var(--shadow-lg);
 }
 
-.standings-table-wrapper {
-  overflow-x: auto;
-}
+.standings-table-wrapper { overflow-x: auto; }
 
 .standings-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.95rem;
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
 }
 
+/* Scoreboard-style header */
 .standings-table thead {
-  background-color: rgba(32, 44, 57, 0.5);
+  background-color: var(--bg-sunken);
 }
 
 .standings-table th {
-  padding: 16px 12px;
+  padding: 13px 12px;
   text-align: left;
-  color: var(--secondary-color);
-  font-weight: 600;
-  font-size: 0.85rem;
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--text-xs);
   text-transform: uppercase;
-  letter-spacing: 1px;
-  border-bottom: 2px solid rgba(248, 234, 204, 0.2);
+  letter-spacing: 1.5px;
+  border-bottom: 1px solid var(--border-default);
+  white-space: nowrap;
 }
 
-.standings-table th.center {
-  text-align: center;
-}
+.standings-table th.center { text-align: center; }
 
+/* Even rows get a very subtle stripe */
 .standings-table tbody tr {
-  border-bottom: 1px solid rgba(248, 234, 204, 0.08);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--transition-fast);
 }
+
+.standings-table tbody tr:nth-child(even) {
+  background-color: rgba(240, 180, 41, 0.025);
+}
+
+.standings-table tbody tr:last-child { border-bottom: none; }
 
 .standings-table tbody tr:hover {
-  background-color: rgba(248, 234, 204, 0.08);
-  transform: scale(1.01);
+  background-color: rgba(240, 180, 41, 0.07) !important;
 }
 
-.standings-table tbody tr.top-three {
-  background-color: rgba(248, 234, 204, 0.12);
+/* First-place gold sweep — premium treatment */
+.standings-table tbody tr:first-child {
+  background: linear-gradient(90deg,
+    rgba(240, 180, 41, 0.14) 0%,
+    rgba(240, 180, 41, 0.06) 40%,
+    transparent 70%) !important;
+  border-left: 3px solid var(--accent);
+}
+
+.standings-table tbody tr:first-child:hover {
+  background: linear-gradient(90deg,
+    rgba(240, 180, 41, 0.20) 0%,
+    rgba(240, 180, 41, 0.10) 40%,
+    transparent 70%) !important;
 }
 
 .standings-table td {
-  padding: 16px 12px;
-  color: var(--text-color);
+  padding: 13px 12px;
+  color: var(--text-primary);
 }
 
-.standings-table td.center {
-  text-align: center;
-}
+.standings-table td.center { text-align: center; }
 
+/* Rank column */
 .rank {
-  font-weight: bold;
-  color: var(--accent-color);
-  font-size: 1.1rem;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--accent);
+  font-size: var(--text-lg);
+  line-height: 1;
 }
 
 .trophy {
   margin-left: 5px;
+  font-size: 0.9em;
+  filter: drop-shadow(0 0 4px rgba(240, 180, 41, 0.6));
 }
 
 .team-name {
   font-weight: 600;
-  color: var(--text-color);
+  font-size: var(--text-md);
 }
 
-.wins {
-  color: #4ade80;
-  font-weight: 600;
+/* First-place team name gets extra glow */
+.standings-table tbody tr:first-child .team-name {
+  color: var(--accent-bright);
 }
 
-.losses {
-  color: #f87171;
-  font-weight: 600;
-}
+.wins   { color: var(--win-color);  font-weight: 700; }
+.losses { color: var(--loss-color); font-weight: 600; }
 
 .points {
-  color: var(--secondary-color);
-  font-weight: bold;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  color: var(--text-primary);
 }
 
+/* First-place points */
+.standings-table tbody tr:first-child .points {
+  color: var(--accent);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
 @media (max-width: 768px) {
-  .standings-container {
-    padding: 20px 16px;
-  }
-
-  .standings-table {
-    font-size: 0.85rem;
-  }
-
+  .standings-container { padding: var(--space-5) var(--space-4); }
+  .standings-table { font-size: var(--text-sm); }
   .standings-table th,
-  .standings-table td {
-    padding: 10px 6px;
-  }
-
-  /* Hide captain column on mobile */
+  .standings-table td { padding: 10px 8px; }
   .standings-table th:nth-child(3),
-  .standings-table td:nth-child(3) {
-    display: none;
-  }
-
-  .team-name {
-    font-size: 0.9rem;
-  }
-
-  .rank {
-    font-size: 1rem;
-  }
+  .standings-table td:nth-child(3) { display: none; }
+  .team-name { font-size: var(--text-base); }
 }
 
 @media (max-width: 480px) {
-  .standings-container {
-    padding: 16px 12px;
-  }
-
-  .standings-table {
-    font-size: 0.8rem;
-  }
-
+  .standings-container { padding: var(--space-4) var(--space-3); }
   .standings-table th,
-  .standings-table td {
-    padding: 8px 4px;
-    font-size: 0.75rem;
-  }
-
-  .standings-table th {
-    font-size: 0.7rem;
-  }
-
-  .team-name {
-    font-size: 0.85rem;
-  }
-
-  .rank {
-    font-size: 0.9rem;
-  }
-
-  .trophy {
-    font-size: 0.9rem;
-  }
+  .standings-table td { padding: 9px 5px; font-size: var(--text-xs); }
+  .rank { font-size: var(--text-base); }
+  .points { font-size: var(--text-base); }
 }

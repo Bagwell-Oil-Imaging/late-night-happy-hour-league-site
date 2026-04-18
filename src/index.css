@@ -1,32 +1,414 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LATE NIGHT HAPPY HOUR — Design System
+   "The Alley After Dark": premium bowling lounge meets ESPN broadcast
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Fonts ───────────────────────────────────────────────────────────────── */
+/* Anton       → hero/logo display (condensed bold) */
+/* Barlow Semi Condensed → section titles, nav, table headers */
+/* Barlow      → body text, descriptions */
+
 :root {
-  --primary-color: #0d2538;
-  --secondary-color: #e8d5b5;
-  --background-color: #0d2538;
-  --card-background: #1a3a52;
-  --text-color: #e8d5b5;
-  --text-secondary: #d4c5a0;
-  --border-color: #2a4d66;
-  --accent-color: #e8d5b5;
+  /* ── Raw palette ────────────────────────────────────────────────────── */
+  --navy-950: #04080f;
+  --navy-900: #080e18;   /* page bg */
+  --navy-800: #0c1624;
+  --navy-700: #0f1f30;   /* card bg */
+  --navy-600: #152840;   /* card raised */
+  --navy-500: #1c3450;
+  --navy-400: #254263;
+  --navy-300: #2e5278;
+
+  --gold-bright: #f5c542;  /* primary accent — used sparingly */
+  --gold-base:   #f0b429;  /* buttons, active states */
+  --gold-muted:  #c49a2a;  /* borders, secondary accents */
+  --gold-dim:    #7a5e18;  /* very subtle glow borders */
+
+  --cream-100: #faf3e3;
+  --cream-200: #f0e6cc;
+  --cream-300: #e0cfa8;   /* primary text */
+  --cream-400: #c4af84;   /* secondary text */
+  --cream-500: #9a8560;   /* muted text */
+  --cream-600: #6a5c3e;   /* disabled / placeholder */
+
+  --green-glow: #22c55e;
+  --red-bright:  #ef4444;
+  --blue-link:   #60a5fa;
+  --amber-badge: #fbbf24;
+
+  /* ── Semantic roles ─────────────────────────────────────────────────── */
+  --bg-page:       var(--navy-900);
+  --bg-card:       var(--navy-700);
+  --bg-card-inner: var(--navy-600);
+  --bg-sunken:     var(--navy-950);
+  --bg-overlay:    rgba(4, 8, 15, 0.88);
+
+  --text-primary:   var(--cream-300);
+  --text-secondary: var(--cream-400);
+  --text-muted:     var(--cream-500);
+  --text-inverse:   var(--navy-900);
+
+  --accent:        var(--gold-base);
+  --accent-bright: var(--gold-bright);
+  --accent-border: var(--gold-dim);
+
+  --win-color:     var(--green-glow);
+  --loss-color:    var(--red-bright);
+  --link-color:    var(--blue-link);
+  --badge-color:   var(--amber-badge);
+
+  --border-subtle:  rgba(240, 180, 41, 0.06);
+  --border-default: rgba(240, 180, 41, 0.12);
+  --border-strong:  rgba(240, 180, 41, 0.28);
+  --border-gold:    rgba(240, 180, 41, 0.50);
+
+  /* Card highlight: simulates light catching the top edge of a glass surface */
+  --card-highlight: inset 0 1px 0 rgba(240, 180, 41, 0.18);
+
+  /* ── Backward-compat aliases ────────────────────────────────────────── */
+  --primary-color:    var(--bg-page);
+  --secondary-color:  var(--text-primary);
+  --background-color: var(--bg-page);
+  --card-background:  var(--bg-card);
+  --text-color:       var(--text-primary);
+  --border-color:     var(--border-default);
+  --accent-color:     var(--accent);
+
+  /* ── Typography ─────────────────────────────────────────────────────── */
+  --font-display:    'Anton', sans-serif;
+  --font-heading:    'Barlow Semi Condensed', sans-serif;
+  --font-condensed:  'Barlow Condensed', sans-serif;
+  --font-body:       'Barlow', sans-serif;
+
+  --text-xs:   0.70rem;
+  --text-sm:   0.83rem;
+  --text-base: 0.95rem;
+  --text-md:   1.05rem;
+  --text-lg:   1.20rem;
+  --text-xl:   1.45rem;
+  --text-2xl:  1.85rem;
+  --text-3xl:  2.40rem;
+  --text-4xl:  3.20rem;
+
+  /* ── Radius ─────────────────────────────────────────────────────────── */
+  --radius-sm:   5px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   20px;
+  --radius-pill: 9999px;
+
+  /* ── Shadows ────────────────────────────────────────────────────────── */
+  --shadow-sm:  0 2px 8px  rgba(0, 0, 0, 0.40);
+  --shadow-md:  0 4px 24px rgba(0, 0, 0, 0.50);
+  --shadow-lg:  0 8px 40px rgba(0, 0, 0, 0.65);
+  --shadow-xl:  0 20px 64px rgba(0, 0, 0, 0.75);
+  --shadow-gold: 0 0 20px rgba(240, 180, 41, 0.20);
+
+  /* ── Spacing ────────────────────────────────────────────────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── Transitions ────────────────────────────────────────────────────── */
+  --ease-out:        cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 0.15s var(--ease-out);
+  --transition-base: 0.25s var(--ease-out);
+  --transition-slow: 0.35s var(--ease-out);
 }
 
-* {
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESET & BASE
+═══════════════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+html { scroll-behavior: smooth; }
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  background-color: var(--background-color);
-  color: var(--text-color);
-  line-height: 1.7;
+  font-family: var(--font-body);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  line-height: 1.6;
   font-size: 16px;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.15px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Multi-layer background: radial glow + dot grid texture */
+  background-image:
+    radial-gradient(ellipse 90% 50% at 50% -5%, rgba(44, 82, 130, 0.30) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 30% at 15% 80%, rgba(30, 55, 90, 0.15) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
+/* Dot-grid texture overlay — like a bowling alley floor at night */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(240, 180, 41, 0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  z-index: 0;
 }
 
 #root {
+  position: relative;
+  z-index: 1;
   width: 100%;
   min-height: 100vh;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLOBAL UTILITIES
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Card surface */
+.card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-highlight), var(--shadow-md);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--card-highlight), var(--shadow-lg), var(--shadow-gold);
+}
+
+/* ── Section title — ESPN chyron style ──────────────────────────────────── */
+.section-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-6) 0;
+  padding-left: var(--space-4);
+  border-left: 4px solid var(--accent);
+  line-height: 1.2;
+}
+
+/* Week/group heading inside cards */
+.week-heading {
+  font-family: var(--font-heading);
+  font-size: var(--text-base);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  margin: 0 0 var(--space-3) 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* ── Shared table shell ─────────────────────────────────────────────────── */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-base);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table thead {
+  background-color: var(--bg-sunken);
+}
+
+.data-table th {
+  padding: 13px 12px;
+  text-align: left;
+  color: var(--accent);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.data-table th.center { text-align: center; }
+
+.data-table tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background var(--transition-fast);
+}
+
+.data-table tbody tr:nth-child(even) {
+  background-color: rgba(240, 180, 41, 0.02);
+}
+
+.data-table tbody tr:last-child { border-bottom: none; }
+
+.data-table tbody tr:hover {
+  background-color: rgba(240, 180, 41, 0.06);
+}
+
+.data-table td {
+  padding: 13px 12px;
+  color: var(--text-primary);
+}
+
+.data-table td.center { text-align: center; }
+
+.stat-win   { color: var(--win-color);  font-weight: 600; }
+.stat-loss  { color: var(--loss-color); font-weight: 600; }
+.stat-pts   { color: var(--text-primary); font-weight: 700; }
+
+/* ── Badge ──────────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODAL SHARED STYLES
+═══════════════════════════════════════════════════════════════════════════ */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--bg-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: var(--space-5);
+  animation: fadeIn var(--transition-fast);
+  backdrop-filter: blur(6px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-sunken);
+  flex-shrink: 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-primary);
+}
+
+.modal-close-button {
+  background: none;
+  border: 1px solid var(--border-default);
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.modal-close-button:hover {
+  background: rgba(240, 180, 41, 0.10);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.modal-body {
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-sunken); }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--gold-muted); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SELECTION
+═══════════════════════════════════════════════════════════════════════════ */
+
+::selection {
+  background: rgba(240, 180, 41, 0.30);
+  color: var(--cream-100);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .modal-header { padding: 1rem 1.25rem; }
+  .modal-header h2 { font-size: var(--text-lg); }
+}
+
+/* ── Handicap annotation shown below a total score ───────────────────────── */
+/* Absolutely positioned so it does not affect cell height or vertical        */
+/* alignment — the score number stays centered regardless of whether the      */
+/* annotation is present on the other team's cell.                            */
+.score-hcp {
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  opacity: 0.75;
+  cursor: help;
+  white-space: nowrap;
+  line-height: 1;
 }

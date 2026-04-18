@@ -3,7 +3,11 @@ import teamsData from '../data/teams.json'
 import type { Matchup, Team } from '../types'
 import './SeasonScores.css'
 
-function SeasonScores() {
+interface SeasonScoresProps {
+  onSelectMatch?: (matchId: number) => void
+}
+
+function SeasonScores({ onSelectMatch }: SeasonScoresProps) {
   const matches = historicalData as Matchup[]
   const teams = teamsData as Team[]
 
@@ -61,9 +65,15 @@ function SeasonScores() {
                     const team1 = getTeamById(match.team1Id)
                     const team2 = getTeamById(match.team2Id)
                     const winnerId = getWinner(match)
+                    const clickable = !!onSelectMatch
 
                     return (
-                      <tr key={match.id}>
+                      <tr
+                        key={match.id}
+                        className={clickable ? 'clickable-row' : ''}
+                        onClick={clickable ? () => onSelectMatch(match.id) : undefined}
+                        title={clickable ? 'View match details' : undefined}
+                      >
                         <td className={`team-name ${winnerId === match.team1Id ? 'winner' : ''}`}>
                           {team1?.name}
                         </td>
