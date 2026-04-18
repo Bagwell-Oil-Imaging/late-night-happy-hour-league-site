@@ -1092,6 +1092,231 @@ async function populateBowlers(seasonYear) {
   await batchWrite('bowlers', docs, doc => doc.leaguePalsId)
 }
 
+// ─── Firestore: bowlerScores Collection ──────────────────────────────────────
+
+/**
+ * Populates the `bowlerScores` Firestore collection with one document per bowler
+ * per week they have a game entry recorded.
+ *
+ * Primary data source: `leaguepals-data/teams/{teamId}.json` — the same files
+ * used by `populateBowlers()`. Each player's `weekGames` property is an object
+ * keyed by date string (YYYY-MM-DD). Each value is an array; we use the first
+ * element (index 0) as the canonical entry for that week.
+ *
+ * Key detection logic:
+ *   Blind detection  — `games.some(g => g === "-" || g === null)`. Absent bowlers
+ *     receive `"-"` as their game values. When blinded, game1/game2/game3/series
+ *     are stored as `null` (not 0) to prevent corrupting aggregate queries.
+ *   Pre-bowl detection — `weekEntry.isMatch === false`. When a bowler pre-bowls
+ *     (bowls before the scheduled match night), `isMatch` is false, the date key
+ *     is the actual bowl date, and `matchDate` (if present) is the scheduled night.
+ *     We store the bowl date as `actualBowlDate` and the scheduled date as `date`.
+ *   Substitute tracking — defaulted to `false`/`null` for all bowlers. Full
+ *     substitute detection requires manual admin input (TODO: Phase 5 admin UI).
+ *
+ * Lane pair and opponent team are resolved from the lane schedule lookup built
+ * by `buildLaneLookup()`. Fields `opponentTeamId`, `opponentTeamName`, and
+ * `matchupId` are intentionally left as empty strings — they will be wired
+ * in phase-2/sub-task-5.
+ *
+ * Fallback: if no team JSON files are present, reads `src/data/bowlerStats.json`
+ * and maps each bowler's `weeks` array (with g1/g2/g3 fields) to the canonical
+ * bowlerScore schema. All detection flags default to false/null.
+ *
+ * @param {string} seasonYear - e.g. "2025-2026". Stored on every document.
+ * @returns {Promise<void>}
+ */
+async function populateBowlerScores(seasonYear) {
+  if (!db) {
+    console.warn('[populateBowlerScores] Skipping bowlerScores — Firestore not initialized')
+    return
+  }
+
+  /** @type {object[]} Accumulated bowler score documents to batch-write */
+  const bowlerScoreDocs = []
+
+  // Build a date → week-number lookup from the lane schedule for `week` field
+  // (same approach as buildBowlerStats to keep consistency)
+  const weekDateIndex = new Map()
+  const weeks = schedule.schedule ?? []
+  weeks.forEach((week, i) => {
+    if (!week.matches || week.matches.length === 0) return
+    weekDateIndex.set(week.date.slice(0, 10), i + 1)
+  })
+
+  // Read team file listing — same directory glob as populateBowlers()
+  const teamFilePaths = readdirSync(TEAMS_RAW_DIR)
+    .filter(f => f.endsWith('.json'))
+    .map(f => join(TEAMS_RAW_DIR, f))
+
+  if (teamFilePaths.length > 0) {
+    // ── Primary path: individual team JSON files ──────────────────────────────
+    for (const filePath of teamFilePaths) {
+      const raw = JSON.parse(readFileSync(filePath, 'utf8'))
+      const players = raw.data ?? []
+      if (players.length === 0) continue // skip vacant/bye teams
+
+      for (const player of players) {
+        // `player.weekGames` is an object: { "YYYY-MM-DD": [ { isMatch, weekIdx, games } ] }
+        // The value is always an array; we use index 0 as the canonical entry.
+        const weekGames = player.weekGames ?? {}
+
+        for (const [dateKey, entries] of Object.entries(weekGames)) {
+          // Guard: entries must be a non-empty array
+          if (!Array.isArray(entries) || entries.length === 0) continue
+          const weekEntry = entries[0]
+          if (!weekEntry) continue
+
+          const games = weekEntry.games ?? []
+
+          // ── Blind detection ───────────────────────────────────────────────
+          // An absent bowler's games array contains "-" string markers (e.g. ["-","-","-",0]).
+          // We also check for null values defensively.
+          const blinded = games.some(g => g === '-' || g === null)
+
+          // ── Pre-bowl detection ────────────────────────────────────────────
+          // isMatch === false means the bowler bowled on a different night than the
+          // scheduled match. The date key IS the actual bowl date; matchDate (if
+          // present) is the scheduled match night this score counts toward.
+          const preBowled = weekEntry.isMatch === false
+
+          // ── Week number ───────────────────────────────────────────────────
+          // For a pre-bowled entry the dateKey is the actual bowl night, not the
+          // scheduled match night, so we may not find it in weekDateIndex. We
+          // try the matchDate first (the week it counts for) and fall back to
+          // looking up by the dateKey itself.
+          const scheduledDate = preBowled
+            ? (weekEntry.matchDate ?? dateKey)
+            : dateKey
+          const weekNum = weekDateIndex.get(scheduledDate)
+            ?? weekDateIndex.get(dateKey)
+            ?? 0
+
+          // ── Lane and opponent from lane schedule ──────────────────────────
+          // laneLookup is keyed by the *scheduled match* date and team LP ObjectId.
+          // Use scheduledDate so pre-bowled entries resolve to the correct lane pair.
+          const teamLpId = player.team ?? ''
+          const laneInfo = laneLookup.get(scheduledDate)?.get(teamLpId)
+            ?? laneLookup.get(dateKey)?.get(teamLpId)
+
+          // ── Individual game scores ────────────────────────────────────────
+          // games[3] is the series total — skip it; we only want games[0..2].
+          // Store null (not 0) when blinded so aggregates remain uncontaminated.
+          const game1 = blinded ? null : (typeof games[0] === 'number' ? games[0] : null)
+          const game2 = blinded ? null : (typeof games[1] === 'number' ? games[1] : null)
+          const game3 = blinded ? null : (typeof games[2] === 'number' ? games[2] : null)
+
+          // Compute series from individual games to avoid relying on games[3] (which
+          // may be 0 for absent bowlers). Returns null when blinded.
+          const series = blinded
+            ? null
+            : ([game1, game2, game3].filter(g => typeof g === 'number').reduce((a, b) => a + b, 0) || null)
+
+          bowlerScoreDocs.push({
+            // ── Bowler identity ─────────────────────────────────────────────
+            bowlerId: player._id ?? '',
+            bowlerName: `${player.firstName ?? ''} ${player.lastName ?? ''}`.trim(),
+
+            // ── Team FKs (LeaguePals ObjectId strings) ──────────────────────
+            teamId: teamLpId,
+            teamName: player.teamName ?? '',
+
+            // Opponent FKs — will be wired in phase-2/sub-task-5
+            opponentTeamId: '',
+            opponentTeamName: '',
+
+            // Matchup FK — will be wired in phase-2/sub-task-5
+            matchupId: '',
+
+            // ── Season / week context ────────────────────────────────────────
+            seasonYear,
+            week: weekNum,
+
+            // `date` is the scheduled match date this score counts toward.
+            // For pre-bowled scores, `actualBowlDate` records when they actually bowled.
+            date: scheduledDate,
+            actualBowlDate: preBowled ? dateKey : null,
+
+            // Lane assignment (odd lane number of the pair)
+            lanePair: laneInfo?.lane ?? 0,
+
+            // ── Game scores ──────────────────────────────────────────────────
+            game1,
+            game2,
+            game3,
+            series,
+
+            // ── Status flags ─────────────────────────────────────────────────
+            preBowled,
+            blinded,
+
+            // Substitute tracking: defaulted to false/null.
+            // TODO: Phase 5 admin UI will allow marking actual substitutes.
+            isSubstitute: false,
+            substituteFor: null,
+          })
+        }
+      }
+    }
+
+    console.log(`[populateBowlerScores] Mapped ${bowlerScoreDocs.length} score documents from ${teamFilePaths.length} team files`)
+  } else {
+    // ── Fallback path: derive from the locally built bowlerStats.json ─────────
+    // Used only when no team files are present (e.g., initial dev bootstrapping).
+    // bowlerStats.json uses g1/g2/g3 field names — we remap to game1/game2/game3.
+    console.warn('[populateBowlerScores] No team files found — falling back to src/data/bowlerStats.json')
+
+    const bowlerStatsPath = join(OUT_DIR, 'bowlerStats.json')
+    const rawStats = existsSync(bowlerStatsPath)
+      ? JSON.parse(readFileSync(bowlerStatsPath, 'utf8'))
+      : buildBowlerStats()
+
+    const statsArray = rawStats.data ?? rawStats
+
+    for (const bowler of statsArray) {
+      const weeksArr = bowler.weeks ?? []
+
+      for (const w of weeksArr) {
+        // Fallback data never has blind/preBowl markers — default all flags
+        const game1 = typeof w.g1 === 'number' ? w.g1 : null
+        const game2 = typeof w.g2 === 'number' ? w.g2 : null
+        const game3 = typeof w.g3 === 'number' ? w.g3 : null
+        const series = [game1, game2, game3]
+          .filter(g => typeof g === 'number')
+          .reduce((a, b) => a + b, 0) || null
+
+        bowlerScoreDocs.push({
+          bowlerId: bowler.id ?? '',
+          bowlerName: bowler.name ?? '',
+          teamId: String(bowler.teamId ?? ''),
+          teamName: bowler.teamName ?? '',
+          opponentTeamId: '',
+          opponentTeamName: '',
+          matchupId: '',
+          seasonYear,
+          week: w.week ?? 0,
+          date: w.date ?? '',
+          actualBowlDate: null,
+          lanePair: w.lane ?? 0,
+          game1,
+          game2,
+          game3,
+          series,
+          preBowled: false,
+          blinded: false,
+          isSubstitute: false,
+          substituteFor: null,
+        })
+      }
+    }
+
+    console.log(`[populateBowlerScores] Mapped ${bowlerScoreDocs.length} score documents from bowlerStats.json (fallback)`)
+  }
+
+  // Auto-generated Firestore IDs — no custom doc ID needed for scores
+  await batchWrite('bowlerScores', bowlerScoreDocs)
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -1170,6 +1395,10 @@ async function main() {
 
   // 8. Write bowlers collection — rich per-bowler stats from team roster files
   await populateBowlers('2025-2026')
+
+  // 9. Write bowlerScores collection — one document per bowler per week,
+  //    with corrected blind/preBowl detection and null scores for absent weeks
+  await populateBowlerScores('2025-2026')
 }
 
 main()
