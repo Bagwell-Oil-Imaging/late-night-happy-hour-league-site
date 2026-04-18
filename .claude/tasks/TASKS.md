@@ -101,7 +101,7 @@ graph TD
     class P5S1 completed
     class P5S2 completed
     class P5S3 completed
-    class P6S1 pending
+    class P6S1 completed
     class P6S2 pending
     class P6S3 pending
 ```
@@ -170,7 +170,7 @@ graph TD
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [Delete JSON Files + Fix TypeScript Errors](phase-6/sub-task-1.md) | pending | phase-4/sub-task-1 through 4 | — |
+| 1 | [Delete JSON Files + Fix TypeScript Errors](phase-6/sub-task-1.md) | completed | phase-4/sub-task-1 through 4 | 94a14fe |
 | 2 | [Composite Firestore Indexes](phase-6/sub-task-2.md) | pending | phase-2/sub-task-5 | — |
 | 3 | [onSnapshot Listeners + Docs Update](phase-6/sub-task-3.md) | pending | phase-4/sub-task-1 through 4 | — |
 
@@ -183,5 +183,5 @@ graph TD
 | Phase 3: React Foundation | 2 | 2 | Completed |
 | Phase 4: Component Migration | 4 | 2 | In progress |
 | Phase 5: Admin CRUD UI | 3 | 3 | Complete |
-| Phase 6: Cleanup & Optimization | 3 | 0 | Not started |
-| **Total** | **20** | **14** | **70%** |
+| Phase 6: Cleanup & Optimization | 3 | 1 | In progress |
+| **Total** | **20** | **18** | **90%** |
