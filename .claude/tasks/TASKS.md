@@ -91,7 +91,7 @@ graph TD
     class P2S2 completed
     class P2S3 completed
     class P2S4 completed
-    class P2S5 pending
+    class P2S5 completed
     class P3S1 completed
     class P3S2 completed
     class P4S1 completed
@@ -136,7 +136,7 @@ graph TD
 | 2 | [leagueConfig Collection Mapping](phase-2/sub-task-2.md) | completed | sub-task-1 | 7a7e090 |
 | 3 | [Expanded Teams + Bowlers Mapping](phase-2/sub-task-3.md) | completed | sub-task-1 | d6c1db8 |
 | 4 | [bowlerScores: Blind/PreBowl/Substitute](phase-2/sub-task-4.md) | completed | sub-task-1 | b54f474 |
-| 5 | [positionRound + FK Fix + Full Batch Write](phase-2/sub-task-5.md) | pending | sub-task-2, sub-task-3, sub-task-4 | — |
+| 5 | [positionRound + FK Fix + Full Batch Write](phase-2/sub-task-5.md) | completed | sub-task-2, sub-task-3, sub-task-4 | cbf535f |
 
 ### Phase 3: React Foundation — Types & Hooks
 **Goal:** Update TypeScript types to the new schema and create all Firestore read hooks.
@@ -179,9 +179,9 @@ graph TD
 | Phase | Tasks | Completed | Status |
 |-------|-------|-----------|--------|
 | Phase 1: Firebase Foundation | 3 | 3 | Complete |
-| Phase 2: Transform Script Rework | 5 | 4 | In progress |
+| Phase 2: Transform Script Rework | 5 | 5 | Complete |
 | Phase 3: React Foundation | 2 | 2 | Completed |
 | Phase 4: Component Migration | 4 | 2 | In progress |
 | Phase 5: Admin CRUD UI | 3 | 3 | Complete |
 | Phase 6: Cleanup & Optimization | 3 | 0 | Not started |
-| **Total** | **20** | **13** | **65%** |
+| **Total** | **20** | **14** | **70%** |
