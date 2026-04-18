@@ -1,54 +1,115 @@
-import historicalData from '../data/historicalMatches.json'
-import teamsData from '../data/teams.json'
-import type { Matchup, Team } from '../types'
+/**
+ * @file SeasonScores.tsx
+ * @module components
+ *
+ * Displays completed matchup results grouped by week for the current season.
+ * Reads matchup data from Firestore via `useMatchups`. Scores that are null
+ * (bowler was blinded or absent) render as "-" rather than "0".
+ *
+ * Props:
+ *  onSelectMatch – optional callback; when provided each row becomes clickable
+ *                  and fires with the Firestore document ID of the matchup
+ */
+
+import { useMatchups, useTeams } from '../hooks'
+import type { Matchup } from '../types'
 import './SeasonScores.css'
 
+/** Season year constant — update when the season rolls over */
+const SEASON_YEAR = '2025-2026'
+
 interface SeasonScoresProps {
-  onSelectMatch?: (matchId: number) => void
+  /** Optional click handler; called with the Firestore matchup document ID */
+  onSelectMatch?: (matchId: string) => void
 }
 
+/**
+ * SeasonScores — weekly scorecard table for all completed matchups.
+ *
+ * @param onSelectMatch - Optional row-click callback receiving the matchup ID
+ */
 function SeasonScores({ onSelectMatch }: SeasonScoresProps) {
-  const matches = historicalData as Matchup[]
-  const teams = teamsData as Team[]
+  // Firestore subscriptions — both scoped to the current season
+  const { data: matchups, loading: matchupsLoading } = useMatchups(SEASON_YEAR)
+  const { data: teams, loading: teamsLoading } = useTeams(SEASON_YEAR)
 
-  const seasonMatches = [...matches]
+  const loading = matchupsLoading || teamsLoading
+
+  // Show loading skeleton while Firestore data arrives
+  if (loading) {
+    return (
+      <div className="season-scores-container" id="scores">
+        <h2 className="section-title">Season Scores</h2>
+        <p className="loading-message">Loading scores…</p>
+      </div>
+    )
+  }
+
+  /** Only show matchups that have been played */
+  const seasonMatches = [...matchups]
     .filter(m => m.completed)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-  const getTeamById = (id: number): Team | undefined => {
-    return teams.find(t => t.id === id)
-  }
+  /**
+   * Look up a team by its Firestore document ID (stored as `id` on the Team
+   * document after the generic hook attaches it).
+   */
+  const getTeamById = (teamId: string) => teams.find(t => t.id === teamId)
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
+  /** Format ISO date string to "Mon DD, YYYY" */
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
     })
+
+  /**
+   * Determine which team won based on scratch scores.
+   * Returns null when either score is unavailable (e.g. in-progress week).
+   */
+  const getWinnerId = (matchup: Matchup): string | null => {
+    if (
+      matchup.team1ScratchScore === null ||
+      matchup.team2ScratchScore === null
+    )
+      return null
+    if (matchup.team1ScratchScore > matchup.team2ScratchScore)
+      return matchup.team1Id
+    if (matchup.team2ScratchScore > matchup.team1ScratchScore)
+      return matchup.team2Id
+    return null // tie
   }
 
-  const getWinner = (matchup: Matchup) => {
-    if (matchup.team1Score === null || matchup.team2Score === null) return null
-    return matchup.team1Score > matchup.team2Score ? matchup.team1Id : matchup.team2Id
-  }
+  /**
+   * Render a score value: null scores display as "-" (blinded bowler) instead
+   * of "0" which would mislead the reader about actual performance.
+   */
+  const renderScore = (score: number | null): string =>
+    score === null ? '-' : String(score)
 
-  const groupedMatches = seasonMatches.reduce((acc, match) => {
-    if (!acc[match.week]) {
-      acc[match.week] = []
-    }
-    acc[match.week].push(match)
-    return acc
-  }, {} as Record<number, Matchup[]>)
+  // Group completed matches by week number for section headers
+  const groupedMatches = seasonMatches.reduce(
+    (acc, match) => {
+      if (!acc[match.week]) acc[match.week] = []
+      acc[match.week].push(match)
+      return acc
+    },
+    {} as Record<number, Matchup[]>
+  )
 
   return (
     <div className="season-scores-container" id="scores">
       <h2 className="section-title">Season Scores</h2>
+
       {Object.entries(groupedMatches)
         .sort(([a], [b]) => Number(b) - Number(a))
-        .map(([week, matches]) => (
+        .map(([week, weekMatches]) => (
           <div key={week} className="week-section">
-            <h3 className="week-title">Week {week} - {formatDate(matches[0].date)}</h3>
+            <h3 className="week-title">
+              Week {week} — {formatDate(weekMatches[0].date)}
+            </h3>
+
             <div className="scores-table-wrapper">
               <table className="scores-table">
                 <thead>
@@ -61,31 +122,43 @@ function SeasonScores({ onSelectMatch }: SeasonScoresProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {matches.map((match) => {
+                  {weekMatches.map(match => {
                     const team1 = getTeamById(match.team1Id)
                     const team2 = getTeamById(match.team2Id)
-                    const winnerId = getWinner(match)
+                    const winnerId = getWinnerId(match)
                     const clickable = !!onSelectMatch
 
                     return (
                       <tr
                         key={match.id}
                         className={clickable ? 'clickable-row' : ''}
-                        onClick={clickable ? () => onSelectMatch(match.id) : undefined}
+                        onClick={
+                          clickable && match.id
+                            ? () => onSelectMatch(match.id!)
+                            : undefined
+                        }
                         title={clickable ? 'View match details' : undefined}
                       >
-                        <td className={`team-name ${winnerId === match.team1Id ? 'winner' : ''}`}>
-                          {team1?.name}
+                        <td
+                          className={`team-name ${winnerId === match.team1Id ? 'winner' : ''}`}
+                        >
+                          {team1?.name ?? match.team1Id}
                         </td>
-                        <td className={`center score ${winnerId === match.team1Id ? 'winner' : ''}`}>
-                          {match.team1Score}
+                        <td
+                          className={`center score ${winnerId === match.team1Id ? 'winner' : ''}`}
+                        >
+                          {renderScore(match.team1ScratchScore)}
                         </td>
                         <td className="center divider">-</td>
-                        <td className={`center score ${winnerId === match.team2Id ? 'winner' : ''}`}>
-                          {match.team2Score}
+                        <td
+                          className={`center score ${winnerId === match.team2Id ? 'winner' : ''}`}
+                        >
+                          {renderScore(match.team2ScratchScore)}
                         </td>
-                        <td className={`team-name ${winnerId === match.team2Id ? 'winner' : ''}`}>
-                          {team2?.name}
+                        <td
+                          className={`team-name ${winnerId === match.team2Id ? 'winner' : ''}`}
+                        >
+                          {team2?.name ?? match.team2Id}
                         </td>
                       </tr>
                     )
@@ -95,6 +168,11 @@ function SeasonScores({ onSelectMatch }: SeasonScoresProps) {
             </div>
           </div>
         ))}
+
+      {/* Empty state when no completed matches exist yet */}
+      {Object.keys(groupedMatches).length === 0 && (
+        <p className="empty-message">No completed matches yet this season.</p>
+      )}
     </div>
   )
 }
