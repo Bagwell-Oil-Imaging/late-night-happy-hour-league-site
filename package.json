@@ -11,7 +11,8 @@
     "fetch": "node scripts/fetch-league-data.js",
     "transform": "node scripts/transform-data.js",
     "update-data": "node scripts/fetch-league-data.js && node scripts/transform-data.js",
-    "seed": "node scripts/seed-firestore.js"
+    "seed": "node scripts/seed-firestore.js",
+    "verify-seed": "node scripts/verify-seed.js"
   },
   "dependencies": {
     "@types/react-router-dom": "^5.3.3",
