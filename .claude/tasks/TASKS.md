@@ -95,7 +95,7 @@ graph TD
     class P3S1 completed
     class P3S2 completed
     class P4S1 completed
-    class P4S2 pending
+    class P4S2 completed
     class P4S3 pending
     class P4S4 pending
     class P5S1 completed
@@ -152,7 +152,7 @@ graph TD
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
 | 1 | [Standings + Teams + Matchups Components](phase-4/sub-task-1.md) | completed | phase-3/sub-task-2 | e3fe5cf |
-| 2 | [Scores + Schedule + Seasons Components](phase-4/sub-task-2.md) | pending | phase-3/sub-task-2 | — |
+| 2 | [Scores + Schedule + Seasons Components](phase-4/sub-task-2.md) | completed | phase-3/sub-task-2 | 1de4d54 |
 | 3 | [Bowler Components](phase-4/sub-task-3.md) | pending | phase-3/sub-task-2 | — |
 | 4 | [Admin Display + Home + Bylaws Components](phase-4/sub-task-4.md) | pending | phase-3/sub-task-2 | — |
 
@@ -181,7 +181,7 @@ graph TD
 | Phase 1: Firebase Foundation | 3 | 3 | Complete |
 | Phase 2: Transform Script Rework | 5 | 4 | In progress |
 | Phase 3: React Foundation | 2 | 2 | Completed |
-| Phase 4: Component Migration | 4 | 1 | In progress |
+| Phase 4: Component Migration | 4 | 2 | In progress |
 | Phase 5: Admin CRUD UI | 3 | 1 | In progress |
 | Phase 6: Cleanup & Optimization | 3 | 0 | Not started |
-| **Total** | **20** | **10** | **50%** |
+| **Total** | **20** | **11** | **55%** |
