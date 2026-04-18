@@ -96,7 +96,7 @@ graph TD
     class P3S2 completed
     class P4S1 completed
     class P4S2 completed
-    class P4S3 pending
+    class P4S3 completed
     class P4S4 pending
     class P5S1 completed
     class P5S2 pending
@@ -153,7 +153,7 @@ graph TD
 |---|----------|--------|------------|--------|
 | 1 | [Standings + Teams + Matchups Components](phase-4/sub-task-1.md) | completed | phase-3/sub-task-2 | e3fe5cf |
 | 2 | [Scores + Schedule + Seasons Components](phase-4/sub-task-2.md) | completed | phase-3/sub-task-2 | 1de4d54 |
-| 3 | [Bowler Components](phase-4/sub-task-3.md) | pending | phase-3/sub-task-2 | — |
+| 3 | [Bowler Components](phase-4/sub-task-3.md) | completed | phase-3/sub-task-2 | 6ed73fb |
 | 4 | [Admin Display + Home + Bylaws Components](phase-4/sub-task-4.md) | pending | phase-3/sub-task-2 | — |
 
 ### Phase 5: Admin CRUD UI
