@@ -1,0 +1,21 @@
+{
+  "indexes": [
+    { "collectionGroup": "teams", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "points", "order": "DESCENDING" }] },
+    { "collectionGroup": "teams", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "wins", "order": "DESCENDING" }] },
+    { "collectionGroup": "bowlers", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "teamId", "order": "ASCENDING" }] },
+    { "collectionGroup": "bowlers", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "average", "order": "DESCENDING" }] },
+    { "collectionGroup": "bowlers", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "highSeries", "order": "DESCENDING" }] },
+    { "collectionGroup": "bowlerScores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "bowlerId", "order": "ASCENDING" }, { "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "week", "order": "ASCENDING" }] },
+    { "collectionGroup": "bowlerScores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "bowlerId", "order": "ASCENDING" }, { "fieldPath": "week", "order": "ASCENDING" }] },
+    { "collectionGroup": "bowlerScores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "teamId", "order": "ASCENDING" }, { "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "week", "order": "ASCENDING" }] },
+    { "collectionGroup": "bowlerScores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "blinded", "order": "ASCENDING" }, { "fieldPath": "series", "order": "DESCENDING" }] },
+    { "collectionGroup": "bowlerScores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "blinded", "order": "ASCENDING" }, { "fieldPath": "game1", "order": "DESCENDING" }] },
+    { "collectionGroup": "matchups", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "week", "order": "ASCENDING" }] },
+    { "collectionGroup": "matchups", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "completed", "order": "ASCENDING" }] },
+    { "collectionGroup": "matchupDetails", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "week", "order": "ASCENDING" }] },
+    { "collectionGroup": "scheduleWeeks", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "date", "order": "ASCENDING" }] },
+    { "collectionGroup": "documents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "type", "order": "ASCENDING" }, { "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "active", "order": "ASCENDING" }] },
+    { "collectionGroup": "documents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "type", "order": "ASCENDING" }, { "fieldPath": "effectiveDate", "order": "DESCENDING" }] }
+  ],
+  "fieldOverrides": []
+}
