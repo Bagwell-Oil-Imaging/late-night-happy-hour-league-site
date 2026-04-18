@@ -1,28 +1,33 @@
 # Late Night Happy Hour - Bowling League Website
 
-A modern, responsive React + TypeScript website for the Late Night Happy Hour bowling league.
+A modern, responsive React + TypeScript website for the Late Night Happy Hour bowling league,
+backed by Firebase Firestore for live data.
 
 ## Features
 
-- 📸 Image carousel with league highlights
-- 📅 Calendar view of upcoming events
-- 🎯 League standings with win/loss records
-- 📊 Historical match scores
-- 🔮 Future matchup schedule
-- 📱 Fully responsive design
+- Image carousel with league highlights
+- Calendar view of upcoming events
+- League standings with win/loss records
+- Historical match scores
+- Future matchup schedule
+- Admin panel for managing announcements, events, carousel images, and documents
+- Fully responsive design
 
 ## Tech Stack
 
 - **Frontend**: React 18 + TypeScript
 - **Build Tool**: Vite
 - **Styling**: CSS3 with custom properties
-- **Data**: JSON files (no backend required)
+- **Data**: Firebase Firestore (real-time database)
+- **Auth**: Firebase Authentication (admin panel)
+- **Storage**: Firebase Storage (PDF uploads)
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 18+ and npm
+- A Firebase project with Firestore, Authentication, and Storage enabled
 
 ### Installation
 
@@ -37,12 +42,39 @@ cd late-night-happy-hour-league-site
 npm install
 ```
 
-3. Start the development server:
+3. Configure environment variables:
+```bash
+cp .env.example .env
+# Edit .env and fill in your Firebase project values
+```
+
+4. Start the development server:
 ```bash
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
+The app will be available at `http://localhost:5173`.
+
+### Firebase Setup
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com) and create a project.
+2. Enable **Firestore Database**, **Authentication** (Email/Password), and **Storage**.
+3. In Project Settings → Your Apps, register a Web App and copy the SDK config values.
+4. Set the following variables in your `.env` file:
+
+```
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+VITE_FIREBASE_APP_ID=your-app-id
+```
+
+5. Deploy Firestore and Storage security rules:
+```bash
+firebase deploy --only firestore:rules,storage
+```
 
 ### Building for Production
 
@@ -50,38 +82,23 @@ The app will be available at `http://localhost:5173`
 npm run build
 ```
 
-The production-ready files will be in the `dist` folder.
+The production-ready files will be in the `dist/` folder.
 
 ## Deploying to Vercel
 
 ### Method 1: Via Vercel Dashboard (Recommended)
 
-1. Push your code to GitHub
-2. Go to [vercel.com](https://vercel.com)
-3. Click "New Project"
-4. Import your GitHub repository
-5. Vercel will auto-detect the Vite configuration
-6. Click "Deploy"
+1. Push your code to GitHub.
+2. Go to [vercel.com](https://vercel.com) and click "New Project".
+3. Import your GitHub repository — Vercel auto-detects the Vite config.
+4. Add your `VITE_FIREBASE_*` environment variables in the Vercel project settings.
+5. Click "Deploy".
 
 ### Method 2: Via Vercel CLI
 
-1. Install Vercel CLI:
 ```bash
 npm install -g vercel
-```
-
-2. Login to Vercel:
-```bash
 vercel login
-```
-
-3. Deploy:
-```bash
-vercel
-```
-
-For production deployment:
-```bash
 vercel --prod
 ```
 
@@ -90,65 +107,66 @@ vercel --prod
 ```
 late-night-happy-hour-league-site/
 ├── src/
-│   ├── components/         # React components
-│   │   ├── Calendar.tsx
-│   │   ├── Carousel.tsx
-│   │   ├── FutureMatchups.tsx
-│   │   ├── Header.tsx
-│   │   ├── HistoricalScores.tsx
-│   │   ├── LeagueStandings.tsx
-│   │   └── UpcomingEvents.tsx
-│   ├── data/              # JSON data files
-│   │   ├── carouselImages.json
-│   │   ├── events.json
-│   │   ├── historicalMatches.json
-│   │   ├── matchups.json
-│   │   └── teams.json
-│   ├── types/             # TypeScript type definitions
-│   │   └── index.ts
-│   ├── App.tsx            # Main app component
-│   ├── App.css
-│   ├── main.tsx           # Entry point
-│   └── index.css          # Global styles
-├── public/                # Static assets
-├── index.html
+│   ├── components/           # Reusable UI components
+│   │   └── admin/            # Admin auth guard and layout
+│   ├── hooks/                # Firestore React hooks
+│   │   ├── useFirestore.ts   # Generic useCollection<T> / useDocument<T>
+│   │   └── index.ts          # Domain hooks (useTeams, useMatchups, etc.)
+│   ├── pages/                # Route-level page components
+│   │   └── admin/            # Admin CRUD panel pages
+│   ├── types/
+│   │   └── index.ts          # TypeScript interfaces (Firestore schema)
+│   ├── utils/
+│   │   └── admin.ts          # Admin utility helpers
+│   ├── firebase.ts           # Firebase app initialization
+│   ├── App.tsx
+│   └── main.tsx
+├── scripts/                  # Node.js data pipeline
+│   ├── fetch-league-data.js  # Fetches raw data from LeaguePals API
+│   └── transform-data.js     # Transforms and writes to Firestore
+├── firestore.rules           # Firestore security rules
+├── firestore.indexes.json    # Composite index definitions
+├── storage.rules             # Firebase Storage security rules
+├── firebase.json             # Firebase project config
+├── .env.example              # Required environment variable template
 ├── package.json
 ├── tsconfig.json
-├── vite.config.ts
-└── vercel.json           # Vercel configuration
+└── vite.config.ts
 ```
 
 ## Updating Data
 
-All data is stored in JSON files in the `src/data/` directory. To update:
+League data is managed via the data pipeline or the admin panel:
 
-### Teams
-Edit `src/data/teams.json` to update team standings
+### Automated Pipeline (League Stats)
 
-### Events
-Edit `src/data/events.json` to add or modify league events
+Runs nightly or on-demand to pull fresh data from the LeaguePals API:
 
-### Matchups
-Edit `src/data/matchups.json` for future matchups
-
-### Historical Scores
-Edit `src/data/historicalMatches.json` to add completed game scores
-
-### Carousel Images
-Edit `src/data/carouselImages.json` to change hero images
-
-## Customization
-
-### Colors
-Modify the CSS variables in `src/index.css`:
-```css
-:root {
-  --primary-color: #2c5f8d;
-  --secondary-color: #d4af37;
-  --background-color: #1a1a1a;
-  /* ... more colors */
-}
+```bash
+# Fetch raw API data + transform and write to Firestore
+npm run update-data
 ```
+
+Requires `FIREBASE_SERVICE_ACCOUNT_PATH` set in `.env` pointing to a Firebase service account JSON file.
+
+### Admin Panel (Announcements, Events, Carousel, Documents)
+
+Navigate to `/admin/login` in the browser. Log in with a Firebase Auth email/password account. Manage content through the admin panels at `/admin/announcements`, `/admin/events`, `/admin/carousel`, and `/admin/documents`.
+
+## npm Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start local dev server |
+| `npm run build` | TypeScript compile + Vite production build |
+| `npm run fetch` | Fetch raw data from LeaguePals API |
+| `npm run transform` | Transform data and write to Firestore |
+| `npm run update-data` | `fetch` + `transform` in sequence |
+| `npm run verify-seed` | Validate Firestore collection document counts |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) if present for development guidelines.
 
 ## License
 

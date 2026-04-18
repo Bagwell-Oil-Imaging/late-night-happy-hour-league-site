@@ -1,15 +1,42 @@
-import teamsData from '../data/teams.json'
-import type { Team } from '../types'
+/**
+ * @file PlayoffBracket.tsx
+ * @module components
+ *
+ * Displays the projected playoff bracket for the current season.
+ * Reads team data from Firestore via the `useTeams` hook.
+ *
+ * Shows top-8 teams seeded by wins (then points) in a standard
+ * 1v8, 4v5, 2v7, 3v6 quarterfinal bracket. Semifinals and finals
+ * are projected by advancing higher seeds.
+ */
+
+import { useTeams } from '../hooks'
 import './PlayoffBracket.css'
 
-function PlayoffBracket() {
-  // Cast through unknown to bridge the legacy JSON shape to the current Team type.
-  // PlayoffBracket only accesses `wins` and `points`, which are present in both
-  // the old and new schema, so this cast is safe for the fields actually used.
-  // TODO: migrate PlayoffBracket to useTeams hook (phase-6 cleanup)
-  const teams = teamsData as unknown as Team[]
+/** Current active season year — update each season. */
+const SEASON_YEAR = '2025-2026'
 
-  // Sort teams by wins (descending), then by points
+/**
+ * PlayoffBracket component.
+ *
+ * Fetches live team standings from Firestore and renders a projected
+ * 8-team playoff bracket with quarterfinals, semifinals, and a
+ * championship matchup.
+ *
+ * @returns JSX element containing the full bracket display.
+ */
+function PlayoffBracket() {
+  const { data: teams, loading, error } = useTeams(SEASON_YEAR)
+
+  if (loading) {
+    return <div className="playoff-bracket-container"><p>Loading bracket...</p></div>
+  }
+
+  if (error || !teams) {
+    return <div className="playoff-bracket-container"><p>Unable to load playoff bracket.</p></div>
+  }
+
+  // Sort teams by wins (descending), then by points as tiebreaker
   const sortedTeams = [...teams].sort((a, b) => {
     if (b.wins !== a.wins) return b.wins - a.wins
     return b.points - a.points
@@ -17,6 +44,16 @@ function PlayoffBracket() {
 
   // Top 8 teams make playoffs
   const playoffTeams = sortedTeams.slice(0, 8)
+
+  // Guard: if fewer than 8 teams exist, show a placeholder message
+  if (playoffTeams.length < 8) {
+    return (
+      <div className="playoff-bracket-container" id="playoffs">
+        <h2 className="section-title">Playoff Bracket</h2>
+        <p>Not enough teams to display bracket (need 8, have {playoffTeams.length}).</p>
+      </div>
+    )
+  }
 
   // Standard 8-team bracket seeding: 1v8, 4v5, 2v7, 3v6
   const quarterfinals = [
@@ -26,7 +63,7 @@ function PlayoffBracket() {
     { seed1: 3, team1: playoffTeams[2], seed2: 6, team2: playoffTeams[5] }
   ]
 
-  // Predict semifinals winners (higher seed advances)
+  // Predict semifinals winners (higher seed — lower number — advances)
   const semifinals = [
     {
       seed1: quarterfinals[0].seed1,
@@ -42,7 +79,7 @@ function PlayoffBracket() {
     }
   ]
 
-  // Finals (higher seeds from each half)
+  // Finals: top seed from each semifinal half
   const finals = {
     team1: semifinals[0].team1,
     team2: semifinals[1].team1
