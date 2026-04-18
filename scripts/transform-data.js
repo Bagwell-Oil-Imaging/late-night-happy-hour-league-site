@@ -1092,6 +1092,612 @@ async function populateBowlers(seasonYear) {
   await batchWrite('bowlers', docs, doc => doc.leaguePalsId)
 }
 
+// ─── Firestore: matchups Collection ──────────────────────────────────────────
+
+/**
+ * Populates the `matchups` Firestore collection with one document per match
+ * per week, including position-round detection via the week's `isPositionRound`
+ * flag (or presence of a non-empty `splitMatches` array as a secondary signal).
+ *
+ * Primary data source: `leaguepals-data/lane-schedule.json`.
+ * Fallback: `src/data/matchups.json` produced by `buildMatchups()`.
+ *
+ * Each match document uses a Firestore auto-generated ID. The function returns
+ * a Map keyed by LeaguePals match ObjectId → Firestore document ID so that
+ * `populateMatchupDetails` and `populateBowlerScores` can wire FK references
+ * without a second Firestore read.
+ *
+ * Score hydration: team scratch scores are looked up from the bowler roster
+ * files using `getTeamPinsForDate()`. A match is marked `completed: true` only
+ * when both teams have a non-null score.
+ *
+ * @param {string} seasonYear - e.g. "2025-2026". Stored on every document.
+ * @returns {Promise<Map<string, string>>} leaguePalsMatchId → firestoreDocId
+ */
+async function populateMatchups(seasonYear) {
+  if (!db) {
+    console.warn('[populateMatchups] Skipping matchups — Firestore not initialized')
+    return new Map()
+  }
+
+  /** @type {object[]} Documents to batch-write */
+  const docs = []
+
+  /**
+   * Map from LeaguePals match ObjectId → Firestore document reference.
+   * Built during the write pass so we can return stable IDs to the caller.
+   * @type {Map<string, import('firebase-admin').firestore.DocumentReference>}
+   */
+  const refMap = new Map()
+
+  const laneSchedulePath = join(RAW_DIR, 'lane-schedule.json')
+
+  if (existsSync(laneSchedulePath)) {
+    // ── Primary path: lane-schedule.json ─────────────────────────────────────
+    const raw = JSON.parse(readFileSync(laneSchedulePath, 'utf8'))
+    const weeks = raw.schedule ?? []
+
+    weeks.forEach((week, weekIndex) => {
+      const weekDate = week.date?.slice(0, 10) ?? ''
+      const weekNum = weekIndex + 1
+
+      // Position-round detection: prefer the explicit boolean flag; fall back
+      // to checking whether the splitMatches array is non-empty (future-proofing
+      // in case the API starts populating splitMatches for position rounds).
+      const positionRound = !!(week.isPositionRound || (week.splitMatches?.length > 0))
+
+      // Collect all matches — weeks can use either `matches` or `splitMatches`.
+      // In practice `matches` holds the normal schedule; `splitMatches` is the
+      // alternate list when teams are re-seeded for position-round play.
+      const matchList = (week.splitMatches?.length > 0 ? week.splitMatches : week.matches) ?? []
+
+      for (const match of matchList) {
+        const leaguePalsMatchId = match._id ?? ''
+
+        // Compute real scratch scores for past weeks from bowler roster data
+        const team1ScratchScore = getTeamPinsForDate(match.team1_id, weekDate)
+        const team2ScratchScore = getTeamPinsForDate(match.team2_id, weekDate)
+
+        const doc = {
+          leaguePalsMatchId,
+          seasonYear,
+          week: weekNum,
+          date: weekDate,
+          positionRound,
+          team1Id: match.team1_id ?? '',
+          team2Id: match.team2_id ?? '',
+          team1ScratchScore,
+          team2ScratchScore,
+          completed: team1ScratchScore !== null && team2ScratchScore !== null,
+        }
+
+        // Pre-allocate a Firestore doc ref with an auto-generated ID so we can
+        // record the stable ID in the refMap before the batch commit happens.
+        const ref = db.collection('matchups').doc()
+        refMap.set(leaguePalsMatchId, ref)
+
+        docs.push({ _ref: ref, ...doc })
+      }
+    })
+
+    console.log(`[populateMatchups] Mapped ${docs.length} matchup documents from lane-schedule.json`)
+  } else {
+    // ── Fallback path: src/data/matchups.json ─────────────────────────────────
+    console.warn('[populateMatchups] lane-schedule.json not found — falling back to src/data/matchups.json')
+
+    const fallbackPath = join(OUT_DIR, 'matchups.json')
+    const fallbackDocs = existsSync(fallbackPath)
+      ? JSON.parse(readFileSync(fallbackPath, 'utf8'))
+      : []
+
+    for (const m of fallbackDocs) {
+      const leaguePalsMatchId = String(m.id)
+      const ref = db.collection('matchups').doc()
+      refMap.set(leaguePalsMatchId, ref)
+
+      docs.push({
+        _ref: ref,
+        leaguePalsMatchId,
+        seasonYear,
+        week: m.week ?? 0,
+        date: m.date ?? '',
+        positionRound: false,
+        team1Id: String(m.team1Id ?? ''),
+        team2Id: String(m.team2Id ?? ''),
+        team1ScratchScore: m.team1Score ?? null,
+        team2ScratchScore: m.team2Score ?? null,
+        completed: false,
+      })
+    }
+
+    console.log(`[populateMatchups] Mapped ${docs.length} matchup documents from fallback matchups.json`)
+  }
+
+  // ── Batch write using pre-allocated refs ────────────────────────────────────
+  // We must write with the pre-allocated refs (not batchWrite's auto-ID logic)
+  // so the refMap stays in sync with what was actually written to Firestore.
+  const CHUNK_SIZE = 500
+  let written = 0
+
+  for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
+    const chunk = docs.slice(i, i + CHUNK_SIZE)
+    const batch = db.batch()
+
+    for (const doc of chunk) {
+      // Destructure out the internal _ref so it is not stored in Firestore
+      const { _ref, ...data } = doc
+      batch.set(_ref, data)
+    }
+
+    await batch.commit()
+    written += chunk.length
+    console.log(`[matchups] Wrote ${written}/${docs.length} documents`)
+  }
+
+  // Build the final leaguePalsMatchId → firestoreDocId string map for callers
+  /** @type {Map<string, string>} */
+  const matchupIdMap = new Map()
+  for (const [lpId, ref] of refMap.entries()) {
+    matchupIdMap.set(lpId, ref.id)
+  }
+
+  return matchupIdMap
+}
+
+// ─── Firestore: matchupDetails Collection ────────────────────────────────────
+
+/**
+ * Populates the `matchupDetails` Firestore collection with one document per
+ * completed historical match containing full per-bowler game scores and team
+ * summary totals.
+ *
+ * Document IDs mirror the corresponding `matchups` document IDs (1:1 relationship)
+ * so cross-collection joins are a simple document lookup by the same ID.
+ *
+ * Primary data source: built in memory from `buildWeeklyMatchupDetails()` using
+ * the same lane schedule and bowler roster data already loaded at module level.
+ *
+ * Field name normalization:
+ *   - `gameTotals.g1/g2/g3` (from buildTeamDetail) → `game1Total/game2Total/game3Total`
+ *   - Bowler individual game fields (`g1/g2/g3`) are preserved as-is to match
+ *     the existing schema used by Phase 3 Firestore hooks.
+ *
+ * The `matchupIdMap` parameter links sequential match IDs (from buildWeeklyMatchupDetails)
+ * to stable Firestore document IDs assigned by `populateMatchups()`. When the map
+ * is empty (Firestore not initialized, or matchups skipped), the function still
+ * writes documents using String(id) as the document ID so local dev remains functional.
+ *
+ * @param {string} seasonYear - e.g. "2025-2026". Stored on every document.
+ * @param {Map<string, string>} matchupIdMap - leaguePalsMatchId → firestoreDocId
+ * @returns {Promise<void>}
+ */
+async function populateMatchupDetails(seasonYear, matchupIdMap = new Map()) {
+  if (!db) {
+    console.warn('[populateMatchupDetails] Skipping matchupDetails — Firestore not initialized')
+    return
+  }
+
+  // Build details array from the same lane schedule + bowler data already in memory.
+  // We generate from buildWeeklyMatchupDetails() because it already contains the
+  // complete per-bowler score + handicap calculation logic we need.
+  const detailsSource = buildWeeklyMatchupDetails()
+
+  // Pre-build a lookup from sequential match ID (used in detailsSource) → Firestore doc ID.
+  // populateMatchups writes docs in schedule order; we need to map the index-based ID
+  // that buildWeeklyMatchupDetails produces to the stable Firestore ID.
+  // Since matchupIdMap is keyed by LeaguePals match ObjectId, we also build a sequential
+  // index → firestoreDocId map by iterating the schedule in the same order.
+  const seqToFirestoreId = new Map()
+  if (matchupIdMap.size > 0) {
+    const weeks = schedule.schedule ?? []
+    let seqId = 1
+    for (const week of weeks) {
+      const matchList = (week.splitMatches?.length > 0 ? week.splitMatches : week.matches) ?? []
+      for (const match of matchList) {
+        const fsId = matchupIdMap.get(match._id ?? '')
+        if (fsId) seqToFirestoreId.set(seqId, fsId)
+        seqId++
+      }
+    }
+  }
+
+  /** @type {object[]} */
+  const docs = []
+
+  for (const detail of detailsSource) {
+    // Resolve the Firestore document ID for this match.
+    // Fall back to String(detail.id) when matchupIdMap is unavailable.
+    const firestoreId = seqToFirestoreId.get(detail.id) ?? String(detail.id)
+
+    /**
+     * Normalizes a team detail object from buildTeamDetail()'s format to the
+     * Firestore schema format:
+     *   - Renames `gameTotals.g1` → `game1Total` etc.
+     *   - Preserves all handicap, series, and bowler fields
+     *
+     * @param {object} team - Raw team detail from buildTeamDetail()
+     * @param {string} teamLpId - LeaguePals ObjectId for this team
+     * @returns {object} Normalized team summary for Firestore
+     */
+    function normalizeTeamDetail(team, teamLpId) {
+      const gt = team.gameTotals ?? {}
+      return {
+        // Team identity uses the LeaguePals ObjectId (already correct from standings)
+        teamId: teamLpId,
+        name: team.name ?? '',
+        lane: team.lane ?? 0,
+
+        // Renamed from g1Total/g2Total/g3Total to game1Total/game2Total/game3Total
+        game1Total: gt.g1 ?? 0,
+        game2Total: gt.g2 ?? 0,
+        game3Total: gt.g3 ?? 0,
+
+        scratchSeries: team.scratchSeries ?? 0,
+        teamAvg: team.teamAvg ?? 0,
+        handicapPerGame: team.handicapPerGame ?? 0,
+        handicapSeries: team.handicapSeries ?? 0,
+        totalSeries: team.totalSeries ?? 0,
+
+        // Preserve bowler-level detail (g1/g2/g3 retained per existing schema)
+        bowlers: (team.bowlers ?? []).map(b => ({
+          name: b.name ?? '',
+          g1: b.g1 ?? null,
+          g2: b.g2 ?? null,
+          g3: b.g3 ?? null,
+          series: b.series ?? null,
+          average: b.average ?? 0,
+        })),
+      }
+    }
+
+    // Resolve the LP ObjectId for each team by looking up via the sequential site ID
+    // (team.id from buildTeamDetail) → LP ObjectId via the reverse of teamIdMap.
+    // Build a reverse map on first access (lazy, cached in closure scope below).
+    const team1LpId = findLpIdBySiteId(detail.team1?.id)
+    const team2LpId = findLpIdBySiteId(detail.team2?.id)
+
+    docs.push({
+      // Document ID mirrors the matchups document for direct cross-collection lookup
+      _docId: firestoreId,
+
+      seasonYear,
+      week: detail.week ?? 0,
+      date: detail.date ?? '',
+      matchupId: firestoreId,
+
+      team1: normalizeTeamDetail(detail.team1, team1LpId),
+      team2: normalizeTeamDetail(detail.team2, team2LpId),
+    })
+  }
+
+  console.log(`[populateMatchupDetails] Mapped ${docs.length} detail documents`)
+
+  // Write with explicit doc IDs that mirror the matchups collection
+  await batchWrite('matchupDetails', docs, doc => doc._docId)
+}
+
+/**
+ * Reverse lookup: sequential site integer ID → LeaguePals ObjectId string.
+ * Built lazily on first call and cached in module scope for repeated use.
+ *
+ * @type {Map<number, string>|null}
+ */
+let _siteIdToLpId = null
+
+/**
+ * Returns the LeaguePals ObjectId for a given sequential site integer ID.
+ * Uses the module-level `teamIdMap` (LP ObjectId → site int) in reverse.
+ *
+ * @param {number|undefined} siteId - The sequential site integer (1-based)
+ * @returns {string} LeaguePals ObjectId, or empty string if not found
+ */
+function findLpIdBySiteId(siteId) {
+  if (!siteId) return ''
+
+  // Build reverse map once
+  if (!_siteIdToLpId) {
+    _siteIdToLpId = new Map()
+    for (const [lpId, sid] of teamIdMap.entries()) {
+      _siteIdToLpId.set(sid, lpId)
+    }
+  }
+
+  return _siteIdToLpId.get(siteId) ?? ''
+}
+
+// ─── Firestore: scheduleWeeks Collection ─────────────────────────────────────
+
+/**
+ * Populates the `scheduleWeeks` Firestore collection with one document per
+ * calendar week (including skipped/holiday weeks).
+ *
+ * Primary data source: `leaguepals-data/lane-schedule.json`.
+ * Fallback: `src/data/scheduleWeeks.json` (legacy static file).
+ *
+ * Document ID: ISO date string (YYYY-MM-DD). This gives each week a stable,
+ * human-readable, sortable ID and avoids the need for an extra index lookup.
+ *
+ * Key transformations:
+ *   - `dataWeek` field is REMOVED (was an internal transform artifact; Issue 7 fix).
+ *   - `positionRound: true/false` is derived from `week.isPositionRound` or a
+ *     non-empty `splitMatches` array.
+ *   - Skipped weeks (holidays) have `status: "skip"` and a `skipReason` string.
+ *   - `seasonYear` is added to every document for easy cross-season filtering.
+ *
+ * @param {string} seasonYear - e.g. "2025-2026". Stored on every document.
+ * @returns {Promise<void>}
+ */
+async function populateScheduleWeeks(seasonYear) {
+  if (!db) {
+    console.warn('[populateScheduleWeeks] Skipping scheduleWeeks — Firestore not initialized')
+    return
+  }
+
+  /** @type {object[]} */
+  let docs
+
+  const laneSchedulePath = join(RAW_DIR, 'lane-schedule.json')
+
+  if (existsSync(laneSchedulePath)) {
+    // ── Primary path: lane-schedule.json ─────────────────────────────────────
+    const raw = JSON.parse(readFileSync(laneSchedulePath, 'utf8'))
+    const weeks = raw.schedule ?? []
+
+    // Build a set of all calendar dates that appear in the schedule so we can
+    // detect and fill in skipped weeks that the LeaguePals schedule may omit.
+    // We walk every consecutive Thursday between the first and last schedule date.
+
+    let weekCounter = 0 // tracks the 1-based bowling week number (skips don't increment)
+    docs = weeks.map(week => {
+      const dateStr = week.date?.slice(0, 10) ?? ''
+
+      // Position-round detection (same logic as populateMatchups for consistency)
+      const positionRound = !!(week.isPositionRound || (week.splitMatches?.length > 0))
+
+      // A week is a skip if it has no matches and no splitMatches
+      const hasMatches = (week.matches?.length ?? 0) > 0 || (week.splitMatches?.length ?? 0) > 0
+      const isSkipped = !hasMatches
+
+      // Increment the bowling week counter only for non-skipped weeks
+      const weekNum = isSkipped ? null : ++weekCounter
+
+      // Derive a human-readable skip reason from known LeaguePals fields.
+      // `customName` is populated for named events (e.g., "Thanksgiving Break").
+      const skipReason = isSkipped ? (week.customName || null) : null
+
+      // `event` is any special event name that does NOT cause a skip
+      // (e.g., "Position Round 1"). Use the custom name when not a skip week.
+      const event = !isSkipped && week.customName ? week.customName : null
+
+      return {
+        // _docId drives the Firestore document ID (not stored as a field)
+        _docId: dateStr,
+
+        seasonYear,
+        week: weekNum,
+        date: dateStr,
+        status: isSkipped ? 'skip' : 'scheduled',
+        skipReason,
+        event,
+        positionRound,
+        // dataWeek intentionally excluded (Issue 7 fix)
+      }
+    })
+
+    console.log(`[populateScheduleWeeks] Mapped ${docs.length} week documents from lane-schedule.json`)
+  } else {
+    // ── Fallback path: src/data/scheduleWeeks.json ────────────────────────────
+    console.warn('[populateScheduleWeeks] lane-schedule.json not found — falling back to src/data/scheduleWeeks.json')
+
+    const fallbackPath = join(OUT_DIR, 'scheduleWeeks.json')
+    if (!existsSync(fallbackPath)) {
+      console.warn('[populateScheduleWeeks] scheduleWeeks.json also missing — skipping collection')
+      return
+    }
+
+    const raw = JSON.parse(readFileSync(fallbackPath, 'utf8'))
+    docs = raw.map(w => {
+      // Strip `dataWeek` and map the rest of the fields verbatim.
+      // eslint-disable-next-line no-unused-vars
+      const { dataWeek: _removed, ...rest } = w
+      return {
+        _docId: w.date,
+        ...rest,
+        positionRound: false, // fallback has no position-round data
+        seasonYear,
+      }
+    })
+
+    console.log(`[populateScheduleWeeks] Mapped ${docs.length} week documents from fallback scheduleWeeks.json`)
+  }
+
+  // Use the ISO date string as the Firestore document ID
+  await batchWrite('scheduleWeeks', docs, doc => doc._docId)
+}
+
+// ─── Firestore: seasons Collection ───────────────────────────────────────────
+
+/**
+ * Populates the `seasons` Firestore collection with one document for the current
+ * season, derived from `src/data/seasons.json` (built by `buildSeasons()`).
+ *
+ * Document ID: the season year string (e.g., "2025-2026").
+ *
+ * @param {string} seasonYear - e.g. "2025-2026"
+ * @returns {Promise<void>}
+ */
+async function populateSeasons(seasonYear) {
+  if (!db) {
+    console.warn('[populateSeasons] Skipping seasons — Firestore not initialized')
+    return
+  }
+
+  const seasonsData = buildSeasons()
+
+  const docs = seasonsData.map(season => ({
+    _docId: season.year,
+    ...season,
+  }))
+
+  console.log(`[populateSeasons] Writing ${docs.length} season document(s)`)
+  await batchWrite('seasons', docs, doc => doc._docId)
+}
+
+// ─── Firestore: announcements Collection ─────────────────────────────────────
+
+/**
+ * Populates the `announcements` Firestore collection from `src/data/announcements.json`.
+ *
+ * Adds administrative metadata fields not present in the static JSON:
+ *   - `pinned: false` — admin can pin important announcements via the CRUD UI
+ *   - `expiresAt: null` — optional expiration timestamp; null = never expires
+ *   - `createdAt: serverTimestamp` — write timestamp for ordering
+ *   - `updatedAt: serverTimestamp` — write timestamp for last-modified tracking
+ *
+ * Document ID: Firestore auto-generated (no stable FK needed for announcements).
+ *
+ * @param {string} seasonYear - e.g. "2025-2026"
+ * @returns {Promise<void>}
+ */
+async function populateAnnouncements(seasonYear) {
+  if (!db) {
+    console.warn('[populateAnnouncements] Skipping announcements — Firestore not initialized')
+    return
+  }
+
+  const announcementsPath = join(OUT_DIR, 'announcements.json')
+  if (!existsSync(announcementsPath)) {
+    console.warn('[populateAnnouncements] announcements.json not found — skipping')
+    return
+  }
+
+  const raw = JSON.parse(readFileSync(announcementsPath, 'utf8'))
+  // Unwrap .data wrapper if present
+  const items = raw.data ?? raw
+
+  if (!Array.isArray(items) || items.length === 0) {
+    console.log('[populateAnnouncements] No announcements to write — skipping')
+    return
+  }
+
+  const now = admin.firestore.FieldValue.serverTimestamp()
+  const docs = items.map(item => ({
+    ...item,
+    seasonYear,
+    pinned: item.pinned ?? false,
+    expiresAt: item.expiresAt ?? null,
+    createdAt: now,
+    updatedAt: now,
+  }))
+
+  console.log(`[populateAnnouncements] Writing ${docs.length} announcement document(s)`)
+  await batchWrite('announcements', docs)
+}
+
+// ─── Firestore: events Collection ────────────────────────────────────────────
+
+/**
+ * Populates the `events` Firestore collection from `src/data/events.json`.
+ *
+ * Adds fields not present in the static JSON:
+ *   - `endDate: null` — admin can set an end date for multi-day events
+ *   - `allDay: false` — whether the event spans all day (no specific time)
+ *   - `createdAt: serverTimestamp`
+ *   - `updatedAt: serverTimestamp`
+ *
+ * Document ID: Firestore auto-generated.
+ *
+ * @param {string} seasonYear - e.g. "2025-2026"
+ * @returns {Promise<void>}
+ */
+async function populateEvents(seasonYear) {
+  if (!db) {
+    console.warn('[populateEvents] Skipping events — Firestore not initialized')
+    return
+  }
+
+  const eventsPath = join(OUT_DIR, 'events.json')
+  if (!existsSync(eventsPath)) {
+    console.warn('[populateEvents] events.json not found — skipping')
+    return
+  }
+
+  const raw = JSON.parse(readFileSync(eventsPath, 'utf8'))
+  const items = raw.data ?? raw
+
+  if (!Array.isArray(items) || items.length === 0) {
+    console.log('[populateEvents] No events to write — skipping')
+    return
+  }
+
+  const now = admin.firestore.FieldValue.serverTimestamp()
+  const docs = items.map(item => ({
+    ...item,
+    seasonYear,
+    endDate: item.endDate ?? null,
+    allDay: item.allDay ?? false,
+    createdAt: now,
+    updatedAt: now,
+  }))
+
+  console.log(`[populateEvents] Writing ${docs.length} event document(s)`)
+  await batchWrite('events', docs)
+}
+
+// ─── Firestore: carouselImages Collection ────────────────────────────────────
+
+/**
+ * Populates the `carouselImages` Firestore collection from `src/data/carouselImages.json`.
+ *
+ * Field transformations:
+ *   - `image` → `imageUrl` (field rename for schema consistency)
+ *
+ * Adds administrative metadata:
+ *   - `createdAt: serverTimestamp`
+ *   - `updatedAt: serverTimestamp`
+ *
+ * Document ID: Firestore auto-generated.
+ *
+ * @param {string} seasonYear - e.g. "2025-2026"
+ * @returns {Promise<void>}
+ */
+async function populateCarouselImages(seasonYear) {
+  if (!db) {
+    console.warn('[populateCarouselImages] Skipping carouselImages — Firestore not initialized')
+    return
+  }
+
+  const carouselPath = join(OUT_DIR, 'carouselImages.json')
+  if (!existsSync(carouselPath)) {
+    console.warn('[populateCarouselImages] carouselImages.json not found — skipping')
+    return
+  }
+
+  const raw = JSON.parse(readFileSync(carouselPath, 'utf8'))
+  const items = raw.data ?? raw
+
+  if (!Array.isArray(items) || items.length === 0) {
+    console.log('[populateCarouselImages] No carousel images to write — skipping')
+    return
+  }
+
+  const now = admin.firestore.FieldValue.serverTimestamp()
+  const docs = items.map(item => {
+    // Rename `image` → `imageUrl` for schema consistency; preserve all other fields
+    const { image, ...rest } = item
+    return {
+      ...rest,
+      imageUrl: image ?? item.imageUrl ?? '',
+      seasonYear,
+      createdAt: now,
+      updatedAt: now,
+    }
+  })
+
+  console.log(`[populateCarouselImages] Writing ${docs.length} carousel image document(s)`)
+  await batchWrite('carouselImages', docs)
+}
+
 // ─── Firestore: bowlerScores Collection ──────────────────────────────────────
 
 /**
@@ -1383,22 +1989,76 @@ async function main() {
 
   // ── Firestore population ─────────────────────────────────────────────────────
   // Each populate* function is a no-op when db === null (Firestore not configured).
+  // Collections are written in dependency order:
+  //   leagueConfig → seasons → scheduleWeeks → teams → bowlers
+  //   → matchups (returns matchupIdMap) → matchupDetails → bowlerScores
+  //   → announcements → events → carouselImages
+
+  const SEASON = '2025-2026'
 
   console.log('\n─────────────────────────────────────────')
   console.log('Firestore population...')
 
-  // 6. Write league configuration document for the current season
-  await populateLeagueConfig('2025-2026')
+  // 1. League configuration — single doc, no FK dependencies
+  console.log('\n[1/11] leagueConfig...')
+  await clearCollection('leagueConfig')
+  await populateLeagueConfig(SEASON)
 
-  // 7. Write teams collection — full standings stats from LeaguePals API
-  await populateTeams('2025-2026')
+  // 2. Seasons — derived from standings; no FK dependencies
+  console.log('\n[2/11] seasons...')
+  await clearCollection('seasons')
+  await populateSeasons(SEASON)
 
-  // 8. Write bowlers collection — rich per-bowler stats from team roster files
-  await populateBowlers('2025-2026')
+  // 3. Schedule weeks — must come before matchups so the UI has week context
+  console.log('\n[3/11] scheduleWeeks...')
+  await clearCollection('scheduleWeeks')
+  await populateScheduleWeeks(SEASON)
 
-  // 9. Write bowlerScores collection — one document per bowler per week,
-  //    with corrected blind/preBowl detection and null scores for absent weeks
-  await populateBowlerScores('2025-2026')
+  // 4. Teams — FK for bowlers, matchups, bowlerScores
+  console.log('\n[4/11] teams...')
+  await clearCollection('teams')
+  await populateTeams(SEASON)
+
+  // 5. Bowlers — FK for bowlerScores
+  console.log('\n[5/11] bowlers...')
+  await clearCollection('bowlers')
+  await populateBowlers(SEASON)
+
+  // 6. Matchups — must be populated before matchupDetails and bowlerScores
+  //    to generate stable Firestore IDs for FK wiring
+  console.log('\n[6/11] matchups...')
+  await clearCollection('matchups')
+  const matchupIdMap = await populateMatchups(SEASON)
+  console.log(`[matchups] matchupIdMap has ${matchupIdMap.size} entries for FK wiring`)
+
+  // 7. Matchup details — mirrors matchups doc IDs (1:1 relationship)
+  console.log('\n[7/11] matchupDetails...')
+  await clearCollection('matchupDetails')
+  await populateMatchupDetails(SEASON, matchupIdMap)
+
+  // 8. Bowler scores — one doc per bowler per week; uses matchupIdMap for FK
+  console.log('\n[8/11] bowlerScores...')
+  await clearCollection('bowlerScores')
+  await populateBowlerScores(SEASON)
+
+  // 9. Announcements — admin-managed; empty array is a valid initial state
+  console.log('\n[9/11] announcements...')
+  await clearCollection('announcements')
+  await populateAnnouncements(SEASON)
+
+  // 10. Events — admin-managed; empty array is a valid initial state
+  console.log('\n[10/11] events...')
+  await clearCollection('events')
+  await populateEvents(SEASON)
+
+  // 11. Carousel images — admin-managed; empty array is a valid initial state
+  console.log('\n[11/11] carouselImages...')
+  await clearCollection('carouselImages')
+  await populateCarouselImages(SEASON)
+
+  console.log('\n─────────────────────────────────────────')
+  console.log('Firestore population complete! All 11 collections written.')
+  console.log('─────────────────────────────────────────')
 }
 
 main()
