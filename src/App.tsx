@@ -18,6 +18,7 @@ import AdminLayout from './components/admin/AdminLayout'
 import AnnouncementsAdmin from './pages/admin/AnnouncementsAdmin'
 import EventsAdmin from './pages/admin/EventsAdmin'
 import CarouselAdmin from './pages/admin/CarouselAdmin'
+import DocumentsAdmin from './pages/admin/DocumentsAdmin'
 import { useAnnouncements } from './hooks'
 
 /**
@@ -67,10 +68,7 @@ function App() {
           <Route path="announcements" element={<AnnouncementsAdmin />} />
           <Route path="events" element={<EventsAdmin />} />
           <Route path="carousel" element={<CarouselAdmin />} />
-          <Route
-            path="documents"
-            element={<div className="admin-placeholder">Documents Admin (coming soon)</div>}
-          />
+          <Route path="documents" element={<DocumentsAdmin />} />
         </Route>
       </Route>
 

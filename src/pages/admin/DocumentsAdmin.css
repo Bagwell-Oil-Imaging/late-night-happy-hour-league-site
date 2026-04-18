@@ -1,0 +1,278 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DocumentsAdmin — CRUD panel styles.
+   Inherits the "Alley After Dark" design-system variables from index.css.
+   All colours use CSS custom properties; no hard-coded values.
+
+   Shared admin-panel class names (admin-panel-header, admin-btn-primary, etc.)
+   are defined in AnnouncementsAdmin.css which is loaded on all admin routes.
+   This file adds only Documents-specific overrides and extensions.
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Panel wrapper ───────────────────────────────────────────────────────── */
+.documents-admin {
+  width: 100%;
+}
+
+/* ── Form ────────────────────────────────────────────────────────────────── */
+.doc-form {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin-bottom: var(--space-8);
+}
+
+/* ── Two-column row inside form ──────────────────────────────────────────── */
+.admin-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+/* ── Textarea for markdown content ──────────────────────────────────────── */
+.doc-textarea {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-sm);
+  resize: vertical;
+  min-height: 200px;
+}
+
+/* ── Source toggle buttons ───────────────────────────────────────────────── */
+.doc-source-toggle {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.doc-toggle-btn {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.doc-toggle-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Active/selected toggle state */
+.doc-toggle-btn.active {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-page);
+}
+
+/* ── Existing PDF URL note ───────────────────────────────────────────────── */
+.doc-existing-url {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-2);
+}
+
+.doc-existing-url a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* ── Upload progress indicator ───────────────────────────────────────────── */
+.doc-upload-progress {
+  font-size: var(--text-sm);
+  color: var(--accent);
+  margin: var(--space-2) 0 0;
+}
+
+/* ── Document group section ──────────────────────────────────────────────── */
+.doc-group {
+  margin-bottom: var(--space-8);
+}
+
+.doc-group-heading {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.admin-table th {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.admin-table td {
+  padding: var(--space-3);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+/* Highlight the active version row */
+.doc-row-active td {
+  background-color: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+/* Title cell — slightly bolder */
+.doc-cell-title {
+  font-weight: 600;
+}
+
+/* ── Active / Inactive badges ────────────────────────────────────────────── */
+.doc-badge-active,
+.doc-badge-inactive {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.doc-badge-active {
+  background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.doc-badge-inactive {
+  background-color: color-mix(in srgb, var(--text-secondary) 10%, transparent);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ── Source type indicators ──────────────────────────────────────────────── */
+.doc-pdf-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.doc-pdf-link:hover {
+  text-decoration: underline;
+}
+
+.doc-source-text {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ── Action column ───────────────────────────────────────────────────────── */
+.admin-col-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* ── Row action buttons ──────────────────────────────────────────────────── */
+.admin-btn-action {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  margin-left: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+/* Activate — accent outline */
+.admin-btn-activate {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: none;
+}
+
+.admin-btn-activate:hover {
+  background-color: var(--accent);
+  color: var(--bg-page);
+}
+
+/* Edit — neutral */
+.admin-btn-edit {
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+  background: none;
+}
+
+.admin-btn-edit:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+/* Delete — danger */
+.admin-btn-delete {
+  border-color: var(--error, #e05252);
+  color: var(--error, #e05252);
+  background: none;
+}
+
+.admin-btn-delete:hover {
+  background-color: var(--error, #e05252);
+  color: #fff;
+}
+
+/* Delete warning (active version) — extra visual warning */
+.admin-btn-delete-warn {
+  border-color: var(--warning, #e08c52);
+  color: var(--warning, #e08c52);
+}
+
+.admin-btn-delete-warn:hover {
+  background-color: var(--warning, #e08c52);
+  color: #fff;
+}
+
+/* ── Status / empty-state messages ──────────────────────────────────────── */
+.admin-status {
+  color: var(--text-secondary);
+  font-style: italic;
+  padding: var(--space-4) 0;
+}
+
+.admin-status-error {
+  color: var(--error, #e05252);
+}
+
+/* ── Responsive: collapse two-column rows on small screens ──────────────── */
+@media (max-width: 640px) {
+  .admin-row-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-col-actions {
+    text-align: left;
+  }
+
+  .admin-btn-action:first-child {
+    margin-left: 0;
+  }
+}
