@@ -85,7 +85,7 @@ graph TD
 
     %% Apply status classes
     class P1S1 completed
-    class P1S2 pending
+    class P1S2 completed
     class P1S3 pending
     class P2S1 pending
     class P2S2 pending
@@ -124,7 +124,7 @@ graph TD
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
 | 1 | [Security Rules + Firebase Config](phase-1/sub-task-1.md) | completed | — | f8d255d |
-| 2 | [Seed Script (12 collections)](phase-1/sub-task-2.md) | pending | sub-task-1 | — |
+| 2 | [Seed Script (12 collections)](phase-1/sub-task-2.md) | completed | sub-task-1 | 0fbcb83 |
 | 3 | [Run Seed + Validation Script](phase-1/sub-task-3.md) | pending | sub-task-2 | — |
 
 ### Phase 2: Transform Script Rework
@@ -178,10 +178,10 @@ graph TD
 
 | Phase | Tasks | Completed | Status |
 |-------|-------|-----------|--------|
-| Phase 1: Firebase Foundation | 3 | 1 | In progress |
+| Phase 1: Firebase Foundation | 3 | 2 | In progress |
 | Phase 2: Transform Script Rework | 5 | 0 | Not started |
 | Phase 3: React Foundation | 2 | 1 | In progress |
 | Phase 4: Component Migration | 4 | 0 | Not started |
 | Phase 5: Admin CRUD UI | 3 | 0 | Not started |
 | Phase 6: Cleanup & Optimization | 3 | 0 | Not started |
-| **Total** | **20** | **1** | **5%** |
+| **Total** | **20** | **2** | **10%** |
