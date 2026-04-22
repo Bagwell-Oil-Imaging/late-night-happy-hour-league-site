@@ -49,7 +49,7 @@ graph TD
 
     %% Apply status classes
     class P1T1 completed
-    class P1T2 pending
+    class P1T2 completed
     class P2T1 completed
     class P3T1 pending
     class P4T1 pending
@@ -73,7 +73,7 @@ graph TD
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
 | 1 | [Drive upload helper (scripts)](phase-1/sub-task-1.md) | completed | — | 1246777 |
-| 2 | [Vercel serverless endpoint](phase-1/sub-task-2.md) | pending | sub-task-1 | — |
+| 2 | [Vercel serverless endpoint](phase-1/sub-task-2.md) | completed | sub-task-1 | 7127702 |
 
 ### Phase 2: Types & Utilities
 **Goal:** Update shared TypeScript types and add the Drive URL helper used by both admin and frontend.
@@ -107,9 +107,9 @@ graph TD
 
 | Phase | Tasks | Completed | Status |
 |-------|-------|-----------|--------|
-| Phase 1: Infrastructure | 2 | 1 | In progress |
+| Phase 1: Infrastructure | 2 | 2 | Complete |
 | Phase 2: Types & Utilities | 1 | 1 | Complete |
 | Phase 3: Admin UI | 1 | 0 | Not started |
 | Phase 4: Frontend Display | 1 | 0 | Not started |
 | Phase 5: Cleanup | 1 | 0 | Not started |
-| **Total** | **6** | **2** | **33%** |
+| **Total** | **6** | **3** | **50%** |
