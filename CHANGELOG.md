@@ -9,6 +9,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- `src/utils/drive.ts` — `driveFileUrl(fileId)` and `driveDownloadUrl(fileId)` helpers that convert a Google Drive file ID to a viewer or download URL
+- `DocumentSource.driveFileId: string | null` field — replaces Firebase Storage URL with a Drive file ID for PDF documents
+
+### Deprecated
+- `DocumentSource.fileUrl` — superseded by `driveFileId`; will be removed after phase-3 and phase-4 consumers are updated
+
+---
+
 - High Individual Game and High Individual Series highlight cards on the Home Page (top 3 bowlers per category for the latest completed week)
 - `useBowlerScoresByWeek` hook in `src/hooks/index.ts` — fetches non-blinded `BowlerScore` documents for a specific week; uses sentinel pattern to avoid over-fetching when the week is not yet resolved
 - Composite Firestore index: `bowlerScores` on `seasonYear ASC, week ASC, blinded ASC` (required by the new hook)

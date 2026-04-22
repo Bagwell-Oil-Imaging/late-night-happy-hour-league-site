@@ -206,8 +206,19 @@ export interface DocumentSource {
   type: 'text' | 'pdf';
   /** Markdown content when type == 'text', null otherwise */
   content: string | null;
-  /** Firebase Storage URL when type == 'pdf', null otherwise */
-  fileUrl: string | null;
+  /**
+   * Google Drive file ID when type == 'pdf', null otherwise.
+   *
+   * Pass this value to `driveFileUrl(fileId)` or `driveDownloadUrl(fileId)`
+   * from `src/utils/drive.ts` to produce a usable URL.
+   */
+  driveFileId: string | null;
+  /**
+   * @deprecated Use `driveFileId` instead — this field held the old Firebase
+   * Storage download URL and will be removed after phase-3 and phase-4
+   * consumers are updated to use `driveFileId`.
+   */
+  fileUrl?: string | null;
 }
 
 /** LeagueDocument — versioned league document (bylaws, rules, etc.) */
