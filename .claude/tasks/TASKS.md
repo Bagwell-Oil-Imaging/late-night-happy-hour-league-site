@@ -1,81 +1,45 @@
-# Task Decomposition: Firebase Firestore Migration
+# Task Decomposition: Google Drive Storage — Bylaws
 
-**Source:** `firebase-migration-plan.md`
-**Branch:** `feature/firebase-firestore-migration`
-**Created:** 2026-04-18
-**Status:** completed
+**Source:** `REQUIREMENTS-feature-google-drive-storage.md`
+**Branch:** `feature/google-drive-storage`
+**Created:** 2026-04-22
+**Status:** pending
 
 ## Overview
 
-Migrate the Late Night Happy Hour Bowling League site from static JSON files to Firebase Firestore.
-The migration involves publishing security rules, seeding all 12 Firestore collections from existing
-data, reworking the transform pipeline to write directly to Firestore, migrating all React components
-to read from Firestore via custom hooks, building an Admin CRUD UI, and cleaning up all legacy files.
+Replace Firebase Storage with Google Drive for bylaws PDF storage. Firebase Storage
+costs money and is currently only used in `DocumentsAdmin.tsx`. This migration adds
+a Vercel serverless upload endpoint (so browser-side code never touches the service
+account key), updates the admin UI and frontend display to use Drive file IDs, and
+then removes Firebase Storage entirely.
 
 ## Dependency Graph
 
 ```mermaid
 graph TD
-    %% Phase 1: Firebase Foundation
-    P1S1["phase-1/sub-task-1<br/>Security Rules + Firebase Config"]
-    P1S2["phase-1/sub-task-2<br/>Seed Script (12 collections)"]
-    P1S3["phase-1/sub-task-3<br/>Run Seed + Validation Script"]
+    %% Phase 1: Infrastructure
+    P1T1["phase-1/sub-task-1<br/>Drive upload helper (scripts)"]
+    P1T2["phase-1/sub-task-2<br/>Vercel serverless endpoint"]
 
-    %% Phase 2: Transform Script Rework
-    P2S1["phase-2/sub-task-1<br/>firebase-admin Setup + Batch Write Helper"]
-    P2S2["phase-2/sub-task-2<br/>leagueConfig Collection Mapping"]
-    P2S3["phase-2/sub-task-3<br/>Expanded Teams + Bowlers Mapping"]
-    P2S4["phase-2/sub-task-4<br/>bowlerScores: Blind/PreBowl/Substitute"]
-    P2S5["phase-2/sub-task-5<br/>positionRound + FK Fix + Full Batch Write"]
+    %% Phase 2: Types & Utilities
+    P2T1["phase-2/sub-task-1<br/>DocumentSource type + driveFileUrl util"]
 
-    %% Phase 3: React Foundation
-    P3S1["phase-3/sub-task-1<br/>TypeScript Schema Types"]
-    P3S2["phase-3/sub-task-2<br/>Firestore Hooks (Generic + Domain)"]
+    %% Phase 3: Admin UI
+    P3T1["phase-3/sub-task-1<br/>DocumentsAdmin → Drive upload"]
 
-    %% Phase 4: Component Migration
-    P4S1["phase-4/sub-task-1<br/>Standings + Teams + Matchups Components"]
-    P4S2["phase-4/sub-task-2<br/>Scores + Schedule + Seasons Components"]
-    P4S3["phase-4/sub-task-3<br/>Bowler Components"]
-    P4S4["phase-4/sub-task-4<br/>Admin Display + Home + Bylaws Components"]
+    %% Phase 4: Frontend
+    P4T1["phase-4/sub-task-1<br/>BylawsModal → Drive URLs"]
 
-    %% Phase 5: Admin CRUD UI
-    P5S1["phase-5/sub-task-1<br/>Auth Login + Route Guard + Admin Layout"]
-    P5S2["phase-5/sub-task-2<br/>Announcements + Events + Carousel CRUD"]
-    P5S3["phase-5/sub-task-3<br/>Documents Admin + PDF Upload + Versioning"]
-
-    %% Phase 6: Cleanup & Optimization
-    P6S1["phase-6/sub-task-1<br/>Delete JSON Files + Fix TypeScript Errors"]
-    P6S2["phase-6/sub-task-2<br/>Composite Firestore Indexes"]
-    P6S3["phase-6/sub-task-3<br/>onSnapshot Real-Time Listeners + Docs Update"]
+    %% Phase 5: Cleanup
+    P5T1["phase-5/sub-task-1<br/>Remove Firebase Storage"]
 
     %% Dependencies
-    P1S1 --> P1S2
-    P1S2 --> P1S3
-    P1S1 --> P2S1
-    P1S1 --> P3S2
-    P1S1 --> P5S1
-    P2S1 --> P2S2
-    P2S1 --> P2S3
-    P2S1 --> P2S4
-    P2S2 --> P2S5
-    P2S3 --> P2S5
-    P2S4 --> P2S5
-    P3S1 --> P3S2
-    P3S2 --> P4S1
-    P3S2 --> P4S2
-    P3S2 --> P4S3
-    P3S2 --> P4S4
-    P5S1 --> P5S2
-    P5S1 --> P5S3
-    P4S1 --> P6S1
-    P4S2 --> P6S1
-    P4S3 --> P6S1
-    P4S4 --> P6S1
-    P2S5 --> P6S2
-    P4S1 --> P6S3
-    P4S2 --> P6S3
-    P4S3 --> P6S3
-    P4S4 --> P6S3
+    P1T1 --> P1T2
+    P1T2 --> P3T1
+    P2T1 --> P3T1
+    P2T1 --> P4T1
+    P3T1 --> P5T1
+    P4T1 --> P5T1
 
     %% Status styling
     classDef completed fill:#22c55e,stroke:#16a34a,color:#fff
@@ -84,104 +48,68 @@ graph TD
     classDef blocked fill:#ef4444,stroke:#dc2626,color:#fff
 
     %% Apply status classes
-    class P1S1 completed
-    class P1S2 completed
-    class P1S3 completed
-    class P2S1 completed
-    class P2S2 completed
-    class P2S3 completed
-    class P2S4 completed
-    class P2S5 completed
-    class P3S1 completed
-    class P3S2 completed
-    class P4S1 completed
-    class P4S2 completed
-    class P4S3 completed
-    class P4S4 completed
-    class P5S1 completed
-    class P5S2 completed
-    class P5S3 completed
-    class P6S1 completed
-    class P6S2 completed
-    class P6S3 completed
+    class P1T1 completed
+    class P1T2 pending
+    class P2T1 pending
+    class P3T1 pending
+    class P4T1 pending
+    class P5T1 pending
 ```
 
 ## Execution Order
 
 | Wave | Sub-Tasks | Description |
 |------|-----------|-------------|
-| 1 | phase-1/sub-task-1, phase-3/sub-task-1 | No dependencies — firebase config + schema types can start immediately |
-| 2 | phase-1/sub-task-2, phase-2/sub-task-1, phase-3/sub-task-2, phase-5/sub-task-1 | Depend on Wave 1 foundations |
-| 3 | phase-1/sub-task-3, phase-2/sub-task-2, phase-2/sub-task-3, phase-2/sub-task-4, phase-4/sub-task-1, phase-4/sub-task-2, phase-4/sub-task-3, phase-4/sub-task-4, phase-5/sub-task-2, phase-5/sub-task-3 | Parallel expansion wave |
-| 4 | phase-2/sub-task-5 | Requires all transform sub-tasks from Wave 3 |
-| 5 | phase-6/sub-task-1, phase-6/sub-task-2, phase-6/sub-task-3 | Final cleanup — all components migrated, transform complete |
+| 1 | phase-1/sub-task-1, phase-2/sub-task-1 | No dependencies — run in parallel |
+| 2 | phase-1/sub-task-2 | Depends on phase-1/sub-task-1 |
+| 3 | phase-3/sub-task-1, phase-4/sub-task-1 | phase-3 depends on wave-2 + phase-2; phase-4 depends on phase-2 |
+| 4 | phase-5/sub-task-1 | Depends on phase-3 and phase-4 both complete |
 
 ## Phases
 
-### Phase 1: Firebase Foundation & Schema Validation
-**Goal:** Publish security rules, seed all 12 Firestore collections from existing JSON files, and verify schema.
+### Phase 1: Infrastructure
+**Goal:** Server-side Drive utilities and the Vercel upload endpoint that the admin UI will call.
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [Security Rules + Firebase Config](phase-1/sub-task-1.md) | completed | — | f8d255d |
-| 2 | [Seed Script (12 collections)](phase-1/sub-task-2.md) | completed | sub-task-1 | 0fbcb83 |
-| 3 | [Run Seed + Validation Script](phase-1/sub-task-3.md) | completed | sub-task-2 | 3881d1b |
+| 1 | [Drive upload helper (scripts)](phase-1/sub-task-1.md) | completed | — | 1246777 |
+| 2 | [Vercel serverless endpoint](phase-1/sub-task-2.md) | pending | sub-task-1 | — |
 
-### Phase 2: Transform Script Rework
-**Goal:** Rework `scripts/transform-data.js` to write directly to Firestore using the corrected schema.
-
-| # | Sub-Task | Status | Depends On | Commit |
-|---|----------|--------|------------|--------|
-| 1 | [firebase-admin Setup + Batch Write Helper](phase-2/sub-task-1.md) | completed | phase-1/sub-task-1 | cd9cd6f |
-| 2 | [leagueConfig Collection Mapping](phase-2/sub-task-2.md) | completed | sub-task-1 | 7a7e090 |
-| 3 | [Expanded Teams + Bowlers Mapping](phase-2/sub-task-3.md) | completed | sub-task-1 | d6c1db8 |
-| 4 | [bowlerScores: Blind/PreBowl/Substitute](phase-2/sub-task-4.md) | completed | sub-task-1 | b54f474 |
-| 5 | [positionRound + FK Fix + Full Batch Write](phase-2/sub-task-5.md) | completed | sub-task-2, sub-task-3, sub-task-4 | cbf535f |
-
-### Phase 3: React Foundation — Types & Hooks
-**Goal:** Update TypeScript types to the new schema and create all Firestore read hooks.
+### Phase 2: Types & Utilities
+**Goal:** Update shared TypeScript types and add the Drive URL helper used by both admin and frontend.
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [TypeScript Schema Types](phase-3/sub-task-1.md) | completed | — | e143052 |
-| 2 | [Firestore Hooks (Generic + Domain)](phase-3/sub-task-2.md) | completed | sub-task-1, phase-1/sub-task-1 | a8e5399 |
+| 1 | [DocumentSource type + driveFileUrl util](phase-2/sub-task-1.md) | pending | — | — |
 
-### Phase 4: React Component Migration
-**Goal:** Replace all static JSON imports in all React components with Firestore hooks.
-
-| # | Sub-Task | Status | Depends On | Commit |
-|---|----------|--------|------------|--------|
-| 1 | [Standings + Teams + Matchups Components](phase-4/sub-task-1.md) | completed | phase-3/sub-task-2 | e3fe5cf |
-| 2 | [Scores + Schedule + Seasons Components](phase-4/sub-task-2.md) | completed | phase-3/sub-task-2 | 1de4d54 |
-| 3 | [Bowler Components](phase-4/sub-task-3.md) | completed | phase-3/sub-task-2 | 6ed73fb |
-| 4 | [Admin Display + Home + Bylaws Components](phase-4/sub-task-4.md) | completed | phase-3/sub-task-2 | c03bb6f |
-
-### Phase 5: Admin CRUD UI
-**Goal:** Build Firebase Auth–gated admin panels for all admin-managed Firestore collections.
+### Phase 3: Admin UI
+**Goal:** DocumentsAdmin uploads PDFs to Drive instead of Firebase Storage.
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [Auth Login + Route Guard + Admin Layout](phase-5/sub-task-1.md) | completed | phase-1/sub-task-1 | c554c80 |
-| 2 | [Announcements + Events + Carousel CRUD](phase-5/sub-task-2.md) | completed | sub-task-1 | a18c921 |
-| 3 | [Documents Admin + PDF Upload + Versioning](phase-5/sub-task-3.md) | completed | sub-task-1 | a629923 |
+| 1 | [DocumentsAdmin → Drive upload](phase-3/sub-task-1.md) | pending | phase-1/sub-task-2, phase-2/sub-task-1 | — |
 
-### Phase 6: Cleanup & Optimization
-**Goal:** Remove all legacy JSON files, create composite indexes, add real-time listeners, update documentation.
+### Phase 4: Frontend Display
+**Goal:** BylawsModal serves PDFs from Drive file IDs instead of Firebase Storage URLs.
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [Delete JSON Files + Fix TypeScript Errors](phase-6/sub-task-1.md) | completed | phase-4/sub-task-1 through 4 | 94a14fe |
-| 2 | [Composite Firestore Indexes](phase-6/sub-task-2.md) | completed | phase-2/sub-task-5 | 7b9c72e |
-| 3 | [onSnapshot Listeners + Docs Update](phase-6/sub-task-3.md) | completed | phase-4/sub-task-1 through 4 | 086e78b |
+| 1 | [BylawsModal → Drive URLs](phase-4/sub-task-1.md) | pending | phase-2/sub-task-1 | — |
+
+### Phase 5: Cleanup
+**Goal:** Remove Firebase Storage entirely — imports, config, rules, env vars.
+
+| # | Sub-Task | Status | Depends On | Commit |
+|---|----------|--------|------------|--------|
+| 1 | [Remove Firebase Storage](phase-5/sub-task-1.md) | pending | phase-3/sub-task-1, phase-4/sub-task-1 | — |
 
 ## Progress
 
 | Phase | Tasks | Completed | Status |
 |-------|-------|-----------|--------|
-| Phase 1: Firebase Foundation | 3 | 3 | Complete |
-| Phase 2: Transform Script Rework | 5 | 5 | Complete |
-| Phase 3: React Foundation | 2 | 2 | Completed |
-| Phase 4: Component Migration | 4 | 4 | Complete |
-| Phase 5: Admin CRUD UI | 3 | 3 | Complete |
-| Phase 6: Cleanup & Optimization | 3 | 3 | Complete |
-| **Total** | **20** | **20** | **100%** |
+| Phase 1: Infrastructure | 2 | 1 | In progress |
+| Phase 2: Types & Utilities | 1 | 0 | Not started |
+| Phase 3: Admin UI | 1 | 0 | Not started |
+| Phase 4: Frontend Display | 1 | 0 | Not started |
+| Phase 5: Cleanup | 1 | 0 | Not started |
+| **Total** | **6** | **1** | **17%** |
