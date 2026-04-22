@@ -51,7 +51,7 @@ graph TD
     class P1T1 completed
     class P1T2 completed
     class P2T1 completed
-    class P3T1 pending
+    class P3T1 completed
     class P4T1 pending
     class P5T1 pending
 ```
@@ -87,7 +87,7 @@ graph TD
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [DocumentsAdmin → Drive upload](phase-3/sub-task-1.md) | pending | phase-1/sub-task-2, phase-2/sub-task-1 | — |
+| 1 | [DocumentsAdmin → Drive upload](phase-3/sub-task-1.md) | completed | phase-1/sub-task-2, phase-2/sub-task-1 | 378f49e |
 
 ### Phase 4: Frontend Display
 **Goal:** BylawsModal serves PDFs from Drive file IDs instead of Firebase Storage URLs.
@@ -109,7 +109,7 @@ graph TD
 |-------|-------|-----------|--------|
 | Phase 1: Infrastructure | 2 | 2 | Complete |
 | Phase 2: Types & Utilities | 1 | 1 | Complete |
-| Phase 3: Admin UI | 1 | 0 | Not started |
+| Phase 3: Admin UI | 1 | 1 | Complete |
 | Phase 4: Frontend Display | 1 | 0 | Not started |
 | Phase 5: Cleanup | 1 | 0 | Not started |
-| **Total** | **6** | **3** | **50%** |
+| **Total** | **6** | **4** | **67%** |
