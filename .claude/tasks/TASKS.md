@@ -52,7 +52,7 @@ graph TD
     class P1T2 completed
     class P2T1 completed
     class P3T1 completed
-    class P4T1 pending
+    class P4T1 completed
     class P5T1 pending
 ```
 
@@ -94,7 +94,7 @@ graph TD
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [BylawsModal → Drive URLs](phase-4/sub-task-1.md) | pending | phase-2/sub-task-1 | — |
+| 1 | [BylawsModal → Drive URLs](phase-4/sub-task-1.md) | completed | phase-2/sub-task-1 | 287dbeb |
 
 ### Phase 5: Cleanup
 **Goal:** Remove Firebase Storage entirely — imports, config, rules, env vars.
@@ -110,6 +110,6 @@ graph TD
 | Phase 1: Infrastructure | 2 | 2 | Complete |
 | Phase 2: Types & Utilities | 1 | 1 | Complete |
 | Phase 3: Admin UI | 1 | 1 | Complete |
-| Phase 4: Frontend Display | 1 | 0 | Not started |
+| Phase 4: Frontend Display | 1 | 1 | Complete |
 | Phase 5: Cleanup | 1 | 0 | Not started |
-| **Total** | **6** | **4** | **67%** |
+| **Total** | **6** | **5** | **83%** |
