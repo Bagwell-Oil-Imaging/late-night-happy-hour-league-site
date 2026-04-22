@@ -53,7 +53,7 @@ graph TD
     class P2T1 completed
     class P3T1 completed
     class P4T1 completed
-    class P5T1 pending
+    class P5T1 completed
 ```
 
 ## Execution Order
@@ -101,7 +101,7 @@ graph TD
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [Remove Firebase Storage](phase-5/sub-task-1.md) | pending | phase-3/sub-task-1, phase-4/sub-task-1 | — |
+| 1 | [Remove Firebase Storage](phase-5/sub-task-1.md) | completed | phase-3/sub-task-1, phase-4/sub-task-1 | 322f733 |
 
 ## Progress
 
@@ -111,5 +111,5 @@ graph TD
 | Phase 2: Types & Utilities | 1 | 1 | Complete |
 | Phase 3: Admin UI | 1 | 1 | Complete |
 | Phase 4: Frontend Display | 1 | 1 | Complete |
-| Phase 5: Cleanup | 1 | 0 | Not started |
-| **Total** | **6** | **5** | **83%** |
+| Phase 5: Cleanup | 1 | 1 | Complete |
+| **Total** | **6** | **6** | **100%** |
