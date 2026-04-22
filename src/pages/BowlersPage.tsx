@@ -15,16 +15,10 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useBowlers, useBowlerScores } from '../hooks'
+import { useSeasonYear } from '../context/SeasonContext'
 import type { Bowler, BowlerScore } from '../types'
 import '../components/BowlerProfileModal.css'
 import './BowlersPage.css'
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/** The season year this page displays. Update when rolling to a new season. */
-const SEASON_YEAR = '2025-2026'
 
 // ---------------------------------------------------------------------------
 // Helper functions
@@ -86,6 +80,7 @@ interface BowlerDetailPanelProps {
  * @param bowler - The `Bowler` document to display
  */
 function BowlerDetailPanel({ bowler }: BowlerDetailPanelProps) {
+  const SEASON_YEAR = useSeasonYear()
   // Load per-week scores for this bowler — hook skips if id is missing
   const bowlerId = bowler.leaguePalsId || bowler.id || ''
   const { data: scores, loading: scoresLoading } = useBowlerScores(bowlerId, SEASON_YEAR)
@@ -183,21 +178,17 @@ function ScoresTable({ scores, bowler }: ScoresTableProps) {
               <tr key={score.id ?? score.week} className="week-row">
                 <td className="col-week">
                   {score.week}
-                  {/* Show a "Pre-bowl" badge when the score was bowled on a different night */}
-                  {score.preBowled && (
-                    <span className="prebowl-badge" title={
-                      score.actualBowlDate
-                        ? `Bowled on ${formatDate(score.actualBowlDate)}`
-                        : 'Pre-bowled'
-                    }>
+                  {/* PB badge only when the bowl date differs from the scheduled date */}
+                  {score.preBowled && score.actualBowlDate && score.actualBowlDate !== score.date && (
+                    <span className="prebowl-badge" title={`Bowled on ${formatDate(score.actualBowlDate)}`}>
                       {' '}PB
                     </span>
                   )}
                 </td>
                 <td className="col-date">
                   {formatDate(score.date)}
-                  {/* Show actual bowl date beneath scheduled date for pre-bowls */}
-                  {score.preBowled && score.actualBowlDate && (
+                  {/* Parenthetical actual date only when it differs from the scheduled date */}
+                  {score.preBowled && score.actualBowlDate && score.actualBowlDate !== score.date && (
                     <span className="prebowl-actual-date">
                       {' '}({formatDate(score.actualBowlDate)})
                     </span>
@@ -242,6 +233,7 @@ function ScoresTable({ scores, bowler }: ScoresTableProps) {
  * fetched by the `BowlerDetailPanel` child component.
  */
 function BowlersPage() {
+  const SEASON_YEAR = useSeasonYear()
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Fetch all bowlers for the current season from Firestore

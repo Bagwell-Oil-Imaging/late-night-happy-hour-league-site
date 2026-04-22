@@ -40,7 +40,8 @@
       "Bash(node -e \"const data = require\\('./src/data/weeklyMatchupDetails.json'\\); const weeks = [...new Set\\(data.map\\(d => d.week\\)\\)].sort\\(\\(a,b\\)=>a-b\\); console.log\\('Weeks in weeklyMatchupDetails:', weeks\\); console.log\\('Total entries:', data.length\\)\")",
       "Bash(node -e \"const data = require\\('./src/data/matchups.json'\\); console.log\\(JSON.stringify\\(data.slice\\(0,6\\), null, 2\\)\\)\")",
       "Bash(node -e \"const data = require\\('./src/data/weeklyMatchupDetails.json'\\); const byWeek = {}; data.forEach\\(d => { if\\(!byWeek[d.week]\\) byWeek[d.week] = d.date; }\\); Object.keys\\(byWeek\\).sort\\(\\(a,b\\)=>+a-+b\\).forEach\\(w => console.log\\('Week', w, byWeek[w]\\)\\)\")",
-      "Bash(node --input-type=module)"
+      "Bash(node --input-type=module)",
+      "Skill(update-config)"
     ],
     "deny": [],
     "ask": []

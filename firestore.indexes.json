@@ -8,6 +8,7 @@
     { "collectionGroup": "bowlerScores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "bowlerId", "order": "ASCENDING" }, { "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "week", "order": "ASCENDING" }] },
     { "collectionGroup": "bowlerScores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "bowlerId", "order": "ASCENDING" }, { "fieldPath": "week", "order": "ASCENDING" }] },
     { "collectionGroup": "bowlerScores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "teamId", "order": "ASCENDING" }, { "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "week", "order": "ASCENDING" }] },
+    { "collectionGroup": "bowlerScores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "week", "order": "ASCENDING" }, { "fieldPath": "blinded", "order": "ASCENDING" }] },
     { "collectionGroup": "bowlerScores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "blinded", "order": "ASCENDING" }, { "fieldPath": "series", "order": "DESCENDING" }] },
     { "collectionGroup": "bowlerScores", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "blinded", "order": "ASCENDING" }, { "fieldPath": "game1", "order": "DESCENDING" }] },
     { "collectionGroup": "matchups", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "week", "order": "ASCENDING" }] },

@@ -19,7 +19,7 @@
 // Load environment variables from .env before any other side-effectful code
 import 'dotenv/config'
 
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'fs'
 import { join, dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
@@ -92,7 +92,9 @@ async function batchWrite(collectionName, docs, getDocId = null) {
       const ref = getDocId
         ? db.collection(collectionName).doc(getDocId(doc))
         : db.collection(collectionName).doc()
-      batch.set(ref, doc)
+      // Strip internal routing key so it is not persisted as a Firestore field
+      const { _docId: _ignored, ...data } = doc
+      batch.set(ref, data)
     }
 
     await batch.commit()
@@ -151,10 +153,12 @@ function loadJSON(filePath) {
 
 /**
  * Writes data as pretty-printed JSON to src/data/.
+ * Creates the directory if it has been deleted (e.g. after Phase 6 cleanup).
  * @param {string} filename - Filename within src/data/
  * @param {any} data - Data to serialize
  */
 function write(filename, data) {
+  mkdirSync(OUT_DIR, { recursive: true })
   const filePath = join(OUT_DIR, filename)
   writeFileSync(filePath, JSON.stringify(data, null, 2))
   console.log(`  ✓ Wrote src/data/${filename} (${data.length} entries)`)
@@ -327,7 +331,7 @@ function buildMatchups() {
   const upcoming = []
   let matchId = 1
 
-  weeks.forEach((week, weekIndex) => {
+  weeks.forEach((week) => {
     // Skip weeks with no matches (holidays, filler)
     if (!week.matches || week.matches.length === 0) return
 
@@ -335,8 +339,7 @@ function buildMatchups() {
     weekDate.setHours(0, 0, 0, 0)
     const dateStr = week.date.slice(0, 10)         // YYYY-MM-DD
     const isPast = weekDate < today
-    // Weeks are 1-based; normalWeek > 0 means it's a counted week
-    const weekNum = weekIndex + 1
+    const weekNum = weekNumMap.get(dateStr) ?? 0
 
     for (const match of week.matches) {
       const team1SiteId = teamIdMap.get(match.team1_id)
@@ -386,22 +389,23 @@ function buildMatchups() {
  * Produces one entry for the current 2025-26 season using real standings data.
  * The champion field is left as TBD until the season ends.
  *
- * Season interface: { year, startDate, endDate, champion, teams: SeasonTeam[] }
- * SeasonTeam interface: { id, name, wins, losses, points }
+ * Season interface: { year, startDate, endDate, championTeamId, championTeamName, teams: SeasonTeam[] }
+ * SeasonTeam interface: { teamId, name, wins, losses, ties, points }
  *
  * @returns {object[]}
  */
 function buildSeasons() {
   const standingsList = standings.data?.standings ?? []
 
-  // Current season teams sorted by rank
+  // Current season teams sorted by rank — use LP ObjectId as teamId for FK consistency
   const seasonTeams = standingsList
     .filter(s => teamIdMap.has(s.team?._id))
     .map(s => ({
-      id: teamIdMap.get(s.team._id),
+      teamId: s.team._id,          // LP ObjectId — matches teams collection doc ID
       name: s.team.name,
       wins: s.wins,
       losses: s.losses,
+      ties: s.ties ?? 0,
       points: s.pointsWon,
     }))
     .sort((a, b) => {
@@ -413,8 +417,10 @@ function buildSeasons() {
     year: '2025-2026',
     startDate: '2025-09-04',
     endDate: '2026-05-07',
-    // Champion unknown until season ends; top team shown provisionally
-    champion: seasonTeams[0]?.name ?? 'TBD',
+    // Season still in progress — championTeamId set to null until banquet
+    championTeamId: null,
+    // Show current leader's name provisionally for the UI badge
+    championTeamName: seasonTeams[0]?.name ?? null,
     teams: seasonTeams,
   }
 
@@ -449,6 +455,32 @@ function buildLaneLookup() {
 }
 
 const laneLookup = buildLaneLookup()
+
+// ─── Week number map ──────────────────────────────────────────────────────────
+
+/**
+ * Builds a canonical date-string → week-number map using a sequential counter
+ * that excludes skipped/holiday weeks. This is the single source of truth for
+ * week numbering across ALL Firestore collections (scheduleWeeks, matchups,
+ * matchupDetails, bowlerScores). Using raw `weekIndex + 1` previously caused a
+ * divergence after any holiday week — this map ensures consistency.
+ *
+ * Position-round weeks (where `splitMatches` is populated instead of `matches`)
+ * are counted, since bowlers still bowl on those nights.
+ *
+ * @returns {Map<string, number>} YYYY-MM-DD → 1-based bowling week number
+ */
+function buildWeekNumMap() {
+  const map = new Map()
+  let counter = 0
+  for (const week of (schedule.schedule ?? [])) {
+    const hasMatches = (week.matches?.length ?? 0) > 0 || (week.splitMatches?.length ?? 0) > 0
+    if (hasMatches) map.set(week.date.slice(0, 10), ++counter)
+  }
+  return map
+}
+
+const weekNumMap = buildWeekNumMap()
 
 // ─── Transform: weeklyMatchupDetails.json ─────────────────────────────────────
 
@@ -533,21 +565,26 @@ function buildWeeklyMatchupDetails() {
     }
   }
 
-  weeks.forEach((week, weekIndex) => {
-    if (!week.matches || week.matches.length === 0) return
+  weeks.forEach((week) => {
+    // Use splitMatches for position rounds (same logic as populateMatchups) so
+    // that the sequential matchId stays in lockstep with the Firestore refMap.
+    const matchList = (week.splitMatches?.length > 0 ? week.splitMatches : week.matches) ?? []
+    if (matchList.length === 0) return
 
     const weekDate = new Date(week.date)
     weekDate.setHours(0, 0, 0, 0)
     const dateStr = week.date.slice(0, 10)
     const isPast = weekDate < today
-    const weekNum = weekIndex + 1
+    // weekNumMap gives the sequential bowling-week number (holidays excluded),
+    // matching the numbering written by populateScheduleWeeks.
+    const weekNum = weekNumMap.get(dateStr) ?? 0
 
-    for (const match of week.matches) {
+    for (const match of matchList) {
       const team1SiteId = teamIdMap.get(match.team1_id)
       const team2SiteId = teamIdMap.get(match.team2_id)
       if (!team1SiteId || !team2SiteId) continue
 
-      // Increment in lockstep with buildMatchups so IDs match historicalMatches.json
+      // Increment in lockstep with populateMatchups so seqToFirestoreId maps correctly
       const currentMatchId = matchId++
       if (!isPast) continue
 
@@ -589,14 +626,6 @@ function buildBowlerStats() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Map dateStr → 1-based week number for fast lookup
-  const weekDateIndex = new Map()
-  const weeks = schedule.schedule ?? []
-  weeks.forEach((week, i) => {
-    if (!week.matches || week.matches.length === 0) return
-    weekDateIndex.set(week.date.slice(0, 10), i + 1)
-  })
-
   // Quick opponent name lookup from standings
   const oppNameLookup = new Map()
   for (const s of (standings.data?.standings ?? [])) {
@@ -624,7 +653,7 @@ function buildBowlerStats() {
         const series = games[3]
         if (typeof series !== 'number' || series <= 0) continue
 
-        const weekNum = weekDateIndex.get(dateStr)
+        const weekNum = weekNumMap.get(dateStr)
         if (!weekNum) continue
 
         const laneInfo = laneLookup.get(dateStr)?.get(teamLpId)
@@ -857,6 +886,11 @@ async function populateTeams(seasonYear) {
 
         // Team name and captain info
         name: team.name ?? '',
+        captainName: (() => {
+          const roster = rosterMap.get(team._id) ?? []
+          const captain = roster.find(b => b.isCaptain || b.isOfficer)
+          return captain ? `${captain.firstName ?? ''} ${captain.lastName ?? ''}`.trim() : ''
+        })(),
 
         // Phase 5 admin will resolve the captain's bowler document ID
         captainBowlerId: null,
@@ -866,7 +900,9 @@ async function populateTeams(seasonYear) {
         losses: entry.losses ?? 0,
         ties: entry.ties ?? 0,
 
-        // Points-based standings
+        // `points` is the canonical field — useTeams orderBy('points', 'desc')
+        // LeaguePals API uses `pointsWon` for this value
+        points: entry.pointsWon ?? 0,
         pointsWon: entry.pointsWon ?? 0,
         pointsLost: entry.pointsLost ?? 0,
 
@@ -1137,9 +1173,9 @@ async function populateMatchups(seasonYear) {
     const raw = JSON.parse(readFileSync(laneSchedulePath, 'utf8'))
     const weeks = raw.schedule ?? []
 
-    weeks.forEach((week, weekIndex) => {
+    weeks.forEach((week) => {
       const weekDate = week.date?.slice(0, 10) ?? ''
-      const weekNum = weekIndex + 1
+      const weekNum = weekNumMap.get(weekDate) ?? 0
 
       // Position-round detection: prefer the explicit boolean flag; fall back
       // to checking whether the splitMatches array is non-empty (future-proofing
@@ -1166,6 +1202,8 @@ async function populateMatchups(seasonYear) {
           positionRound,
           team1Id: match.team1_id ?? '',
           team2Id: match.team2_id ?? '',
+          team1Lane: match.team1_lane ?? 0,
+          team2Lane: match.team2_lane ?? 0,
           team1ScratchScore,
           team2ScratchScore,
           completed: team1ScratchScore !== null && team2ScratchScore !== null,
@@ -1324,7 +1362,7 @@ async function populateMatchupDetails(seasonYear, matchupIdMap = new Map()) {
       return {
         // Team identity uses the LeaguePals ObjectId (already correct from standings)
         teamId: teamLpId,
-        name: team.name ?? '',
+        teamName: team.name ?? '',
         lane: team.lane ?? 0,
 
         // Renamed from g1Total/g2Total/g3Total to game1Total/game2Total/game3Total
@@ -1447,6 +1485,7 @@ async function populateScheduleWeeks(seasonYear) {
     // detect and fill in skipped weeks that the LeaguePals schedule may omit.
     // We walk every consecutive Thursday between the first and last schedule date.
 
+    const todayStr = new Date().toISOString().slice(0, 10)
     let weekCounter = 0 // tracks the 1-based bowling week number (skips don't increment)
     docs = weeks.map(week => {
       const dateStr = week.date?.slice(0, 10) ?? ''
@@ -1476,7 +1515,7 @@ async function populateScheduleWeeks(seasonYear) {
         seasonYear,
         week: weekNum,
         date: dateStr,
-        status: isSkipped ? 'skip' : 'scheduled',
+        status: isSkipped ? 'skip' : (dateStr < todayStr ? 'completed' : 'upcoming'),
         skipReason,
         event,
         positionRound,
@@ -1741,19 +1780,16 @@ async function populateBowlerScores(seasonYear) {
   /** @type {object[]} Accumulated bowler score documents to batch-write */
   const bowlerScoreDocs = []
 
-  // Build a date → week-number lookup from the lane schedule for `week` field
-  // (same approach as buildBowlerStats to keep consistency)
-  const weekDateIndex = new Map()
-  const weeks = schedule.schedule ?? []
-  weeks.forEach((week, i) => {
-    if (!week.matches || week.matches.length === 0) return
-    weekDateIndex.set(week.date.slice(0, 10), i + 1)
-  })
-
   // Read team file listing — same directory glob as populateBowlers()
   const teamFilePaths = readdirSync(TEAMS_RAW_DIR)
     .filter(f => f.endsWith('.json'))
     .map(f => join(TEAMS_RAW_DIR, f))
+
+  // Build opponent name lookup from standings (same approach as buildBowlerScores())
+  const oppNameLookup = new Map()
+  for (const s of (standings.data?.standings ?? [])) {
+    if (s.team?._id) oppNameLookup.set(s.team._id, s.team.name)
+  }
 
   if (teamFilePaths.length > 0) {
     // ── Primary path: individual team JSON files ──────────────────────────────
@@ -1788,14 +1824,14 @@ async function populateBowlerScores(seasonYear) {
 
           // ── Week number ───────────────────────────────────────────────────
           // For a pre-bowled entry the dateKey is the actual bowl night, not the
-          // scheduled match night, so we may not find it in weekDateIndex. We
+          // scheduled match night, so we may not find it in weekNumMap. We
           // try the matchDate first (the week it counts for) and fall back to
           // looking up by the dateKey itself.
           const scheduledDate = preBowled
             ? (weekEntry.matchDate ?? dateKey)
             : dateKey
-          const weekNum = weekDateIndex.get(scheduledDate)
-            ?? weekDateIndex.get(dateKey)
+          const weekNum = weekNumMap.get(scheduledDate)
+            ?? weekNumMap.get(dateKey)
             ?? 0
 
           // ── Lane and opponent from lane schedule ──────────────────────────
@@ -1827,9 +1863,8 @@ async function populateBowlerScores(seasonYear) {
             teamId: teamLpId,
             teamName: player.teamName ?? '',
 
-            // Opponent FKs — will be wired in phase-2/sub-task-5
-            opponentTeamId: '',
-            opponentTeamName: '',
+            opponentTeamId: laneInfo?.opponentLpId ?? '',
+            opponentTeamName: laneInfo?.opponentLpId ? (oppNameLookup.get(laneInfo.opponentLpId) ?? '') : '',
 
             // Matchup FK — will be wired in phase-2/sub-task-5
             matchupId: '',
@@ -1918,6 +1953,34 @@ async function populateBowlerScores(seasonYear) {
 
     console.log(`[populateBowlerScores] Mapped ${bowlerScoreDocs.length} score documents from bowlerStats.json (fallback)`)
   }
+
+  // ── Rolling average calculation ────────────────────────────────────────────
+  // Group all docs by bowlerId, sort each group by week ascending, then walk
+  // forward accumulating non-blind scratch pins and game counts.
+  // Formula: floor(totalPins / totalGames) — matches LeaguePals' integer avg.
+  // Blind weeks (blinded: true) are excluded from both numerator and denominator.
+  const byBowler = new Map()
+  for (const doc of bowlerScoreDocs) {
+    if (!byBowler.has(doc.bowlerId)) byBowler.set(doc.bowlerId, [])
+    byBowler.get(doc.bowlerId).push(doc)
+  }
+
+  for (const docs of byBowler.values()) {
+    docs.sort((a, b) => a.week - b.week)
+    let totalPins = 0
+    let totalGames = 0
+    for (const doc of docs) {
+      if (!doc.blinded && doc.series !== null) {
+        const gamesThisWeek = [doc.game1, doc.game2, doc.game3].filter(g => typeof g === 'number').length
+        totalPins += doc.series
+        totalGames += gamesThisWeek
+      }
+      doc.rollingAvg  = totalGames > 0 ? Math.floor(totalPins / totalGames) : null
+      doc.rollingGames = totalGames
+    }
+  }
+
+  console.log(`[populateBowlerScores] Calculated rolling averages for ${byBowler.size} bowlers`)
 
   // Auto-generated Firestore IDs — no custom doc ID needed for scores
   await batchWrite('bowlerScores', bowlerScoreDocs)

@@ -132,6 +132,7 @@
 .col-lane   { width: 68px; white-space: nowrap; }
 .col-game   { width: 44px; }
 .col-series { width: 60px; font-weight: 700; }
+.col-avg    { width: 48px; color: var(--text-muted); font-style: italic; }
 
 .high-game {
   color: var(--accent);

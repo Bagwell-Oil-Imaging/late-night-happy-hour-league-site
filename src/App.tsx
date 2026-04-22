@@ -12,6 +12,7 @@ import BowlersPage from './pages/BowlersPage'
 import HistoryPage from './pages/HistoryPage'
 import ContactPage from './pages/ContactPage'
 import SchedulePage from './pages/SchedulePage'
+import LanesPage from './pages/LanesPage'
 import AdminLoginPage from './pages/admin/AdminLoginPage'
 import RequireAuth from './components/admin/RequireAuth'
 import AdminLayout from './components/admin/AdminLayout'
@@ -19,6 +20,8 @@ import AnnouncementsAdmin from './pages/admin/AnnouncementsAdmin'
 import EventsAdmin from './pages/admin/EventsAdmin'
 import CarouselAdmin from './pages/admin/CarouselAdmin'
 import DocumentsAdmin from './pages/admin/DocumentsAdmin'
+import SettingsAdmin from './pages/admin/SettingsAdmin'
+import { SeasonProvider } from './context/SeasonContext'
 import { useAnnouncements } from './hooks'
 
 /**
@@ -41,6 +44,7 @@ function App() {
   const { data: announcements } = useAnnouncements()
 
   return (
+    <SeasonProvider>
     <Routes>
       {/* ── Admin route tree — bypasses public Header/Footer ────────────── */}
 
@@ -69,6 +73,7 @@ function App() {
           <Route path="events" element={<EventsAdmin />} />
           <Route path="carousel" element={<CarouselAdmin />} />
           <Route path="documents" element={<DocumentsAdmin />} />
+          <Route path="settings" element={<SettingsAdmin />} />
         </Route>
       </Route>
 
@@ -92,6 +97,7 @@ function App() {
                 <Route path="/history" element={<HistoryPage />} />
                 <Route path="/contact" element={<ContactPage />} />
                 <Route path="/schedule" element={<SchedulePage />} />
+                <Route path="/lanes" element={<LanesPage />} />
               </Routes>
             </main>
             <footer className="footer">
@@ -109,6 +115,7 @@ function App() {
         }
       />
     </Routes>
+    </SeasonProvider>
   )
 }
 

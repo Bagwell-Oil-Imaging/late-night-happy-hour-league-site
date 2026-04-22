@@ -15,11 +15,9 @@
 import { useMemo, useState } from 'react'
 import { useScheduleWeeks } from '../hooks'
 import WeekMatchupsModal from '../components/WeekMatchupsModal'
+import { useSeasonYear } from '../context/SeasonContext'
 import type { ScheduleWeek } from '../types'
 import './SchedulePage.css'
-
-/** Season year constant — update when the season rolls over */
-const SEASON_YEAR = '2025-2026'
 
 /* ── Month-calendar sub-component ───────────────────────────────────────── */
 
@@ -142,6 +140,7 @@ function MonthCalendar({
  * The `week` field (not the removed `dataWeek`) is used throughout.
  */
 function SchedulePage() {
+  const SEASON_YEAR = useSeasonYear()
   const [selectedWeek, setSelectedWeek] = useState<ScheduleWeek | null>(null)
 
   // Firestore subscription for all schedule weeks in the current season
@@ -193,18 +192,6 @@ function SchedulePage() {
     <div className="schedule-page">
       <h2 className="section-title">Season Schedule</h2>
       <p className="schedule-subtitle">2025 – 2026 Season · Thursday Nights</p>
-
-      {/* ── Calendar legend ───────────────────────────────────────────── */}
-      <div className="cal-legend">
-        <span className="cal-legend-item">
-          <span className="cal-dot cal-dot--completed" />
-          Completed
-        </span>
-        <span className="cal-legend-item">
-          <span className="cal-dot cal-dot--upcoming" />
-          Upcoming
-        </span>
-      </div>
 
       {/* ── Monthly calendars ─────────────────────────────────────────── */}
       <section className="calendars-section" aria-label="Season calendar">

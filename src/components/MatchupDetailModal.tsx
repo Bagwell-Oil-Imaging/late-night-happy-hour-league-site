@@ -20,7 +20,8 @@
  */
 
 import { useEffect } from 'react'
-import { useMatchupDetail } from '../hooks'
+import { useMatchupDetail, useBowlerScoresByTeamWeek } from '../hooks'
+import { useSeasonYear } from '../context/SeasonContext'
 import './MatchupDetailModal.css'
 
 interface MatchupDetailModalProps {
@@ -39,10 +40,20 @@ interface MatchupDetailModalProps {
  *                          future use when individual scores are surfaced here).
  * @returns Modal JSX when open and data is available, null otherwise.
  */
-function MatchupDetailModal({ matchupId, onClose, onSelectBowler: _onSelectBowler }: MatchupDetailModalProps) {
+function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetailModalProps) {
+  const SEASON_YEAR = useSeasonYear()
   // Fetch the single MatchupDetail document from Firestore (skips when null)
   const { data: match, loading } = useMatchupDetail(matchupId)
   const isOpen = matchupId !== null
+
+  // Individual bowler scores for each team — hooks skip when match hasn't loaded
+  const { data: team1ScoresRaw } = useBowlerScoresByTeamWeek(match?.team1?.teamId, match?.week, SEASON_YEAR)
+  const { data: team2ScoresRaw } = useBowlerScoresByTeamWeek(match?.team2?.teamId, match?.week, SEASON_YEAR)
+
+  // Client-side filter guards against stale data if the Firestore query returned
+  // too many documents (e.g. a prior unconstrained subscription or a failed index).
+  const team1Scores = team1ScoresRaw.filter(s => s.teamId === match?.team1?.teamId)
+  const team2Scores = team2ScoresRaw.filter(s => s.teamId === match?.team2?.teamId)
 
   /* ── Lock body scroll while open ────────────────────────────────────────── */
   useEffect(() => {
@@ -110,6 +121,7 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler: _onSelectBowle
           <div className="matchup-teams">
             {[match.team1, match.team2].map((team, idx) => {
               const isWinner = idx === 0 ? team1Won : team2Won
+              const scores = idx === 0 ? team1Scores : team2Scores
               return (
                 <div key={team.teamId} className={`matchup-team-panel ${isWinner ? 'winner-panel' : ''}`}>
                   <div className="team-panel-header">
@@ -117,9 +129,17 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler: _onSelectBowle
                     <span className="team-panel-lane">Lane {team.lane}</span>
                   </div>
 
-                  {/* Team totals table — game1Total/game2Total/game3Total (new schema) */}
+                  {/*
+                    Two-table layout so Scratch / Handicap / Total always pin to
+                    the bottom of both equally-tall grid cells regardless of how
+                    many bowlers each team has.
+                    - bowler-table  grows (flex: 1) to absorb any leftover height
+                    - totals-table  is fixed height and always at the bottom
+                  */}
                   <div className="scores-table-wrapper">
-                    <table className="matchup-scores-table">
+
+                    {/* Bowler rows — grows to fill available space */}
+                    <table className="matchup-scores-table bowler-table">
                       <thead>
                         <tr>
                           <th className="col-name"></th>
@@ -129,10 +149,29 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler: _onSelectBowle
                           <th className="col-series">Series</th>
                         </tr>
                       </thead>
-                      <tfoot>
+                      <tbody>
+                        {scores.map((s) => (
+                          <tr
+                            key={s.bowlerId}
+                            className="bowler-score-row"
+                            onClick={() => onSelectBowler(s.bowlerId)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <td className="col-name">{s.bowlerName}</td>
+                            <td className="col-game">{s.game1 ?? '—'}</td>
+                            <td className="col-game">{s.game2 ?? '—'}</td>
+                            <td className="col-game">{s.game3 ?? '—'}</td>
+                            <td className="col-series">{s.series ?? '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {/* Totals — pinned to the bottom of the panel */}
+                    <table className="matchup-scores-table totals-table">
+                      <tbody>
                         <tr className="totals-row scratch-row">
                           <td className="col-name">Scratch</td>
-                          {/* game1Total/game2Total/game3Total replace gameTotals.g1/g2/g3 */}
                           <td className="col-game">{team.game1Total}</td>
                           <td className="col-game">{team.game2Total}</td>
                           <td className="col-game">{team.game3Total}</td>
@@ -164,8 +203,9 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler: _onSelectBowle
                             )}
                           </td>
                         </tr>
-                      </tfoot>
+                      </tbody>
                     </table>
+
                   </div>
                 </div>
               )

@@ -6,30 +6,28 @@
  * second half (weeks 17–32) of the bowling season.
  *
  * Award categories:
- *   Team:        High Game Scratch, High Series Scratch, High Game Handicap, High Series Handicap
- *   Individual:  High Average, High Game (scratch + handicap), High Series (scratch + handicap)
+ *   Team:        High Game Scratch ($100), High Series Scratch ($100),
+ *                High Game Handicap ($100), High Series Handicap ($100)
+ *   Individual:  High Average ($50), High Game Scratch ($50), High Series Scratch ($50)
  *
  * Data sources (all from Firestore via hooks):
- *   - `useBowlers`        — individual aggregate stats (highGame, highSeries, highGameHdcp, etc.)
+ *   - `useBowlers`        — individual aggregate stats (highGame, highSeries, average)
  *   - `useMatchupDetails` — team-level per-week totals for team award computation
  *   - `useScheduleWeeks`  — week/date metadata used to determine which weeks belong to each half
  *
  * Individual awards use the top-level aggregate fields on `Bowler` documents
  * rather than re-computing from raw per-week data, which keeps this component
  * simple and consistent with other stat displays.
+ *
+ * UI: Two side-by-side "Championship Board" panels — Anton score numbers with
+ * gold glow, gold gradient cap stripe, status badge (Live / Final / Upcoming).
  */
 
 import { useMemo } from 'react'
 import { useBowlers, useMatchupDetails, useScheduleWeeks } from '../hooks'
+import { useSeasonYear } from '../context/SeasonContext'
 import type { Bowler, MatchupDetail, ScheduleWeek } from '../types'
 import './AwardLeaders.css'
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/** Season year used to scope all Firestore queries on this page. */
-const SEASON_YEAR = '2025-2026'
 
 /**
  * Bowling-week boundary between the first and second halves.
@@ -92,13 +90,13 @@ function computeAwards(
   // --- Individual awards ---
   // Filter to bowlers who have played at least one game this season.
   // Awards use top-level season-aggregate fields from the Bowler document.
-  const activeBowlers = bowlers.filter(b => b.gamesPlayed > 0)
+  // gamesPlayed is back-filled by the transform pipeline; fall back to
+  // checking highGame/average so seed-data awards still render correctly.
+  const activeBowlers = bowlers.filter(b => b.gamesPlayed > 0 || b.highGame > 0 || b.average > 0)
 
-  const byAvg        = [...activeBowlers].sort((a, b) => b.average - a.average)
-  const byGame       = [...activeBowlers].sort((a, b) => b.highGame - a.highGame)
-  const bySeries     = [...activeBowlers].sort((a, b) => b.highSeries - a.highSeries)
-  const byGameHdcp   = [...activeBowlers].sort((a, b) => b.highGameHdcp - a.highGameHdcp)
-  const bySeriesHdcp = [...activeBowlers].sort((a, b) => b.highSeriesHdcp - a.highSeriesHdcp)
+  const byAvg    = [...activeBowlers].sort((a, b) => b.average - a.average)
+  const byGame   = [...activeBowlers].sort((a, b) => b.highGame - a.highGame)
+  const bySeries = [...activeBowlers].sort((a, b) => b.highSeries - a.highSeries)
 
   // --- Team awards ---
   // Aggregate per-week team data from MatchupDetail documents in this half.
@@ -128,7 +126,7 @@ function computeAwards(
     for (const team of [m.team1, m.team2]) {
       if (!teamHalves[team.teamId]) {
         teamHalves[team.teamId] = {
-          name: team.teamName,
+          name:              team.teamName,
           highGameScratch:   0,
           highSeriesScratch: 0,
           highGameHdcp:      0,
@@ -143,18 +141,10 @@ function computeAwards(
       const t = teamHalves[team.teamId]
 
       // Best single-game scratch total across the 3 games this week
-      const bestScratchGame = Math.max(
-        team.game1Total,
-        team.game2Total,
-        team.game3Total
-      )
+      const bestScratchGame = Math.max(team.game1Total, team.game2Total, team.game3Total)
 
-      if (bestScratchGame > t.highGameScratch) {
-        t.highGameScratch = bestScratchGame
-      }
-      if (team.scratchSeries > t.highSeriesScratch) {
-        t.highSeriesScratch = team.scratchSeries
-      }
+      if (bestScratchGame > t.highGameScratch)      t.highGameScratch   = bestScratchGame
+      if (team.scratchSeries > t.highSeriesScratch) t.highSeriesScratch = team.scratchSeries
 
       // Handicap game = best scratch game + per-game handicap
       const bestHdcpGame = bestScratchGame + team.handicapPerGame
@@ -173,11 +163,11 @@ function computeAwards(
     }
   }
 
-  const teamList            = Object.values(teamHalves)
-  const topTeamGameScratch  = [...teamList].sort((a, b) => b.highGameScratch   - a.highGameScratch)[0]
-  const topTeamSerScratch   = [...teamList].sort((a, b) => b.highSeriesScratch - a.highSeriesScratch)[0]
-  const topTeamGameHdcp     = [...teamList].sort((a, b) => b.highGameHdcp      - a.highGameHdcp)[0]
-  const topTeamSerHdcp      = [...teamList].sort((a, b) => b.highSeriesHdcp    - a.highSeriesHdcp)[0]
+  const teamList           = Object.values(teamHalves)
+  const topTeamGameScratch = [...teamList].sort((a, b) => b.highGameScratch   - a.highGameScratch)[0]
+  const topTeamSerScratch  = [...teamList].sort((a, b) => b.highSeriesScratch - a.highSeriesScratch)[0]
+  const topTeamGameHdcp    = [...teamList].sort((a, b) => b.highGameHdcp      - a.highGameHdcp)[0]
+  const topTeamSerHdcp     = [...teamList].sort((a, b) => b.highSeriesHdcp    - a.highSeriesHdcp)[0]
 
   return {
     team: [
@@ -199,7 +189,7 @@ function computeAwards(
         winner: topTeamGameHdcp?.name        ?? '—',
         score:  topTeamGameHdcp?.highGameHdcp ?? '—',
         detail: topTeamGameHdcp
-          ? `${topTeamGameHdcp.hdcpGameScratch} + ${topTeamGameHdcp.hdcpGameHdcp} HDCP`
+          ? `${topTeamGameHdcp.hdcpGameScratch} scratch + ${topTeamGameHdcp.hdcpGameHdcp} hdcp`
           : undefined,
       },
       {
@@ -208,7 +198,7 @@ function computeAwards(
         winner: topTeamSerHdcp?.name          ?? '—',
         score:  topTeamSerHdcp?.highSeriesHdcp ?? '—',
         detail: topTeamSerHdcp
-          ? `${topTeamSerHdcp.hdcpSeriesScratch} + ${topTeamSerHdcp.hdcpSeriesHdcp} HDCP`
+          ? `${topTeamSerHdcp.hdcpSeriesScratch} scratch + ${topTeamSerHdcp.hdcpSeriesHdcp} hdcp`
           : undefined,
       },
     ],
@@ -230,23 +220,9 @@ function computeAwards(
       {
         label:  'High Series',
         prize:  '$50',
-        winner: bySeries[0]?.name      ?? '—',
+        winner: bySeries[0]?.name       ?? '—',
         score:  bySeries[0]?.highSeries ?? '—',
         detail: bySeries[0]?.teamName,
-      },
-      {
-        label:  'High Game Handicap',
-        prize:  '$50',
-        winner: byGameHdcp[0]?.name         ?? '—',
-        score:  byGameHdcp[0]?.highGameHdcp  ?? '—',
-        detail: byGameHdcp[0]?.teamName,
-      },
-      {
-        label:  'High Series Handicap',
-        prize:  '$50',
-        winner: bySeriesHdcp[0]?.name           ?? '—',
-        score:  bySeriesHdcp[0]?.highSeriesHdcp  ?? '—',
-        detail: bySeriesHdcp[0]?.teamName,
       },
     ],
   }
@@ -280,25 +256,31 @@ function buildHalfWeekSet(
 }
 
 // ---------------------------------------------------------------------------
-// AwardCard sub-component
+// AwardRow sub-component
 // ---------------------------------------------------------------------------
 
 /**
- * Renders a single award category card showing the current leader.
+ * Single award row inside a half panel — category label + prize pill on top,
+ * winner name (+ optional team) on the bottom-left, dominant score on the right.
  *
  * @param award - The award row data to display
  */
-function AwardCard({ award }: { award: AwardRow }) {
+function AwardRow({ award }: { award: AwardRow }) {
+  const isEmpty = award.winner === '—'
   return (
-    <div className="award-card">
-      <div className="award-card-header">
-        <span className="award-label">{award.label}</span>
-        <span className="award-prize">{award.prize}</span>
+    <div className="award-row">
+      <div className="award-row-meta">
+        <span className="award-row-category">{award.label}</span>
+        <span className="award-row-prize">{award.prize}</span>
       </div>
-      <div className="award-card-body">
-        <span className="award-winner">{award.winner}</span>
-        {award.detail && <span className="award-detail">{award.detail}</span>}
-        <span className="award-score">{award.score}</span>
+      <div className="award-row-result">
+        <div className="award-row-winner-block">
+          <span className="award-row-winner">{award.winner}</span>
+          {award.detail && <span className="award-row-team">{award.detail}</span>}
+        </div>
+        <span className={`award-row-score${isEmpty ? ' award-row-score--empty' : ''}`}>
+          {award.score}
+        </span>
       </div>
     </div>
   )
@@ -309,9 +291,9 @@ function AwardCard({ award }: { award: AwardRow }) {
 // ---------------------------------------------------------------------------
 
 /**
- * Renders all award cards for one half of the season (first or second).
- * Displays a "If the half ended today" qualifier when the half is in progress,
- * and a "Not yet started" label when no data exists for the half yet.
+ * Renders a "Championship Board" panel for one half of the season.
+ * Shows a gold cap stripe, status badge (Live / Final / Upcoming), then
+ * TEAM and INDIVIDUAL award rows with Anton score numbers and gold glow.
  *
  * @param title    - Display title, e.g. "First Half"
  * @param awards   - Computed award rows for this half
@@ -329,28 +311,35 @@ function HalfAwards({
   complete: boolean
   hasData: boolean
 }) {
+  const badgeClass = !hasData
+    ? 'half-status-badge--pending'
+    : complete
+    ? 'half-status-badge--final'
+    : 'half-status-badge--live'
+
+  const badgeLabel = !hasData ? 'Upcoming' : complete ? 'Final' : 'In Progress'
+
   return (
-    <div className="half-awards">
-      <div className="half-awards-header">
-        <h3 className="half-awards-title">{title}</h3>
-        {!complete && hasData && (
-          <span className="half-awards-qualifier">If the half ended today</span>
-        )}
-        {!hasData && (
-          <span className="half-awards-qualifier">Not yet started</span>
-        )}
+    <div className="half-panel">
+      <div className="half-panel-cap">
+        <h3 className="half-panel-title">{title}</h3>
+        <span className={`half-status-badge ${badgeClass}`}>{badgeLabel}</span>
       </div>
 
-      {/* Team row: 4 cards */}
-      <div className="award-row-label">Team</div>
-      <div className="award-grid-4">
-        {awards.team.map(a => <AwardCard key={a.label} award={a} />)}
-      </div>
+      <div className="half-panel-body">
+        <div className="award-section-header">
+          <span className="award-section-label">Team</span>
+        </div>
+        <div className="award-row-list">
+          {awards.team.map(a => <AwardRow key={a.label} award={a} />)}
+        </div>
 
-      {/* Individual row: 5 cards (includes handicap categories) */}
-      <div className="award-row-label">Individual</div>
-      <div className="award-grid-3-centered">
-        {awards.individual.map(a => <AwardCard key={a.label} award={a} />)}
+        <div className="award-section-header">
+          <span className="award-section-label">Individual</span>
+        </div>
+        <div className="award-row-list">
+          {awards.individual.map(a => <AwardRow key={a.label} award={a} />)}
+        </div>
       </div>
     </div>
   )
@@ -370,6 +359,7 @@ function HalfAwards({
  * and second half (weeks 17–32).
  */
 function AwardLeaders() {
+  const SEASON_YEAR = useSeasonYear()
   // --- Data fetching via Firestore hooks ---
   const { data: bowlers,  loading: bowlersLoading  } = useBowlers(SEASON_YEAR)
   const { data: matchups, loading: matchupsLoading } = useMatchupDetails(SEASON_YEAR)
@@ -435,6 +425,7 @@ function AwardLeaders() {
           />
         </div>
       )}
+
     </div>
   )
 }

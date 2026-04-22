@@ -2,70 +2,365 @@
  * @file TeamsPage.tsx
  * @component TeamsPage
  *
- * Displays a per-team record and weekly results summary. The user selects a
- * team via the pill selector; the view then shows each completed matchup with
- * game totals and handicap breakdown.
+ * Redesigned teams page with a two-panel layout: a ranked sidebar roster on
+ * the left and a detail panel on the right showing season stats, a win/loss
+ * streak visualizer, and collapsible per-week match cards.
  *
- * Data is sourced exclusively from Firestore via `useTeams` and
- * `useMatchupDetails`. The legacy per-bowler breakdown has been removed
- * because individual bowler scores are now stored in the separate
- * `BowlerScore` collection rather than embedded in `MatchupDetail`.
+ * UX improvements over the original:
+ *  - Sidebar roster replaces the overflowing horizontal pill bar — all 14
+ *    teams are visible at once, ranked by standings with W-L and points.
+ *  - Week cards are collapsed by default; clicking expands the score table.
+ *  - Season summary shows W/L/T, points, win%, and a color-coded streak track.
+ *  - Mobile layout stacks sidebar above the detail panel.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useTeams, useMatchupDetails } from '../hooks'
-import '../components/MatchupDetailModal.css'
+import { useTeams, useMatchupDetails, useMatchups, useBowlerScoresByTeamWeek } from '../hooks'
+import type { TeamSummary } from '../types'
+import { LanePairGraphic, aggregateLaneData } from './LanesPage'
 import './TeamsPage.css'
+import './LanesPage.css'
+
+/** Single week outcome: W, L, or T. */
+type Outcome = 'W' | 'L' | 'T'
+
+/**
+ * Formats a lane number as the full pair label ("odd | even").
+ * Teams bowl on both lanes in the pair so neither is bolded.
+ *
+ * @param lane - Either lane number in the pair (odd or even)
+ * @returns "X | Y" string, or "—" when lane is absent
+ */
+function formatLanePair(lane: number | null | undefined): string {
+  if (lane == null) return '—'
+  const odd = lane % 2 === 1 ? lane : lane - 1
+  return `${odd} | ${odd + 1}`
+}
+
+/**
+ * Renders the expanded accordion detail for a single week card.
+ * Extracted into its own component so Firestore hooks are only subscribed
+ * when the card is open (conditional rendering at the call site is fine
+ * because the hooks live inside this component, not the parent).
+ *
+ * @param my         - TeamSummary for the selected team
+ * @param opp        - TeamSummary for the opposing team
+ * @param week       - Week number used to scope the bowler score query
+ * @param won        - Whether the selected team won the overall series
+ * @param lost       - Whether the selected team lost the overall series
+ * @param seasonYear - Season year string for the Firestore query
+ */
+function WeekCardDetail({
+  my, opp, week, won, lost, seasonYear,
+}: {
+  my: TeamSummary
+  opp: TeamSummary
+  week: number
+  won: boolean
+  lost: boolean
+  seasonYear: string
+}) {
+  const { data: myScores }  = useBowlerScoresByTeamWeek(my.teamId,  week, seasonYear)
+  const { data: oppScores } = useBowlerScoresByTeamWeek(opp.teamId, week, seasonYear)
+
+  // Sort both teams' bowlers by series descending (best scorer first)
+  const myBowlers  = [...myScores].sort((a, b)  => (b.series ?? 0) - (a.series ?? 0))
+  const oppBowlers = [...oppScores].sort((a, b) => (b.series ?? 0) - (a.series ?? 0))
+  const rowCount   = Math.max(myBowlers.length, oppBowlers.length)
+
+  // Pre-compute per-game handicap-adjusted totals for colour logic and points
+  const myTotals  = [my.game1Total  + my.handicapPerGame,  my.game2Total  + my.handicapPerGame,  my.game3Total  + my.handicapPerGame]
+  const oppTotals = [opp.game1Total + opp.handicapPerGame, opp.game2Total + opp.handicapPerGame, opp.game3Total + opp.handicapPerGame]
+
+  // Calculate matchup points: 1pt per game won + 1pt for series; ties split 0.5
+  const gamePoints = (a: number, b: number) => a > b ? 1 : a === b ? 0.5 : 0
+  const myPts = myTotals.reduce((sum, myG, i) => sum + gamePoints(myG, oppTotals[i]), 0)
+              + gamePoints(my.totalSeries, opp.totalSeries)
+  const oppPts = 4 - myPts
+
+  return (
+    <div className="wcard-detail">
+      {/* Points panels flank the table on each side */}
+      <div className="wcd-pts-panel wcd-pts-opp">
+        <span className="wcd-pts-label">{opp.teamName}</span>
+        <span className="wcd-pts-value">{oppPts % 1 === 0 ? oppPts : oppPts.toFixed(1)}</span>
+        <span className="wcd-pts-unit">pts</span>
+      </div>
+
+      <table className="wcard-table">
+        <thead>
+          {/* Team name headers spanning name + G1/G2/G3/Series/Avg columns */}
+          <tr>
+            <th className="wct-label" />
+            <th className="wct-opp-header" colSpan={6}>{opp.teamName}</th>
+            <th className="wct-divider-header" />
+            <th className="wct-my-header" colSpan={6}>{my.teamName}</th>
+          </tr>
+          {/* Column labels */}
+          <tr className="wct-col-labels">
+            <th className="wct-label" />
+            <th className="wct-opp-col wct-name-col" />
+            <th className="wct-opp-col">G1</th>
+            <th className="wct-opp-col">G2</th>
+            <th className="wct-opp-col">G3</th>
+            <th className="wct-opp-col">Series</th>
+            <th className="wct-opp-col wct-avg-col">Avg</th>
+            <th className="wct-divider" />
+            <th className="wct-name-col" />
+            <th>G1</th>
+            <th>G2</th>
+            <th>G3</th>
+            <th>Series</th>
+            <th className="wct-avg-col">Avg</th>
+          </tr>
+        </thead>
+        <tbody>
+          {/* Bowler rows — one per slot, fills with dash if counts differ */}
+          {Array.from({ length: rowCount }).map((_, i) => {
+            const ob = oppBowlers[i]
+            const mb = myBowlers[i]
+            return (
+              <tr key={i} className="wct-bowler">
+                <td className="wct-label" />
+                <td className="wct-opp-col wct-name-col wct-bowler-name">{ob?.bowlerName ?? '—'}</td>
+                <td className="wct-opp-col">{ob?.game1 ?? '—'}</td>
+                <td className="wct-opp-col">{ob?.game2 ?? '—'}</td>
+                <td className="wct-opp-col">{ob?.game3 ?? '—'}</td>
+                <td className="wct-opp-col">{ob?.series ?? '—'}</td>
+                <td className="wct-opp-col wct-avg-col wct-rolling-avg">{ob?.rollingAvg ?? '—'}</td>
+                <td className="wct-divider" />
+                <td className="wct-name-col wct-bowler-name">{mb?.bowlerName ?? '—'}</td>
+                <td>{mb?.game1 ?? '—'}</td>
+                <td>{mb?.game2 ?? '—'}</td>
+                <td>{mb?.game3 ?? '—'}</td>
+                <td>{mb?.series ?? '—'}</td>
+                <td className="wct-avg-col wct-rolling-avg">{mb?.rollingAvg ?? '—'}</td>
+              </tr>
+            )
+          })}
+
+          {/* Scratch totals */}
+          <tr className="wct-scratch wct-totals-divider">
+            <td>Scratch</td>
+            <td className="wct-opp-col wct-name-col" />
+            <td className="wct-opp-col">{opp.game1Total}</td>
+            <td className="wct-opp-col">{opp.game2Total}</td>
+            <td className="wct-opp-col">{opp.game3Total}</td>
+            <td className="wct-opp-col">{opp.scratchSeries}</td>
+            <td className="wct-opp-col" />
+            <td className="wct-divider" />
+            <td className="wct-name-col" />
+            <td>{my.game1Total}</td>
+            <td>{my.game2Total}</td>
+            <td>{my.game3Total}</td>
+            <td>{my.scratchSeries}</td>
+            <td />
+          </tr>
+
+          {/* Handicap row */}
+          <tr className="wct-hdcp">
+            <td>Handicap</td>
+            <td className="wct-opp-col wct-name-col" />
+            <td className="wct-opp-col">+{opp.handicapPerGame}</td>
+            <td className="wct-opp-col">+{opp.handicapPerGame}</td>
+            <td className="wct-opp-col">+{opp.handicapPerGame}</td>
+            <td className="wct-opp-col">+{opp.handicapSeries}</td>
+            <td className="wct-opp-col" />
+            <td className="wct-divider" />
+            <td className="wct-name-col" />
+            <td>+{my.handicapPerGame}</td>
+            <td>+{my.handicapPerGame}</td>
+            <td>+{my.handicapPerGame}</td>
+            <td>+{my.handicapSeries}</td>
+            <td />
+          </tr>
+
+          {/* Total row — per-game win/loss colouring */}
+          <tr className="wct-total">
+            <td>Total</td>
+            <td className="wct-opp-col wct-name-col" />
+            {oppTotals.map((oppG, i) => {
+              const myG = myTotals[i]
+              return (
+                <td key={i} className={`wct-opp-col ${oppG > myG ? 'wct-game-win-opp' : myG > oppG ? 'wct-game-loss-opp' : ''}`}>
+                  {oppG}
+                </td>
+              )
+            })}
+            <td className={`wct-opp-col ${lost ? 'wct-game-win-opp' : won ? 'wct-game-loss-opp' : ''}`}>{opp.totalSeries}</td>
+            <td className="wct-opp-col" />
+            <td className="wct-divider" />
+            <td className="wct-name-col" />
+            {myTotals.map((myG, i) => {
+              const oppG = oppTotals[i]
+              return (
+                <td key={i} className={myG > oppG ? 'wct-game-win' : oppG > myG ? 'wct-game-loss' : ''}>
+                  {myG}
+                </td>
+              )
+            })}
+            <td className={won ? 'wct-game-win' : lost ? 'wct-game-loss' : ''}>{my.totalSeries}</td>
+            <td />
+          </tr>
+        </tbody>
+      </table>
+
+      <div className="wcd-pts-panel wcd-pts-my">
+        <span className="wcd-pts-label">{my.teamName}</span>
+        <span className={`wcd-pts-value ${won ? 'wcd-pts-win' : lost ? 'wcd-pts-loss' : ''}`}>{myPts % 1 === 0 ? myPts : myPts.toFixed(1)}</span>
+        <span className="wcd-pts-unit">pts</span>
+      </div>
+    </div>
+  )
+}
 
 /**
  * TeamsPage component.
  *
- * @returns Full teams page JSX including team selector, record bar, and
- *   per-week results cards. Returns a loading placeholder while Firestore
- *   data is in flight.
+ * @returns Two-panel teams page with ranked sidebar and collapsible week cards.
+ *   Returns a loading placeholder while Firestore data is in flight.
  */
 function TeamsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
+  const [selectedLane, setSelectedLane] = useState<number | null>(null)
+  const [laneSelectedTeamId, setLaneSelectedTeamId] = useState<string | null>(null)
 
-  // Fetch all teams and all matchup details for the current season
   const { data: teams, loading: teamsLoading } = useTeams('2025-2026')
   const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails('2025-2026')
+  const { data: allMatchups } = useMatchups('2025-2026')
 
-  // Show loading state while either dataset is still fetching
-  if (teamsLoading || detailsLoading) {
-    return <div className="loading">Loading teams…</div>
-  }
-
-  // Sort teams by points descending for the pill selector order
+  // Sort teams by points descending for the ranked sidebar
+  // Must stay above any early return — Rules of Hooks
   const sortedTeams = useMemo(() =>
     [...teams].sort((a, b) => b.points - a.points),
     [teams]
   )
 
-  // Resolve the selected team from the URL query param, defaulting to first
   const teamIdParam = searchParams.get('team')
   const selectedTeamId = teamIdParam ?? sortedTeams[0]?.leaguePalsId
   const selectedTeam = teams.find(t => t.leaguePalsId === selectedTeamId)
+  const selectedRank = sortedTeams.findIndex(t => t.leaguePalsId === selectedTeamId) + 1
 
-  // Filter matchup details where the selected team participated, sorted by week
   const teamMatchups = useMemo(() =>
     matchupDetails
-      .filter(m =>
-        m.team1.teamId === selectedTeamId ||
-        m.team2.teamId === selectedTeamId
-      )
+      .filter(m => m.team1.teamId === selectedTeamId || m.team2.teamId === selectedTeamId)
       .sort((a, b) => a.week - b.week),
     [matchupDetails, selectedTeamId]
   )
 
-  /** Updates the URL query param to switch the active team selection. */
-  const selectTeam = (id: string) => setSearchParams({ team: id })
+  /**
+   * Derives the W/L/T outcome sequence for the selected team's completed weeks.
+   * Used to render the streak dot track in the season summary.
+   */
+  const resultSequence = useMemo((): Outcome[] =>
+    teamMatchups.map(match => {
+      const isTeam1 = match.team1.teamId === selectedTeamId
+      const my = isTeam1 ? match.team1 : match.team2
+      const opp = isTeam1 ? match.team2 : match.team1
+      if (my.totalSeries > opp.totalSeries) return 'W'
+      if (my.totalSeries < opp.totalSeries) return 'L'
+      return 'T'
+    }),
+    [teamMatchups, selectedTeamId]
+  )
+
+  /** Scheduled but not-yet-completed weeks for the selected team, sorted ascending. */
+  const pendingWeeks = useMemo(() =>
+    allMatchups
+      .filter(m =>
+        !m.completed &&
+        (m.team1Id === selectedTeamId || m.team2Id === selectedTeamId)
+      )
+      .sort((a, b) => a.week - b.week),
+    [allMatchups, selectedTeamId]
+  )
+
+  /** Per-lane-pair analytics derived from the already-fetched matchupDetails. */
+  const laneData = useMemo(() => aggregateLaneData(matchupDetails), [matchupDetails])
+
+  /** All unique teams across all lane pairs, alphabetically sorted. */
+  const laneAllTeams = useMemo(() => {
+    const map = new Map<string, { teamId: string; teamName: string }>()
+    for (const lane of laneData) {
+      for (const t of lane.teams) {
+        if (!map.has(t.teamId)) map.set(t.teamId, { teamId: t.teamId, teamName: t.teamName })
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.teamName.localeCompare(b.teamName))
+  }, [laneData])
+
+  const selectedLaneData = laneData.find(l => l.baseLane === selectedLane) ?? null
+
+  /** Weekly scores for the lane-filtered team on the selected lane pair. */
+  const laneWeeklyScores = useMemo(() => {
+    if (!selectedLaneData || !laneSelectedTeamId) return []
+    return matchupDetails
+      .filter(d => {
+        const raw = d.team1.lane
+        const base = raw % 2 === 1 ? raw : raw - 1
+        return base === selectedLaneData.baseLane &&
+          (d.team1.teamId === laneSelectedTeamId || d.team2.teamId === laneSelectedTeamId)
+      })
+      .sort((a, b) => a.week - b.week)
+      .map(d => {
+        const isTeam1 = d.team1.teamId === laneSelectedTeamId
+        const my  = isTeam1 ? d.team1 : d.team2
+        const opp = isTeam1 ? d.team2 : d.team1
+        return {
+          week: d.week,
+          date: d.date,
+          my,
+          opp,
+          won:  my.totalSeries > opp.totalSeries,
+          lost: my.totalSeries < opp.totalSeries,
+        }
+      })
+  }, [matchupDetails, selectedLaneData, laneSelectedTeamId])
+
+  if (teamsLoading || detailsLoading) {
+    return <div className="loading">Loading teams…</div>
+  }
 
   /**
-   * Formats a date string for display (e.g. "Jan 5").
+   * Switches the active team and resets all expanded week cards.
    *
-   * @param dateString - ISO date string, e.g. "2025-01-05"
+   * @param id - leaguePalsId of the team to select
+   */
+  const selectTeam = (id: string) => {
+    setSearchParams({ team: id })
+    setExpandedWeeks(new Set())
+  }
+
+  /**
+   * Toggles the expanded state of a single week card.
+   *
+   * @param cardId - Unique identifier for the card (match.id or week fallback)
+   */
+  const toggleWeek = (cardId: string) => {
+    setExpandedWeeks(prev => {
+      const next = new Set(prev)
+      if (next.has(cardId)) next.delete(cardId)
+      else next.add(cardId)
+      return next
+    })
+  }
+
+  /**
+   * Toggles selection of a lane pair in the Lane Analytics section.
+   * Selected team persists so the user can compare the same team across pairs.
+   *
+   * @param baseLane - Odd lane number of the pair to toggle
+   */
+  const handleLaneCardClick = (baseLane: number) => {
+    setSelectedLane(prev => prev === baseLane ? null : baseLane)
+  }
+
+  /**
+   * Formats an ISO date string for compact display ("Sep 4").
+   *
+   * @param dateString - ISO date, e.g. "2025-09-04"
    * @returns Short month+day string
    */
   const formatDate = (dateString: string): string => {
@@ -73,130 +368,378 @@ function TeamsPage() {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
+  const totalGames = (selectedTeam?.wins ?? 0) + (selectedTeam?.losses ?? 0) + (selectedTeam?.ties ?? 0)
+  const winPct = totalGames > 0
+    ? ((selectedTeam!.wins / totalGames) * 100).toFixed(0) + '%'
+    : '—'
+
   return (
     <div className="teams-page">
-      <h2 className="section-title">Teams</h2>
+      <div className="teams-layout">
 
-      {/* Team pill selector — ordered by standings */}
-      <div className="team-selector-scroll">
-        <div className="team-pills">
-          {sortedTeams.map(team => (
-            <button
-              key={team.leaguePalsId}
-              className={`team-pill ${team.leaguePalsId === selectedTeamId ? 'active' : ''}`}
-              onClick={() => selectTeam(team.leaguePalsId)}
-            >
-              {team.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {selectedTeam && (
-        <div className="team-content">
-          {/* W–L–T record bar with points badge */}
-          <div className="team-record-bar">
-            <div className="team-record-name">{selectedTeam.name}</div>
-            <div className="team-record-stats">
-              <div className="record-item">
-                <span className="record-value wins">{selectedTeam.wins}</span>
-                <span className="record-label">W</span>
-              </div>
-              <span className="record-sep">–</span>
-              <div className="record-item">
-                <span className="record-value losses">{selectedTeam.losses}</span>
-                <span className="record-label">L</span>
-              </div>
-              <span className="record-sep">–</span>
-              <div className="record-item">
-                <span className="record-value">{selectedTeam.ties}</span>
-                <span className="record-label">T</span>
-              </div>
-              <div className="record-points-badge">
-                <span className="record-pts-value">{selectedTeam.points}</span>
-                <span className="record-pts-label">pts</span>
-              </div>
-            </div>
+        {/* ── Left: Ranked team roster sidebar ─────────────────────────── */}
+        <aside className="teams-sidebar">
+          <div className="sidebar-header">
+            <h2 className="section-title sidebar-title">Teams</h2>
+            <span className="sidebar-season">2025–2026</span>
           </div>
+          <ul className="roster-list">
+            {sortedTeams.map((team, idx) => (
+              <li key={team.leaguePalsId}>
+                <button
+                  className={`roster-item ${team.leaguePalsId === selectedTeamId ? 'active' : ''}`}
+                  onClick={() => selectTeam(team.leaguePalsId)}
+                >
+                  <span className="roster-rank">{idx + 1}</span>
+                  <span className="roster-name-block">
+                    <span className="roster-name">{team.name}</span>
+                    {team.average > 0 && (
+                      <span className="roster-avg">
+                        {team.average}
+                        <span className="roster-avg-sep">|</span>
+                        {team.average * 3} avg
+                      </span>
+                    )}
+                  </span>
+                  <span className="roster-wl">
+                    <span className="rr-w">{team.wins}</span>
+                    <span className="rr-sep">–</span>
+                    <span className="rr-l">{team.losses}</span>
+                  </span>
+                  <span className="roster-pts">
+                    {team.points}
+                    <span className="roster-pts-unit">pts</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </aside>
 
-          {/* Per-week matchup cards */}
-          <div className="team-weeks-list">
-            {teamMatchups.length === 0 ? (
-              <p className="no-data">No match data available yet.</p>
-            ) : (
-              teamMatchups.map(match => {
-                // Determine which side of the matchup this team is on
-                const isTeam1 = match.team1.teamId === selectedTeamId
-                const myTeam = isTeam1 ? match.team1 : match.team2
-                const oppTeam = isTeam1 ? match.team2 : match.team1
-                const won = myTeam.totalSeries > oppTeam.totalSeries
-                const lost = myTeam.totalSeries < oppTeam.totalSeries
+        {/* ── Right: Selected team detail ───────────────────────────────── */}
+        <main className="teams-detail">
+          {selectedTeam ? (
+            <>
+              {/* Season summary card */}
+              <div className="season-card">
+                <div className="season-card-header">
+                  <div className="season-team-name">{selectedTeam.name}</div>
+                  <div className="season-rank-badge">
+                    #{selectedRank}
+                    <span className="season-rank-label"> in league</span>
+                  </div>
+                </div>
 
-                return (
-                  <div key={match.id} className={`team-week-card ${won ? 'won' : lost ? 'lost' : 'tied'}`}>
-                    <div className="team-week-header">
-                      <div className="week-meta">
-                        <span className="week-badge">Wk {match.week}</span>
-                        <span className="week-date-label">{formatDate(match.date)}</span>
-                        <span className="week-lane-label">Lane {myTeam.lane}</span>
-                      </div>
-                      <div className="week-result">
-                        <span className="opp-name">vs {oppTeam.teamName}</span>
-                        <span className={`result-chip ${won ? 'win' : lost ? 'loss' : 'tie'}`}>
-                          {won ? 'WIN' : lost ? 'LOSS' : 'TIE'}
-                        </span>
-                        <span className="score-line">
-                          {myTeam.totalSeries} – {oppTeam.totalSeries}
-                        </span>
-                      </div>
-                    </div>
+                <div className="season-stats-row">
+                  <div className="stat-block">
+                    <span className="stat-val stat-wins">{selectedTeam.wins}</span>
+                    <span className="stat-lbl">Wins</span>
+                  </div>
+                  <div className="stat-divider" />
+                  <div className="stat-block">
+                    <span className="stat-val stat-losses">{selectedTeam.losses}</span>
+                    <span className="stat-lbl">Losses</span>
+                  </div>
+                  <div className="stat-divider" />
+                  <div className="stat-block">
+                    <span className="stat-val">{selectedTeam.ties}</span>
+                    <span className="stat-lbl">Ties</span>
+                  </div>
+                  <div className="stat-divider" />
+                  <div className="stat-block">
+                    <span className="stat-val stat-pts">{selectedTeam.points}</span>
+                    <span className="stat-lbl">Points</span>
+                  </div>
+                  <div className="stat-divider" />
+                  <div className="stat-block">
+                    <span className="stat-val">{winPct}</span>
+                    <span className="stat-lbl">Win %</span>
+                  </div>
+                </div>
 
-                    {/* Game-by-game team totals — individual bowler rows are in the
-                        BowlerScore collection and displayed on the Bowlers page */}
-                    <div className="scores-table-wrapper">
-                      <table className="matchup-scores-table">
-                        <thead>
-                          <tr>
-                            <th className="col-name"></th>
-                            <th className="col-game">G1</th>
-                            <th className="col-game">G2</th>
-                            <th className="col-game">G3</th>
-                            <th className="col-series">Series</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {/* Scratch team totals — game1Total/game2Total/game3Total (new schema) */}
-                          <tr className="totals-row scratch-row">
-                            <td className="col-name">Scratch</td>
-                            <td className="col-game">{myTeam.game1Total}</td>
-                            <td className="col-game">{myTeam.game2Total}</td>
-                            <td className="col-game">{myTeam.game3Total}</td>
-                            <td className="col-series">{myTeam.scratchSeries}</td>
-                          </tr>
-                          <tr className="totals-row handicap-row">
-                            <td className="col-name">Handicap</td>
-                            <td className="col-game">+{myTeam.handicapPerGame}</td>
-                            <td className="col-game">+{myTeam.handicapPerGame}</td>
-                            <td className="col-game">+{myTeam.handicapPerGame}</td>
-                            <td className="col-series">+{myTeam.handicapSeries}</td>
-                          </tr>
-                          <tr className={`totals-row grand-total-row ${won ? 'winner' : ''}`}>
-                            <td className="col-name">Total</td>
-                            <td className="col-game">{myTeam.game1Total + myTeam.handicapPerGame}</td>
-                            <td className="col-game">{myTeam.game2Total + myTeam.handicapPerGame}</td>
-                            <td className="col-game">{myTeam.game3Total + myTeam.handicapPerGame}</td>
-                            <td className="col-series">{myTeam.totalSeries}</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                {/* Color-coded outcome track across the season */}
+                {resultSequence.length > 0 && (
+                  <div className="streak-track">
+                    <span className="streak-label">Season</span>
+                    <div className="streak-dots">
+                      {resultSequence.map((r, i) => {
+                        const weekNum = teamMatchups[i]?.week ?? i + 1
+                        return (
+                          <div key={weekNum} className="sdot-col">
+                            <span className="sdot-week-num">{weekNum}</span>
+                            <span
+                              className={`sdot sdot-${r === 'W' ? 'win' : r === 'L' ? 'loss' : 'tie'}`}
+                              title={`Week ${weekNum}: ${r === 'W' ? 'Win' : r === 'L' ? 'Loss' : 'Tie'}`}
+                            />
+                          </div>
+                        )
+                      })}
+                      {pendingWeeks.map(m => (
+                        <div key={`p-${m.week}`} className="sdot-col">
+                          <span className="sdot-week-num">{m.week}</span>
+                          <span className="sdot sdot-pending" title={`Week ${m.week}: Upcoming`} />
+                        </div>
+                      ))}
                     </div>
                   </div>
-                )
-              })
+                )}
+              </div>
+
+              {/* Weekly match cards */}
+              <div className="weeks-section">
+                <h4 className="weeks-heading">
+                  Weekly Results
+                  <span className="weeks-hint">click a row to expand</span>
+                </h4>
+
+                {teamMatchups.length === 0 ? (
+                  <p className="no-data">No match data available yet.</p>
+                ) : (
+                  <div className="week-cards">
+                    {teamMatchups.map(match => {
+                      const isTeam1 = match.team1.teamId === selectedTeamId
+                      const my = isTeam1 ? match.team1 : match.team2
+                      const opp = isTeam1 ? match.team2 : match.team1
+                      const won = my.totalSeries > opp.totalSeries
+                      const lost = my.totalSeries < opp.totalSeries
+                      const outcome: Outcome = won ? 'W' : lost ? 'L' : 'T'
+                      const cardId = match.id ?? String(match.week)
+                      const expanded = expandedWeeks.has(cardId)
+
+                      return (
+                        <div
+                          key={cardId}
+                          className={`wcard wcard-${outcome === 'W' ? 'won' : outcome === 'L' ? 'lost' : 'tied'}${expanded ? ' wcard-open' : ''}`}
+                        >
+                          {/* Summary row — always visible, click to toggle */}
+                          <button
+                            className="wcard-row"
+                            onClick={() => toggleWeek(cardId)}
+                            aria-expanded={expanded}
+                          >
+                            <span className="wcard-week">WK {match.week}</span>
+                            <span className="wcard-date">{formatDate(match.date)}</span>
+                            <span className="wcard-lane">{formatLanePair(my.lane)}</span>
+                            <span className="wcard-opp">vs {opp.teamName}</span>
+                            <span className={`wcard-chip chip-${outcome === 'W' ? 'win' : outcome === 'L' ? 'loss' : 'tie'}`}>
+                              {outcome === 'W' ? 'WIN' : outcome === 'L' ? 'LOSS' : 'TIE'}
+                            </span>
+                            <span className="wcard-score">
+                              {my.totalSeries}
+                              <span className="wcard-score-sep"> – </span>
+                              {opp.totalSeries}
+                            </span>
+                            <span className={`wcard-chevron${expanded ? ' open' : ''}`}>▾</span>
+                          </button>
+
+                          {/* Expanded detail — mounted only when open so hooks fire conditionally */}
+                          {expanded && (
+                            <WeekCardDetail
+                              my={my}
+                              opp={opp}
+                              week={match.week}
+                              won={won}
+                              lost={lost}
+                              seasonYear="2025-2026"
+                            />
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <p className="no-data">Select a team to view their season.</p>
+          )}
+        </main>
+      </div>
+
+      {/* ── Lane Analytics section ─────────────────────────────────────────── */}
+      <div className="teams-lanes-section">
+        <div className="teams-lanes-header">
+          <h3 className="section-title">Lane Analytics</h3>
+          <span className="lanes-page-subtitle">Performance by lane pair · 2025–2026</span>
+        </div>
+
+        {/* Team filter */}
+        {laneAllTeams.length > 0 && (
+          <div className="ld-team-selector lanes-team-selector">
+            <span className="ld-team-selector-label">Filter by team</span>
+            <div className="ld-team-pills">
+              <button
+                className={`ld-team-pill${laneSelectedTeamId === null ? ' ld-team-pill-active' : ''}`}
+                onClick={() => setLaneSelectedTeamId(null)}
+              >
+                All
+              </button>
+              {laneAllTeams.map(t => (
+                <button
+                  key={t.teamId}
+                  className={`ld-team-pill${laneSelectedTeamId === t.teamId ? ' ld-team-pill-active' : ''}`}
+                  onClick={() => setLaneSelectedTeamId(prev => prev === t.teamId ? null : t.teamId)}
+                >
+                  {t.teamName}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Lane pair grid */}
+        <div className="lanes-grid">
+          {laneData.map(lane => {
+            const active = selectedLane === lane.baseLane
+            const teamRecord = laneSelectedTeamId ? (lane.teams.find(t => t.teamId === laneSelectedTeamId) ?? null) : null
+            return (
+              <button
+                key={lane.baseLane}
+                className={`lane-card${active ? ' lane-card-active' : ''}${teamRecord ? ' lane-card-team-match' : ''}`}
+                onClick={() => handleLaneCardClick(lane.baseLane)}
+                aria-pressed={active}
+                aria-label={`Lanes ${lane.label} — ${lane.appearances} matches`}
+              >
+                <LanePairGraphic baseLane={lane.baseLane} active={active} />
+                <div className="lane-card-body">
+                  <div className="lc-title-row">
+                    <span className="lc-label-prefix">Lanes</span>
+                    <div className="lc-number-row">
+                      <span className="lc-number">{lane.label}</span>
+                      {active && <span className="lc-active-pip" aria-hidden="true" />}
+                    </div>
+                  </div>
+                  <div className="lc-stats">
+                    {teamRecord ? (
+                      <>
+                        <div className="lc-stat">
+                          <span className="lc-stat-val">{teamRecord.appearances}</span>
+                          <span className="lc-stat-lbl">App</span>
+                        </div>
+                        <div className="lc-stat">
+                          <span className="lc-stat-val">{teamRecord.wins}–{teamRecord.losses}</span>
+                          <span className="lc-stat-lbl">W-L</span>
+                        </div>
+                        <div className="lc-stat">
+                          <span className="lc-stat-val">{teamRecord.avgScratch.toLocaleString()}</span>
+                          <span className="lc-stat-lbl">Avg Scratch</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="lc-stat">
+                          <span className="lc-stat-val">{lane.appearances}</span>
+                          <span className="lc-stat-lbl">Matches</span>
+                        </div>
+                        <div className="lc-stat">
+                          <span className="lc-stat-val">{lane.avgScratch.toLocaleString()}</span>
+                          <span className="lc-stat-lbl">Avg Scratch</span>
+                        </div>
+                        <div className="lc-stat">
+                          <span className="lc-stat-val">{lane.highScratch.toLocaleString()}</span>
+                          <span className="lc-stat-lbl">High Scratch</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Expanded detail panel for the selected lane pair */}
+        {selectedLaneData && (
+          <div className="lane-detail" role="region" aria-label={`Detail for lanes ${selectedLaneData.label}`}>
+            <div className="ld-header">
+              <div className="ld-title-block">
+                <span className="ld-lanes-label">Lanes</span>
+                <span className="ld-lanes-num">{selectedLaneData.label}</span>
+              </div>
+              <div className="ld-summary-pills">
+                <span className="ld-pill">{selectedLaneData.appearances} matches</span>
+                <span className="ld-pill">Avg scratch {selectedLaneData.avgScratch.toLocaleString()}</span>
+                <span className="ld-pill">Avg total {selectedLaneData.avgHandicap.toLocaleString()}</span>
+                <span className="ld-pill ld-pill-gold">High {selectedLaneData.highScratch.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {laneSelectedTeamId && laneWeeklyScores.length > 0 ? (
+              <table className="ld-table">
+                <thead>
+                  <tr>
+                    <th className="ld-th ld-col-wk">Week</th>
+                    <th className="ld-th ld-col-name">Date · Opponent</th>
+                    <th className="ld-th ld-col-num">Result</th>
+                    <th className="ld-th ld-col-num">G1</th>
+                    <th className="ld-th ld-col-num">G2</th>
+                    <th className="ld-th ld-col-num">G3</th>
+                    <th className="ld-th ld-col-score">Scratch</th>
+                    <th className="ld-th ld-col-score">+Hdcp</th>
+                    <th className="ld-th ld-col-score">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {laneWeeklyScores.map(({ week, date, my, opp, won, lost }) => (
+                    <tr key={week} className="ld-row">
+                      <td className="ld-td ld-col-wk">
+                        <span className="ld-wk-badge">WK {week}</span>
+                      </td>
+                      <td className="ld-td ld-col-name">
+                        {formatDate(date)} <span className="ld-vs">vs</span> {opp.teamName}
+                      </td>
+                      <td className="ld-td ld-col-num">
+                        <span className={`ld-result-chip ${won ? 'chip-win' : lost ? 'chip-loss' : 'chip-tie'}`}>
+                          {won ? 'W' : lost ? 'L' : 'T'}
+                        </span>
+                      </td>
+                      <td className="ld-td ld-col-num">{my.game1Total}</td>
+                      <td className="ld-td ld-col-num">{my.game2Total}</td>
+                      <td className="ld-td ld-col-num">{my.game3Total}</td>
+                      <td className="ld-td ld-col-score">{my.scratchSeries}</td>
+                      <td className="ld-td ld-col-score ld-hdcp">+{my.handicapSeries}</td>
+                      <td className={`ld-td ld-col-score ${won ? 'ld-wins' : lost ? 'ld-losses' : ''}`}>
+                        {my.totalSeries}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table className="ld-table">
+                <thead>
+                  <tr>
+                    <th className="ld-th ld-col-rank">#</th>
+                    <th className="ld-th ld-col-name">Team</th>
+                    <th className="ld-th ld-col-num">App</th>
+                    <th className="ld-th ld-col-num">W</th>
+                    <th className="ld-th ld-col-num">L</th>
+                    <th className="ld-th ld-col-num">T</th>
+                    <th className="ld-th ld-col-score">Avg Scratch</th>
+                    <th className="ld-th ld-col-score">Avg Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedLaneData.teams.map((t, i) => (
+                    <tr key={t.teamId} className={`ld-row${i === 0 ? ' ld-row-first' : ''}`}>
+                      <td className="ld-td ld-col-rank">
+                        {i === 0 ? <span className="ld-rank-star">★</span> : i + 1}
+                      </td>
+                      <td className="ld-td ld-col-name">{t.teamName}</td>
+                      <td className="ld-td ld-col-num">{t.appearances}</td>
+                      <td className="ld-td ld-col-num ld-wins">{t.wins}</td>
+                      <td className="ld-td ld-col-num ld-losses">{t.losses}</td>
+                      <td className="ld-td ld-col-num">{t.ties}</td>
+                      <td className="ld-td ld-col-score">{t.avgScratch.toLocaleString()}</td>
+                      <td className="ld-td ld-col-score">{t.avgHandicap.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

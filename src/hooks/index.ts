@@ -18,6 +18,7 @@
  *  useBowler           – Single bowler by Firestore document ID (leaguePalsId)
  *  useBowlerScores     – All scores for a bowler, optionally by season
  *  useMatchups         – All matchups for a season, optionally by week
+ *  useBowlerScoresByWeek – All non-blinded BowlerScore documents for a specific week
  *  useMatchupDetails   – All matchup details for a season, optionally by week
  *  useMatchupDetail    – Single matchup detail by matchup document ID
  *  useScheduleWeeks    – All schedule weeks for a season, sorted by date
@@ -100,7 +101,7 @@ export function useBowlers(seasonYear: string, teamId?: string) {
       ]
     : [where('seasonYear', '==', seasonYear)];
 
-  return useCollection<Bowler>('bowlers', constraints);
+  return useCollection<Bowler>('bowlers', constraints, [seasonYear, teamId]);
 }
 
 /**
@@ -134,7 +135,67 @@ export function useBowlerScores(bowlerId: string, seasonYear?: string) {
       ]
     : [where('bowlerId', '==', bowlerId), orderBy('week', 'asc')];
 
-  return useCollection<BowlerScore>('bowlerScores', constraints);
+  return useCollection<BowlerScore>('bowlerScores', constraints, [bowlerId, seasonYear]);
+}
+
+/**
+ * Subscribes to all `BowlerScore` documents for a specific team and week.
+ * Used by MatchupDetailModal to show individual bowler rows under each team.
+ * Requires the composite index: teamId ASC, seasonYear ASC, week ASC.
+ *
+ * @param teamId     - Firestore team document ID, or null/undefined to skip
+ * @param week       - Week number to filter to
+ * @param seasonYear - Season year string, e.g. `'2025-2026'`
+ * @returns `{ data: BowlerScore[], loading, error }`
+ */
+export function useBowlerScoresByTeamWeek(
+  teamId: string | null | undefined,
+  week: number | null | undefined,
+  seasonYear: string
+) {
+  const skip = !teamId || !week;
+
+  // When skipping, use a sentinel that can never match any real document.
+  // This prevents the alternative (passing [] with no constraints) which would
+  // subscribe to ALL bowlerScores — a large collection fetch that becomes
+  // stale data if the real constrained query later fails (e.g. index not deployed).
+  const constraints = skip
+    ? [where('bowlerId', '==', '__never__')]
+    : [
+        where('teamId', '==', teamId!),
+        where('seasonYear', '==', seasonYear),
+        where('week', '==', week!),
+      ];
+
+  return useCollection<BowlerScore>('bowlerScores', constraints, [teamId, week, seasonYear, skip]);
+}
+
+/**
+ * Subscribes to all non-blinded `BowlerScore` documents for a specific week
+ * and season. Used by the Home Page to derive individual high game / series
+ * highlights for the latest completed week.
+ *
+ * Requires the composite index: seasonYear ASC, week ASC, blinded ASC.
+ * When `week` is null the hook falls back to the sentinel pattern (no fetch).
+ *
+ * @param week       - Week number to filter to, or null to skip
+ * @param seasonYear - Season year string, e.g. `'2025-2026'`
+ * @returns `{ data: BowlerScore[], loading, error }`
+ */
+export function useBowlerScoresByWeek(week: number | null, seasonYear: string) {
+  const skip = !week
+
+  // Sentinel prevents subscribing to ALL bowlerScores when the week is not yet
+  // resolved (same pattern used by useBowlerScoresByTeamWeek)
+  const constraints = skip
+    ? [where('bowlerId', '==', '__never__')]
+    : [
+        where('seasonYear', '==', seasonYear),
+        where('week', '==', week!),
+        where('blinded', '==', false),
+      ]
+
+  return useCollection<BowlerScore>('bowlerScores', constraints, [week, seasonYear, skip])
 }
 
 // ---------------------------------------------------------------------------
@@ -162,7 +223,7 @@ export function useMatchups(seasonYear: string, week?: number) {
           orderBy('week', 'asc'),
         ];
 
-  return useCollection<Matchup>('matchups', constraints);
+  return useCollection<Matchup>('matchups', constraints, [seasonYear, week]);
 }
 
 /**
@@ -188,7 +249,7 @@ export function useMatchupDetails(seasonYear: string, week?: number) {
           orderBy('week', 'asc'),
         ];
 
-  return useCollection<MatchupDetail>('matchupDetails', constraints);
+  return useCollection<MatchupDetail>('matchupDetails', constraints, [seasonYear, week]);
 }
 
 /**
@@ -366,7 +427,7 @@ export function useDocuments(type: string, seasonYear?: string) {
       ]
     : [where('type', '==', type), where('active', '==', true)];
 
-  return useCollection<LeagueDocument>('documents', constraints);
+  return useCollection<LeagueDocument>('documents', constraints, [type, seasonYear]);
 }
 
 /**

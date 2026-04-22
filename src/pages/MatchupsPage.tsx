@@ -85,9 +85,9 @@ function MatchupsPage() {
   const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails('2025-2026')
 
   const loading = matchupsLoading || detailsLoading
-  if (loading) return <div className="loading">Loading matchups…</div>
 
   // Determine the highest week that has been completed to default the selector
+  // These useMemo calls must stay above any early return to satisfy Rules of Hooks
   const completedMatches = useMemo(() => matchups.filter(m => m.completed), [matchups])
   const latestWeek = useMemo(() =>
     completedMatches.length ? Math.max(...completedMatches.map(m => m.week)) : 1,
@@ -115,6 +115,8 @@ function MatchupsPage() {
       .map(([week, date]) => ({ week, date }))
       .sort((a, b) => a.week - b.week)
   }, [matchupDetails])
+
+  if (loading) return <div className="loading">Loading matchups…</div>
 
   const closeDetail = () => setSelectedMatchupId(null)
   const closeBowler = () => setSelectedBowlerId(null)

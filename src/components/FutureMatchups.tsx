@@ -8,11 +8,9 @@
  */
 
 import { useMatchups, useTeams } from '../hooks'
+import { useSeasonYear } from '../context/SeasonContext'
 import type { Matchup } from '../types'
 import './FutureMatchups.css'
-
-/** Season year constant — update when the season rolls over */
-const SEASON_YEAR = '2025-2026'
 
 /**
  * FutureMatchups — week-grouped table of all unplayed matchups.
@@ -21,6 +19,7 @@ const SEASON_YEAR = '2025-2026'
  * competitive landscape before bowling.
  */
 function FutureMatchups() {
+  const SEASON_YEAR = useSeasonYear()
   // Firestore subscriptions — scoped to the current season
   const { data: matchups, loading: matchupsLoading } = useMatchups(SEASON_YEAR)
   const { data: teams, loading: teamsLoading } = useTeams(SEASON_YEAR)

@@ -9,6 +9,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- High Individual Game and High Individual Series highlight cards on the Home Page (top 3 bowlers per category for the latest completed week)
+- `useBowlerScoresByWeek` hook in `src/hooks/index.ts` — fetches non-blinded `BowlerScore` documents for a specific week; uses sentinel pattern to avoid over-fetching when the week is not yet resolved
+- Composite Firestore index: `bowlerScores` on `seasonYear ASC, week ASC, blinded ASC` (required by the new hook)
+- `.highlight-team-sub` CSS class for muted team name subtitle in individual highlight card entries
 - Firebase Firestore integration replacing all static JSON data files
 - 12 Firestore collections: leagueConfig, teams, bowlers, bowlerScores, matchups, matchupDetails, scheduleWeeks, seasons, documents, announcements, events, carouselImages
 - Generic `useCollection<T>` and `useDocument<T>` React hooks with real-time `onSnapshot` listeners

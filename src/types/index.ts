@@ -118,6 +118,10 @@ export interface BowlerScore {
   blinded: boolean;
   isSubstitute: boolean;
   substituteFor: string | null;
+  /** Running season average through this week (floor of total scratch pins ÷ total games, blind weeks excluded). null before first game. */
+  rollingAvg: number | null;
+  /** Total non-blind games bowled through this week — denominator for rollingAvg. */
+  rollingGames: number;
 }
 
 /** Matchup — one document per scheduled matchup */
@@ -129,6 +133,8 @@ export interface Matchup {
   date: string;
   team1Id: string;
   team2Id: string;
+  team1Lane: number;
+  team2Lane: number;
   team1ScratchScore: number | null;
   team2ScratchScore: number | null;
   positionRound: boolean;

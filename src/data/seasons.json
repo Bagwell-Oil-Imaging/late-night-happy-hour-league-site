@@ -1,0 +1,115 @@
+[
+  {
+    "year": "2025-2026",
+    "startDate": "2025-09-04",
+    "endDate": "2026-05-07",
+    "championTeamId": null,
+    "championTeamName": "Night Shift",
+    "teams": [
+      {
+        "teamId": "688118321406d3982ec379c7",
+        "name": "Night Shift",
+        "wins": 10,
+        "losses": 2,
+        "ties": 2,
+        "points": 44
+      },
+      {
+        "teamId": "688118401406d3982ec37a5b",
+        "name": "Regulators",
+        "wins": 10,
+        "losses": 1,
+        "ties": 3,
+        "points": 41
+      },
+      {
+        "teamId": "688118391406d3982ec37a1c",
+        "name": "Fugazi",
+        "wins": 8,
+        "losses": 3,
+        "ties": 3,
+        "points": 38
+      },
+      {
+        "teamId": "6881183d1406d3982ec37a42",
+        "name": "Three Fingers Deep",
+        "wins": 8,
+        "losses": 4,
+        "ties": 2,
+        "points": 33.5
+      },
+      {
+        "teamId": "688118301406d3982ec379ab",
+        "name": "Spare Me the Spills",
+        "wins": 5,
+        "losses": 7,
+        "ties": 2,
+        "points": 28.5
+      },
+      {
+        "teamId": "688118491406d3982ec37ac3",
+        "name": "Deuce Bags",
+        "wins": 7,
+        "losses": 5,
+        "ties": 2,
+        "points": 28
+      },
+      {
+        "teamId": "688118421406d3982ec37a6e",
+        "name": "K-Towne Ballers",
+        "wins": 7,
+        "losses": 6,
+        "ties": 1,
+        "points": 27
+      },
+      {
+        "teamId": "6881183b1406d3982ec37a2f",
+        "name": "Gremlins",
+        "wins": 4,
+        "losses": 6,
+        "ties": 4,
+        "points": 27
+      },
+      {
+        "teamId": "688118441406d3982ec37a87",
+        "name": "Split Headz",
+        "wins": 3,
+        "losses": 5,
+        "ties": 6,
+        "points": 27
+      },
+      {
+        "teamId": "688118461406d3982ec37a9a",
+        "name": "Nothing to Lew's",
+        "wins": 6,
+        "losses": 6,
+        "ties": 2,
+        "points": 26
+      },
+      {
+        "teamId": "688118351406d3982ec379f0",
+        "name": "Maga-Crats",
+        "wins": 6,
+        "losses": 8,
+        "ties": 0,
+        "points": 24
+      },
+      {
+        "teamId": "688118371406d3982ec37a06",
+        "name": "Crown Royal",
+        "wins": 5,
+        "losses": 8,
+        "ties": 1,
+        "points": 24
+      },
+      {
+        "teamId": "68811b528fce42526776f1a6",
+        "name": "Surprise Knuckle-Heads",
+        "wins": 4,
+        "losses": 8,
+        "ties": 2,
+        "points": 21
+      }
+    ]
+  }
+]

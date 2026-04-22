@@ -12,11 +12,9 @@
  */
 
 import { useMatchups, useTeams } from '../hooks'
+import { useSeasonYear } from '../context/SeasonContext'
 import type { Matchup } from '../types'
 import './SeasonScores.css'
-
-/** Season year constant — update when the season rolls over */
-const SEASON_YEAR = '2025-2026'
 
 interface SeasonScoresProps {
   /** Optional click handler; called with the Firestore matchup document ID */
@@ -29,6 +27,7 @@ interface SeasonScoresProps {
  * @param onSelectMatch - Optional row-click callback receiving the matchup ID
  */
 function SeasonScores({ onSelectMatch }: SeasonScoresProps) {
+  const SEASON_YEAR = useSeasonYear()
   // Firestore subscriptions — both scoped to the current season
   const { data: matchups, loading: matchupsLoading } = useMatchups(SEASON_YEAR)
   const { data: teams, loading: teamsLoading } = useTeams(SEASON_YEAR)

@@ -10,7 +10,8 @@
  *
  * Sections:
  *  - Latest Week Recap — scoreboard table for the most recently completed week
- *  - Week Highlights   — top team series (scratch + handicap) from that week
+ *  - Week Highlights   — top team series (scratch + handicap) + individual
+ *                        high game and series from that week
  *  - Nav Cards         — quick links to Standings, Matchups, Teams, Bowlers, History
  *  - League Standings  — full standings table via LeagueStandings component
  *  - Award Leaders     — season award leaders via AwardLeaders component
@@ -26,13 +27,11 @@ import LeagueStandings from '../components/LeagueStandings'
 import AwardLeaders from '../components/AwardLeaders'
 import MatchupDetailModal from '../components/MatchupDetailModal'
 import BowlerProfileModal from '../components/BowlerProfileModal'
-import { useMatchupDetails, useTeams } from '../hooks'
+import { useMatchupDetails, useMatchups, useTeams, useBowlerScoresByWeek } from '../hooks'
+import { useSeasonYear } from '../context/SeasonContext'
 import type { MatchupDetail } from '../types'
 import './HomePage.css'
 import './MatchupsPage.css'
-
-/** Season year used for all Firestore queries on this page */
-const SEASON_YEAR = '2025'
 
 // ---------------------------------------------------------------------------
 // Point calculation helpers
@@ -97,20 +96,25 @@ function formatDate(dateString: string): string {
 /**
  * HomePage — main landing page component.
  *
- * Fetches all matchup details and teams for the current season from Firestore.
- * Derives the latest completed week from the matchup details and computes
- * week highlights (top team series) entirely in the client using `useMemo`.
+ * Fetches matchup details, teams, matchups, and individual bowler scores for
+ * the current season from Firestore. Derives the latest completed week and
+ * computes all week highlights (team + individual) via `useMemo`.
  */
 function HomePage() {
   const navigate = useNavigate()
+  const SEASON_YEAR = useSeasonYear()
 
   // Modal state — null means no modal is open
   const [selectedMatchupId, setSelectedMatchupId] = useState<string | null>(null)
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null)
 
+  // Controls which panel is visible in the recap/preview toggle
+  const [weekView, setWeekView] = useState<'recap' | 'preview'>('recap')
+
   // Fetch all matchup details and teams for the season
   const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails(SEASON_YEAR)
   const { data: teams, loading: teamsLoading } = useTeams(SEASON_YEAR)
+  const { data: allMatchups, loading: matchupsLoading } = useMatchups(SEASON_YEAR)
 
   // Derive the latest week number from available matchup details
   const latestWeek = useMemo(() => {
@@ -120,11 +124,29 @@ function HomePage() {
 
   // Filter to only the matchups from the most recently completed week
   const latestWeekDetails = useMemo(
-    () => matchupDetails.filter((m) => m.week === latestWeek),
+    () => matchupDetails
+      .filter((m) => m.week === latestWeek)
+      .sort((a, b) => Math.min(a.team1.lane, a.team2.lane) - Math.min(b.team1.lane, b.team2.lane)),
     [matchupDetails, latestWeek]
   )
 
   const latestDate = latestWeekDetails[0]?.date
+
+  // All non-blinded bowler scores for the latest completed week (individual highlights)
+  const { data: latestWeekScores, loading: scoresLoading } = useBowlerScoresByWeek(
+    latestWeek || null,
+    SEASON_YEAR
+  )
+
+  // Next week's schedule matchups (not yet completed)
+  const nextWeek = latestWeek + 1
+  const nextWeekMatchups = useMemo(
+    () => allMatchups
+      .filter((m) => m.week === nextWeek && !m.completed)
+      .sort((a, b) => Math.min(a.team1Lane, a.team2Lane) - Math.min(b.team1Lane, b.team2Lane)),
+    [allMatchups, nextWeek]
+  )
+  const nextWeekDate = nextWeekMatchups[0]?.date
 
   // ---------------------------------------------------------------------------
   // Week highlights — top 3 entries per category
@@ -167,6 +189,35 @@ function HomePage() {
     [latestWeekDetails]
   )
 
+  /**
+   * Top 3 individual single-game scores for the latest week.
+   * Each bowler's three games are expanded into separate entries before ranking.
+   */
+  const highIndividualGame = useMemo(
+    () =>
+      latestWeekScores
+        .flatMap((s) => [
+          { name: s.bowlerName, team: s.teamName, score: s.game1 },
+          { name: s.bowlerName, team: s.teamName, score: s.game2 },
+          { name: s.bowlerName, team: s.teamName, score: s.game3 },
+        ])
+        .filter((e): e is { name: string; team: string; score: number } => e.score !== null)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3),
+    [latestWeekScores]
+  )
+
+  /** Top 3 individual series for the latest week */
+  const highIndividualSeries = useMemo(
+    () =>
+      latestWeekScores
+        .filter((s): s is typeof s & { series: number } => s.series !== null)
+        .map((s) => ({ name: s.bowlerName, team: s.teamName, score: s.series }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3),
+    [latestWeekScores]
+  )
+
   // The current standings leader (highest points) for the NavCard stat
   const leader = useMemo(
     () => (teams.length ? [...teams].sort((a, b) => b.points - a.points)[0] : null),
@@ -178,142 +229,277 @@ function HomePage() {
     navigate(`/bowlers?id=${id}`)
   }
 
-  const isLoading = detailsLoading || teamsLoading
+  const isLoading = detailsLoading || teamsLoading || matchupsLoading || scoresLoading
 
   return (
     <div className="home-page">
 
-      {/* Latest Week Recap */}
+      {/* Recap / Preview section */}
       <section className="home-section">
-        <div className="home-section-header">
-          <h2 className="section-title">Week {latestWeek} Recap</h2>
-          {latestDate && <span className="recap-date">{formatDate(latestDate)}</span>}
+
+        {/* Tab bar — acts as both the toggle and the section header */}
+        <div className="week-view-tabs">
+          <div className="week-view-tabs-left">
+            <button
+              className={`week-tab ${weekView === 'recap' ? 'active' : ''}`}
+              onClick={() => setWeekView('recap')}
+            >
+              <span className="week-tab-label">Week {latestWeek} Recap</span>
+              <span className="week-tab-date">
+                {latestDate ? formatDate(latestDate) : '\u00A0'}
+              </span>
+            </button>
+            <button
+              className={`week-tab ${weekView === 'preview' ? 'active' : ''}`}
+              onClick={() => setWeekView('preview')}
+            >
+              <span className="week-tab-label">Week {nextWeek} Preview</span>
+              <span className="week-tab-date">
+                {nextWeekDate ? formatDate(nextWeekDate) : '\u00A0'}
+              </span>
+            </button>
+          </div>
           <button
             className="recap-detail-link"
-            onClick={() => navigate(`/matchups?week=${latestWeek}`)}
+            onClick={() =>
+              navigate(
+                weekView === 'recap'
+                  ? `/matchups?week=${latestWeek}`
+                  : `/matchups?week=${nextWeek}`
+              )
+            }
           >
-            All Weeks →
+            {weekView === 'recap' ? 'All Weeks →' : 'Full Schedule →'}
           </button>
         </div>
 
-        {/* Loading placeholder */}
-        {isLoading && (
-          <p style={{ color: '#888', textAlign: 'center' }}>Loading matchup data…</p>
-        )}
+        {/* ── Recap panel ── */}
+        {weekView === 'recap' && (
+          <>
 
-        {/* Scoreboard table */}
-        {!isLoading && latestWeekDetails.length > 0 && (
-          <div className="matchup-scoreboard">
-            <table className="matchup-table">
-              <thead>
-                <tr>
-                  <th className="col-team-left">Team</th>
-                  <th className="col-pts center">Pts</th>
-                  <th className="col-score center">Total</th>
-                  <th className="col-sep center"></th>
-                  <th className="col-score center">Total</th>
-                  <th className="col-pts center">Pts</th>
-                  <th className="col-team-right">Team</th>
-                </tr>
-              </thead>
-              <tbody>
-                {latestWeekDetails.map((match) => {
-                  const pts = getMatchPoints(match)
-                  const t1Won = match.team1.totalSeries > match.team2.totalSeries
-                  const t2Won = match.team2.totalSeries > match.team1.totalSeries
-                  return (
-                    <tr
-                      key={match.id}
-                      className="matchup-row"
-                      onClick={() => setSelectedMatchupId(match.id ?? null)}
-                      title="Click for full bowler breakdown"
-                    >
-                      <td className={`col-team-left team-cell ${t1Won ? 'winner' : ''}`}>
-                        {match.team1.teamName}
-                      </td>
-                      <td className={`col-pts center pts-cell ${t1Won ? 'pts-winner' : ''}`}>
-                        {pts.team1 % 1 === 0 ? pts.team1 : pts.team1.toFixed(1)}
-                      </td>
-                      <td className={`col-score center score-cell ${t1Won ? 'winner' : ''}`}>
-                        <span title={`Scratch: ${match.team1.scratchSeries} + HDCP: ${match.team1.handicapSeries}`}>
-                          {match.team1.totalSeries}
-                        </span>
-                        {match.team1.handicapSeries > 0 && (
-                          <span
-                            className="score-hcp"
-                            title={`Scratch: ${match.team1.scratchSeries} + HDCP: ${match.team1.handicapSeries}`}
-                          >
-                            (+{match.team1.handicapSeries})
-                          </span>
-                        )}
-                      </td>
-                      <td className="col-sep center sep-cell">–</td>
-                      <td className={`col-score center score-cell ${t2Won ? 'winner' : ''}`}>
-                        <span title={`Scratch: ${match.team2.scratchSeries} + HDCP: ${match.team2.handicapSeries}`}>
-                          {match.team2.totalSeries}
-                        </span>
-                        {match.team2.handicapSeries > 0 && (
-                          <span
-                            className="score-hcp"
-                            title={`Scratch: ${match.team2.scratchSeries} + HDCP: ${match.team2.handicapSeries}`}
-                          >
-                            (+{match.team2.handicapSeries})
-                          </span>
-                        )}
-                      </td>
-                      <td className={`col-pts center pts-cell ${t2Won ? 'pts-winner' : ''}`}>
-                        {pts.team2 % 1 === 0 ? pts.team2 : pts.team2.toFixed(1)}
-                      </td>
-                      <td className={`col-team-right team-cell ${t2Won ? 'winner' : ''}`}>
-                        {match.team2.teamName}
-                      </td>
+            {isLoading && (
+              <p style={{ color: '#888', textAlign: 'center' }}>Loading matchup data…</p>
+            )}
+
+            {!isLoading && latestWeekDetails.length > 0 && (
+              <div className="matchup-scoreboard">
+                <table className="matchup-table">
+                  <thead>
+                    <tr>
+                      <th className="col-team-left">Team</th>
+                      <th className="col-pts center">Pts</th>
+                      <th className="col-score center">Total</th>
+                      <th className="col-lanes center">Lanes</th>
+                      <th className="col-score center">Total</th>
+                      <th className="col-pts center">Pts</th>
+                      <th className="col-team-right">Team</th>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {latestWeekDetails.map((match) => {
+                      const pts = getMatchPoints(match)
+                      // Odd lane always on the left side of the scoreboard
+                      const leftIsTeam1 = match.team1.lane % 2 === 1
+                      const left  = leftIsTeam1 ? match.team1 : match.team2
+                      const right = leftIsTeam1 ? match.team2 : match.team1
+                      const leftPts  = leftIsTeam1 ? pts.team1 : pts.team2
+                      const rightPts = leftIsTeam1 ? pts.team2 : pts.team1
+                      const leftWon  = left.totalSeries > right.totalSeries
+                      const rightWon = right.totalSeries > left.totalSeries
+                      const oddLane  = Math.min(match.team1.lane, match.team2.lane)
+                      const evenLane = Math.max(match.team1.lane, match.team2.lane)
+                      return (
+                        <tr
+                          key={match.id}
+                          className="matchup-row"
+                          onClick={() => setSelectedMatchupId(match.id ?? null)}
+                          title="Click for full bowler breakdown"
+                        >
+                          <td className={`col-team-left team-cell ${leftWon ? 'winner' : ''}`}>
+                            {left.teamName}
+                          </td>
+                          <td className={`col-pts center pts-cell ${leftWon ? 'pts-winner' : ''}`}>
+                            {leftPts % 1 === 0 ? leftPts : leftPts.toFixed(1)}
+                          </td>
+                          <td className={`col-score center score-cell ${leftWon ? 'winner' : ''}`}>
+                            <span title={`Scratch: ${left.scratchSeries} + HDCP: ${left.handicapSeries}`}>
+                              {left.totalSeries}
+                            </span>
+                            {left.handicapSeries > 0 && (
+                              <span
+                                className="score-hcp"
+                                title={`Scratch: ${left.scratchSeries} + HDCP: ${left.handicapSeries}`}
+                              >
+                                (+{left.handicapSeries})
+                              </span>
+                            )}
+                          </td>
+                          <td className="col-lanes center lanes-cell">
+                            {oddLane}-{evenLane}
+                          </td>
+                          <td className={`col-score center score-cell ${rightWon ? 'winner' : ''}`}>
+                            <span title={`Scratch: ${right.scratchSeries} + HDCP: ${right.handicapSeries}`}>
+                              {right.totalSeries}
+                            </span>
+                            {right.handicapSeries > 0 && (
+                              <span
+                                className="score-hcp"
+                                title={`Scratch: ${right.scratchSeries} + HDCP: ${right.handicapSeries}`}
+                              >
+                                (+{right.handicapSeries})
+                              </span>
+                            )}
+                          </td>
+                          <td className={`col-pts center pts-cell ${rightWon ? 'pts-winner' : ''}`}>
+                            {rightPts % 1 === 0 ? rightPts : rightPts.toFixed(1)}
+                          </td>
+                          <td className={`col-team-right team-cell ${rightWon ? 'winner' : ''}`}>
+                            {right.teamName}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Week Highlights — team-level aggregates; individual data is in MatchupDetailModal */}
+            {!isLoading && latestWeekDetails.length > 0 && (
+              <div className="week-highlights">
+                {([
+                  { title: 'High Team Series (Scratch)', entries: highTeamSeriesScratch },
+                ] as const).map(({ title, entries }) => (
+                  <div key={title} className="highlight-card">
+                    <h4 className="highlight-title">{title}</h4>
+                    <ol className="highlight-list">
+                      {entries.map((entry, i) => (
+                        <li key={i} className="highlight-entry">
+                          <span className="highlight-rank">{i + 1}</span>
+                          <span className="highlight-name">{entry.name}</span>
+                          <span className="highlight-score">{entry.score}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                ))}
+
+                <div className="highlight-card">
+                  <h4 className="highlight-title">High Team Series (Handicap)</h4>
+                  <ol className="highlight-list">
+                    {highTeamSeriesHcp.map((entry, i) => (
+                      <li key={i} className="highlight-entry">
+                        <span className="highlight-rank">{i + 1}</span>
+                        <span className="highlight-name">{entry.name}</span>
+                        <span className="highlight-score">
+                          <span className="highlight-breakdown">
+                            ({entry.scratch} + {entry.hdcp} HDCP)
+                          </span>
+                          <span className="highlight-breakdown-sep"> | </span>
+                          {entry.score}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="highlight-card">
+                  <h4 className="highlight-title">High Individual Game</h4>
+                  <ol className="highlight-list">
+                    {highIndividualGame.map((entry, i) => (
+                      <li key={i} className="highlight-entry">
+                        <span className="highlight-rank">{i + 1}</span>
+                        <span className="highlight-name">
+                          {entry.name}
+                          <span className="highlight-team-sub">{entry.team}</span>
+                        </span>
+                        <span className="highlight-score">{entry.score}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="highlight-card">
+                  <h4 className="highlight-title">High Individual Series</h4>
+                  <ol className="highlight-list">
+                    {highIndividualSeries.map((entry, i) => (
+                      <li key={i} className="highlight-entry">
+                        <span className="highlight-rank">{i + 1}</span>
+                        <span className="highlight-name">
+                          {entry.name}
+                          <span className="highlight-team-sub">{entry.team}</span>
+                        </span>
+                        <span className="highlight-score">{entry.score}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
-        {/* Week Highlights — team-level aggregates only (individual bowler data is in MatchupDetailModal) */}
-        {!isLoading && latestWeekDetails.length > 0 && (
-          <div className="week-highlights">
-            {([
-              { title: 'High Team Series (Scratch)', entries: highTeamSeriesScratch },
-            ] as const).map(({ title, entries }) => (
-              <div key={title} className="highlight-card">
-                <h4 className="highlight-title">{title}</h4>
-                <ol className="highlight-list">
-                  {entries.map((entry, i) => (
-                    <li key={i} className="highlight-entry">
-                      <span className="highlight-rank">{i + 1}</span>
-                      <span className="highlight-name">{entry.name}</span>
-                      <span className="highlight-score">{entry.score}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ))}
+        {/* ── Preview panel ── */}
+        {weekView === 'preview' && (
+          <>
+            {isLoading && (
+              <p style={{ color: '#888', textAlign: 'center' }}>Loading matchup data…</p>
+            )}
 
-            <div className="highlight-card">
-              <h4 className="highlight-title">High Team Series (Handicap)</h4>
-              <ol className="highlight-list">
-                {highTeamSeriesHcp.map((entry, i) => (
-                  <li key={i} className="highlight-entry">
-                    <span className="highlight-rank">{i + 1}</span>
-                    <span className="highlight-name">{entry.name}</span>
-                    <span className="highlight-score">
-                      <span className="highlight-breakdown">
-                        ({entry.scratch} + {entry.hdcp} HDCP)
-                      </span>
-                      <span className="highlight-breakdown-sep"> | </span>
-                      {entry.score}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
+            {!isLoading && nextWeekMatchups.length > 0 && (
+              <div className="matchup-scoreboard">
+                <table className="matchup-table">
+                  <thead>
+                    <tr>
+                      <th className="col-team-left">Team</th>
+                      <th className="col-pts center">Record</th>
+                      <th className="col-lanes center">Lanes</th>
+                      <th className="col-pts center">Record</th>
+                      <th className="col-team-right">Team</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {nextWeekMatchups.map((matchup) => {
+                      const team1 = teams.find((t) => t.id === matchup.team1Id)
+                      const team2 = teams.find((t) => t.id === matchup.team2Id)
+                      // Odd lane always on the left
+                      const leftIsTeam1 = matchup.team1Lane % 2 === 1
+                      const leftTeam  = leftIsTeam1 ? team1 : team2
+                      const rightTeam = leftIsTeam1 ? team2 : team1
+                      const oddLane   = Math.min(matchup.team1Lane, matchup.team2Lane)
+                      const evenLane  = Math.max(matchup.team1Lane, matchup.team2Lane)
+                      const laneLabel = oddLane > 0 ? `${oddLane}-${evenLane}` : '—'
+                      return (
+                        <tr key={matchup.id} className="matchup-row preview-row">
+                          <td className="col-team-left team-cell">
+                            {leftTeam?.name ?? matchup.team1Id}
+                          </td>
+                          <td className="col-pts center pts-cell">
+                            {leftTeam ? `${leftTeam.wins}-${leftTeam.losses}` : '—'}
+                          </td>
+                          <td className="col-lanes center lanes-cell">{laneLabel}</td>
+                          <td className="col-pts center pts-cell">
+                            {rightTeam ? `${rightTeam.wins}-${rightTeam.losses}` : '—'}
+                          </td>
+                          <td className="col-team-right team-cell">
+                            {rightTeam?.name ?? matchup.team2Id}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {!isLoading && nextWeekMatchups.length > 0 && (
+              <p className="preview-lanes-disclaimer">Lane assignments subject to change.</p>
+            )}
+
+            {!isLoading && nextWeekMatchups.length === 0 && (
+              <p style={{ color: '#888', textAlign: 'center' }}>No matchups scheduled for Week {nextWeek}.</p>
+            )}
+          </>
         )}
       </section>
 

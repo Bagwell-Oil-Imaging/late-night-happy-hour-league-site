@@ -35,12 +35,12 @@ function Header({ onOpenAnnouncements, announcementsCount, onOpenBylaws }: Heade
             <p className="subtitle">Bowling League • Thursday Nights</p>
           </div>
         </Link>
-        <HamburgerMenu isOpen={menuOpen} onToggle={toggleMenu} />
         <nav className={`nav ${menuOpen ? 'nav-open' : ''}`}>
           <Link to="/standings" className="nav-link" onClick={closeMenu}>Standings</Link>
           <Link to="/schedule" className="nav-link" onClick={closeMenu}>Schedule</Link>
           <Link to="/matchups" className="nav-link" onClick={closeMenu}>Matchups</Link>
           <Link to="/teams" className="nav-link" onClick={closeMenu}>Teams</Link>
+          <Link to="/lanes" className="nav-link" onClick={closeMenu}>Lanes</Link>
           <Link to="/bowlers" className="nav-link" onClick={closeMenu}>Bowlers</Link>
           <Link to="/history" className="nav-link" onClick={closeMenu}>History</Link>
           <button className="nav-link" onClick={handleBylawsClick}>Bylaws</button>
@@ -57,6 +57,7 @@ function Header({ onOpenAnnouncements, announcementsCount, onOpenBylaws }: Heade
           </button>
           <Link to="/contact" className="nav-link nav-link-contact" onClick={closeMenu}>Join the League</Link>
         </nav>
+        <HamburgerMenu isOpen={menuOpen} onToggle={toggleMenu} />
       </div>
     </header>
   )

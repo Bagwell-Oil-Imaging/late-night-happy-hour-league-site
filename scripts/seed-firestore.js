@@ -27,13 +27,16 @@
  *     transform pipeline will back-fill correct values from LeaguePals data.
  */
 
-'use strict';
+import dotenv from 'dotenv';
+import admin from 'firebase-admin';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-require('dotenv').config();
+dotenv.config();
 
-const admin = require('firebase-admin');
-const fs    = require('fs');
-const path  = require('path');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
 
 // ---------------------------------------------------------------------------
 // Firebase Admin Initialization
@@ -67,7 +70,7 @@ if (!fs.existsSync(serviceAccountPath)) {
   process.exit(1);
 }
 
-const serviceAccount = require(serviceAccountPath);
+const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),

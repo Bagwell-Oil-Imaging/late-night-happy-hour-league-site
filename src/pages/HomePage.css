@@ -19,6 +19,85 @@
   .nav-cards-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ── Week View Tabs ──────────────────────────────────────────────────────── */
+.week-view-tabs {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--border-default);
+  margin-bottom: var(--space-6);
+}
+
+/* The "All Weeks →" link lives in the third column, pushed to the right */
+.week-view-tabs > .recap-detail-link {
+  justify-self: end;
+  align-self: center;
+}
+
+.week-view-tabs-left {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0;
+  /* Span the center column */
+  grid-column: 2;
+}
+
+/* Each tab overlaps the container's bottom border so its own 3px border replaces it */
+.week-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: var(--space-2) var(--space-7) var(--space-4) 0;
+  margin-right: var(--space-6);
+  margin-bottom: -1px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.week-tab.active {
+  border-bottom-color: var(--accent);
+}
+
+.week-tab-label {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  line-height: 1;
+  color: var(--text-muted);
+  transition: color 0.2s ease;
+}
+
+.week-tab.active .week-tab-label {
+  color: var(--accent);
+}
+
+.week-tab:not(.active):hover .week-tab-label {
+  color: var(--text-secondary);
+}
+
+.week-tab-date {
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  line-height: 1;
+  color: transparent;
+  transition: color 0.2s ease;
+  /* Reserve the line height so layout doesn't jump */
+  min-height: 1em;
+}
+
+.week-tab.active .week-tab-date {
+  color: var(--text-muted);
+}
+
 /* ── Section wrapper ─────────────────────────────────────────────────────── */
 .home-section {}
 
@@ -57,8 +136,8 @@
 /* ── Week Highlights ─────────────────────────────────────────────────────── */
 .week-highlights {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-4);
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
   margin-top: var(--space-5);
 }
 
@@ -67,10 +146,10 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--card-highlight), var(--shadow-sm);
-  padding: var(--space-4) var(--space-5);
+  padding: var(--space-3) var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .highlight-title {
@@ -98,6 +177,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* align-items stays center for single-line names; two-line individual entries
+     still look balanced because rank/score are vertically centered on the name block */
 }
 
 .highlight-rank {
@@ -132,6 +213,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+/* Muted team name shown below bowler name in individual highlight cards */
+.highlight-team-sub {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .highlight-score {
@@ -160,8 +254,18 @@
   margin: 0 0.25rem;
 }
 
+.preview-lanes-disclaimer {
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  font-family: var(--font-heading);
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .week-highlights { grid-template-columns: repeat(2, 1fr); }
 }
 

@@ -11,10 +11,8 @@
  */
 
 import { useTeams } from '../hooks'
+import { useSeasonYear } from '../context/SeasonContext'
 import './PlayoffBracket.css'
-
-/** Current active season year — update each season. */
-const SEASON_YEAR = '2025-2026'
 
 /**
  * PlayoffBracket component.
@@ -26,6 +24,7 @@ const SEASON_YEAR = '2025-2026'
  * @returns JSX element containing the full bracket display.
  */
 function PlayoffBracket() {
+  const SEASON_YEAR = useSeasonYear()
   const { data: teams, loading, error } = useTeams(SEASON_YEAR)
 
   if (loading) {

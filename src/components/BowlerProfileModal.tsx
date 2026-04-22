@@ -22,15 +22,9 @@
 
 import { useEffect } from 'react'
 import { useBowler, useBowlerScores } from '../hooks'
+import { useSeasonYear } from '../context/SeasonContext'
 import type { Bowler, BowlerScore } from '../types'
 import './BowlerProfileModal.css'
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-/** Season year used to scope the `useBowlerScores` query. */
-const SEASON_YEAR = '2025-2026'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -125,6 +119,7 @@ function ScoresTable({ scores, bowler }: ScoresTableProps) {
             <th className="col-game">G2</th>
             <th className="col-game">G3</th>
             <th className="col-series">Series</th>
+            <th className="col-avg">Avg</th>
           </tr>
         </thead>
         <tbody>
@@ -182,6 +177,9 @@ function ScoresTable({ scores, bowler }: ScoresTableProps) {
                 <td className={`col-series ${isHighSeries ? 'high-series' : ''}`}>
                   {score.series === null ? '-' : score.series}
                 </td>
+                <td className="col-avg">
+                  {score.rollingAvg ?? '—'}
+                </td>
               </tr>
             )
           })}
@@ -211,6 +209,7 @@ function ScoresTable({ scores, bowler }: ScoresTableProps) {
  * @param onClose  - Callback to dismiss the modal (Escape key, overlay click, or close button)
  */
 function BowlerProfileModal({ bowlerId, onClose }: BowlerProfileModalProps) {
+  const SEASON_YEAR = useSeasonYear()
   const isOpen = bowlerId !== null
 
   // Fetch the bowler aggregate document — hook is a no-op when bowlerId is null

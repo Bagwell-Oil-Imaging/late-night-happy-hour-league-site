@@ -51,6 +51,7 @@
 .col-pts        { width: 52px; }
 .col-score      { width: 100px; }
 .col-sep        { width: 36px; }
+.col-lanes      { width: 52px; font-size: var(--text-xs); letter-spacing: 0.5px; color: var(--text-muted); }
 
 /* ── Header band ─────────────────────────────────────────────────────────── */
 .matchup-table thead {

@@ -107,6 +107,16 @@ function AdminLayout() {
               Documents
             </NavLink>
           </li>
+          <li>
+            <NavLink
+              to="/admin/settings"
+              className={({ isActive }) =>
+                ['admin-nav-link', isActive ? 'admin-nav-link--active' : ''].join(' ').trim()
+              }
+            >
+              Settings
+            </NavLink>
+          </li>
         </ul>
 
         {/* Logout action — always visible on the right */}
