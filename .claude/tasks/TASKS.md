@@ -50,7 +50,7 @@ graph TD
     %% Apply status classes
     class P1T1 completed
     class P1T2 pending
-    class P2T1 pending
+    class P2T1 completed
     class P3T1 pending
     class P4T1 pending
     class P5T1 pending
@@ -80,7 +80,7 @@ graph TD
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [DocumentSource type + driveFileUrl util](phase-2/sub-task-1.md) | pending | — | — |
+| 1 | [DocumentSource type + driveFileUrl util](phase-2/sub-task-1.md) | completed | — | 09780ef |
 
 ### Phase 3: Admin UI
 **Goal:** DocumentsAdmin uploads PDFs to Drive instead of Firebase Storage.
@@ -108,8 +108,8 @@ graph TD
 | Phase | Tasks | Completed | Status |
 |-------|-------|-----------|--------|
 | Phase 1: Infrastructure | 2 | 1 | In progress |
-| Phase 2: Types & Utilities | 1 | 0 | Not started |
+| Phase 2: Types & Utilities | 1 | 1 | Complete |
 | Phase 3: Admin UI | 1 | 0 | Not started |
 | Phase 4: Frontend Display | 1 | 0 | Not started |
 | Phase 5: Cleanup | 1 | 0 | Not started |
-| **Total** | **6** | **1** | **17%** |
+| **Total** | **6** | **2** | **33%** |
