@@ -6,8 +6,9 @@
  * The document is retrieved via `useActiveDocument('bylaws', '2025-2026')` and supports
  * two render modes determined by `doc.source.type`:
  *
- *  - `'pdf'`  — renders an `<iframe>` pointing at `doc.source.fileUrl` with a
- *               download fallback link
+ *  - `'pdf'`  — renders an `<iframe>` pointing at the Drive viewer URL resolved from
+ *               `doc.source.driveFileId` (via `driveFileUrl()`), with a download
+ *               fallback link using `driveDownloadUrl()`
  *  - `'text'` — renders HTML content from `doc.source.content` via
  *               `dangerouslySetInnerHTML` (content is admin-controlled, not user input)
  *
@@ -20,6 +21,7 @@
 
 import { useEffect } from 'react'
 import { useActiveDocument } from '../hooks'
+import { driveFileUrl, driveDownloadUrl } from '../utils/drive'
 import './BylawsModal.css'
 
 /** Props accepted by the BylawsModal component */
@@ -67,10 +69,10 @@ function BylawsModal({ isOpen, onClose }: BylawsModalProps) {
         <div className="modal-header">
           <h2>{doc?.title ?? 'League Bylaws'}</h2>
           <div className="bylaws-header-actions">
-            {/* Show a download link only for PDF documents */}
-            {doc?.source.type === 'pdf' && doc.source.fileUrl && (
+            {/* Show a download link only for PDF documents that have a Drive file ID */}
+            {doc?.source.type === 'pdf' && doc.source.driveFileId && (
               <a
-                href={doc.source.fileUrl}
+                href={driveDownloadUrl(doc.source.driveFileId)}
                 download
                 className="bylaws-download-btn"
                 title="Download PDF"
@@ -99,18 +101,21 @@ function BylawsModal({ isOpen, onClose }: BylawsModalProps) {
             </p>
           )}
 
-          {/* PDF source — render in an iframe with a download fallback */}
-          {!loading && doc?.source.type === 'pdf' && doc.source.fileUrl && (
+          {/* PDF source — render in an iframe with a download fallback.
+               Both the iframe src and fallback link are resolved from the
+               Drive file ID using the appropriate helper. The iframe uses the
+               Drive viewer URL; the fallback uses the direct-download URL. */}
+          {!loading && doc?.source.type === 'pdf' && doc.source.driveFileId && (
             <>
               <iframe
-                src={doc.source.fileUrl}
+                src={driveFileUrl(doc.source.driveFileId)}
                 title={doc.title}
                 className="bylaws-iframe"
               />
               <div className="bylaws-fallback">
                 <p>Your browser cannot display PDFs inline.</p>
                 <a
-                  href={doc.source.fileUrl}
+                  href={driveDownloadUrl(doc.source.driveFileId!)}
                   download
                   className="bylaws-download-btn"
                 >
