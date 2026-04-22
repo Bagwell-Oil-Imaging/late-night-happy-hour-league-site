@@ -10,10 +10,13 @@
  *  - "Set Active" enforces the invariant: only one document per type+seasonYear
  *    can be active at a time, via an atomic Firestore batch write.
  *  - Inline create/edit form supporting both "Text" (markdown) and "PDF" sources.
- *  - PDF upload to Firebase Storage at `documents/{type}/{filename}`, storing
- *    the download URL in `source.fileUrl`.
+ *  - PDF upload to Google Drive via the Vercel `/api/upload-to-drive` endpoint,
+ *    storing the returned Drive file ID in `source.driveFileId`.
  *  - Delete with confirmation; warns when attempting to delete the active version.
  *  - All writes include `createdAt` (on create) and `updatedAt` (on every save).
+ *
+ * Note: Firebase Storage is no longer used by this component. All PDF storage
+ * is handled by Google Drive through the authenticated Vercel serverless endpoint.
  */
 
 import { useState } from 'react'
@@ -29,8 +32,8 @@ import {
   writeBatch,
   orderBy,
 } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '../../firebase'
+import { db, auth } from '../../firebase'
+import { driveFileUrl } from '../../utils/drive'
 import { useCollection } from '../../hooks/useFirestore'
 import type { LeagueDocument } from '../../types'
 import { nowIso } from '../../utils/admin'
@@ -58,8 +61,11 @@ interface DocumentForm {
   content: string
   /** Pending File object for PDF upload (not yet uploaded) */
   pdfFile: File | null
-  /** Existing PDF URL (populated when editing a pdf-source doc) */
-  existingPdfUrl: string
+  /**
+   * Existing Drive file ID (populated when editing a pdf-source doc).
+   * Used to show the "Current file" link without requiring a re-upload.
+   */
+  existingDriveFileId: string
 }
 
 /** Returns a blank form with sensible defaults. */
@@ -74,11 +80,16 @@ function emptyForm(): DocumentForm {
     sourceType: 'text',
     content: '',
     pdfFile: null,
-    existingPdfUrl: '',
+    existingDriveFileId: '',
   }
 }
 
-/** Converts a LeagueDocument into the local form state for editing. */
+/**
+ * Converts a LeagueDocument into the local form state for editing.
+ *
+ * @param d - The LeagueDocument fetched from Firestore to pre-fill the form.
+ * @returns A DocumentForm object with all fields populated from the document.
+ */
 function docToForm(d: LeagueDocument): DocumentForm {
   return {
     title: d.title,
@@ -90,7 +101,8 @@ function docToForm(d: LeagueDocument): DocumentForm {
     sourceType: d.source.type,
     content: d.source.content ?? '',
     pdfFile: null,
-    existingPdfUrl: d.source.fileUrl ?? '',
+    // Map the Drive file ID stored in Firestore into local form state
+    existingDriveFileId: d.source.driveFileId ?? '',
   }
 }
 
@@ -102,6 +114,10 @@ function docToForm(d: LeagueDocument): DocumentForm {
  * Renders a full CRUD interface for the `documents` Firestore collection.
  * Documents are displayed grouped by type. The create/edit form appears inline
  * above the grouped list when active.
+ *
+ * PDF uploads are handled by posting multipart/form-data to the Vercel
+ * serverless endpoint `/api/upload-to-drive`, authenticated with a Firebase
+ * ID token. The returned Drive file ID is stored in `source.driveFileId`.
  *
  * @returns JSX element for the documents admin panel.
  */
@@ -175,12 +191,12 @@ function DocumentsAdmin() {
     const batch = writeBatch(db)
     const now = nowIso()
 
-    // Deactivate all siblings
+    // Deactivate all siblings first
     snapshot.docs.forEach(snap => {
       batch.update(snap.ref, { active: false, updatedAt: now })
     })
 
-    // Activate the target
+    // Activate the target document
     batch.update(doc(db, 'documents', targetId), { active: true, updatedAt: now })
 
     await batch.commit()
@@ -191,9 +207,10 @@ function DocumentsAdmin() {
   /**
    * Handles form submission for both create and edit operations.
    *
-   * If source type is 'pdf' and a new file was selected, uploads it to Firebase
-   * Storage before saving the Firestore document. If `active` is true, runs
-   * the batch deactivation after the document is written.
+   * If source type is 'pdf' and a new file was selected, uploads it to Google
+   * Drive via POST /api/upload-to-drive (authenticated with a Firebase ID token)
+   * before saving the Firestore document with the returned Drive file ID.
+   * If `active` is true, runs the batch deactivation after the document is written.
    *
    * @param e - The form submit event.
    */
@@ -203,30 +220,53 @@ function DocumentsAdmin() {
     setUploadProgress(null)
 
     try {
-      // ── Resolve the final source object ──────────────────────────────────
-      let fileUrl: string | null = null
+      // ── Resolve the final Drive file ID ──────────────────────────────────
+      let driveFileId: string | null = null
 
       if (form.sourceType === 'pdf') {
         if (form.pdfFile) {
-          // Upload new PDF to Storage
-          setUploadProgress('Uploading PDF…')
-          const storageRef = ref(
-            storage,
-            `documents/${form.type}/${form.pdfFile.name}`
+          // Upload new PDF to Google Drive via the Vercel serverless endpoint.
+          // The endpoint requires a Bearer token from the authenticated admin user.
+          setUploadProgress('Uploading to Google Drive…')
+
+          // Get a fresh Firebase ID token to authenticate the Drive upload
+          const token = await auth.currentUser!.getIdToken()
+
+          // Build the multipart form payload the endpoint expects
+          const formData = new FormData()
+          formData.append('file', form.pdfFile)
+          formData.append('folderId', import.meta.env.VITE_DRIVE_FOLDER_BYLAWS)
+          formData.append(
+            'fileName',
+            `bylaws-${form.seasonYear}-${form.version}.pdf`
           )
-          await uploadBytes(storageRef, form.pdfFile)
-          fileUrl = await getDownloadURL(storageRef)
+
+          const res = await fetch('/api/upload-to-drive', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+          })
+
+          if (!res.ok) {
+            const errText = await res.text()
+            throw new Error(`Drive upload failed (${res.status}): ${errText}`)
+          }
+
+          const { fileId } = await res.json()
+          driveFileId = fileId
           setUploadProgress(null)
         } else {
-          // Keep existing URL when editing without changing the file
-          fileUrl = form.existingPdfUrl || null
+          // No new file selected — keep the existing Drive file ID when editing
+          driveFileId = form.existingDriveFileId || null
         }
       }
 
+      // Build the source sub-document to write to Firestore.
+      // driveFileId is null for text documents; populated for PDFs.
       const source = {
         type: form.sourceType,
         content: form.sourceType === 'text' ? (form.content || null) : null,
-        fileUrl: form.sourceType === 'pdf' ? fileUrl : null,
+        driveFileId: form.sourceType === 'pdf' ? driveFileId : null,
       }
 
       const now = nowIso()
@@ -477,14 +517,18 @@ function DocumentsAdmin() {
             </div>
           )}
 
-          {/* PDF upload */}
+          {/* PDF upload — shows existing Drive file link when editing without a new file */}
           {form.sourceType === 'pdf' && (
             <div className="admin-field">
               <label className="admin-label" htmlFor="doc-pdf">PDF File</label>
-              {form.existingPdfUrl && !form.pdfFile && (
+              {form.existingDriveFileId && !form.pdfFile && (
                 <p className="doc-existing-url">
                   Current file:{' '}
-                  <a href={form.existingPdfUrl} target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={driveFileUrl(form.existingDriveFileId)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     View PDF
                   </a>
                   {' '}(upload a new file to replace)
@@ -566,8 +610,9 @@ function DocumentsAdmin() {
                   </td>
                   <td>
                     {d.source.type === 'pdf' ? (
+                      // Use driveFileUrl() to generate the Drive viewer link from the stored file ID
                       <a
-                        href={d.source.fileUrl ?? '#'}
+                        href={d.source.driveFileId ? driveFileUrl(d.source.driveFileId) : '#'}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="doc-pdf-link"
