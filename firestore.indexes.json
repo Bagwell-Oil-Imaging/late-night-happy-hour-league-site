@@ -16,7 +16,8 @@
     { "collectionGroup": "matchupDetails", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "week", "order": "ASCENDING" }] },
     { "collectionGroup": "scheduleWeeks", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "date", "order": "ASCENDING" }] },
     { "collectionGroup": "documents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "type", "order": "ASCENDING" }, { "fieldPath": "seasonYear", "order": "ASCENDING" }, { "fieldPath": "active", "order": "ASCENDING" }] },
-    { "collectionGroup": "documents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "type", "order": "ASCENDING" }, { "fieldPath": "effectiveDate", "order": "DESCENDING" }] }
+    { "collectionGroup": "documents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "type", "order": "ASCENDING" }, { "fieldPath": "effectiveDate", "order": "DESCENDING" }] },
+    { "collectionGroup": "documents", "queryScope": "COLLECTION", "fields": [{ "fieldPath": "seasonYear", "order": "DESCENDING" }, { "fieldPath": "effectiveDate", "order": "DESCENDING" }] }
   ],
   "fieldOverrides": []
 }

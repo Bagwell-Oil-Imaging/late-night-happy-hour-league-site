@@ -1,82 +1,86 @@
 ---
 id: "phase-2/sub-task-1"
-title: "firebase-admin Setup + Batch Write Helper"
+title: "Update DocumentSource type and add driveFileUrl utility"
 phase: 2
 task: 1
-status: pending
-depends_on: ["phase-1/sub-task-1"]
-blocks: ["phase-2/sub-task-2", "phase-2/sub-task-3", "phase-2/sub-task-4"]
-branch: "feature/firebase-firestore-migration"
+status: completed
+depends_on: []
+blocks: ["phase-3/sub-task-1", "phase-4/sub-task-1"]
+branch: "feature/google-drive-storage"
 commit_prefix: "feat(phase-2/task-1)"
-estimated_files: 3
+estimated_files: 2
 ---
 
-# Phase 2 / Sub-Task 1: firebase-admin Setup + Batch Write Helper
+# Phase 2 / Sub-Task 1: Update DocumentSource type and add driveFileUrl utility
 
 ## Summary
 
-Installs `firebase-admin` as a production dependency and wires up service account authentication in
-`scripts/transform-data.js`. Extracts a reusable `batchWrite(collection, docs)` helper that handles
-the 500-document Firestore batch limit automatically. This scaffolding is what all subsequent Phase 2
-sub-tasks build on — none of them can write to Firestore until this plumbing exists.
+Updates the `DocumentSource` TypeScript interface in `src/types/index.ts` to
+replace the Firebase Storage `fileUrl` field with a `driveFileId` field. Also
+creates `src/utils/drive.ts` with a `driveFileUrl(fileId)` helper that converts
+a Drive file ID to a public-facing URL. Both the admin UI update (phase 3) and
+the frontend display update (phase 4) depend on these shared definitions.
 
 ## Implementation Plan
 
-1. **Install `firebase-admin`** as a dependency (not devDependency — the transform script is a
-   production data pipeline):
+1. **Edit `src/types/index.ts`** — In the `DocumentSource` interface, replace:
+   ```ts
+   /** Firebase Storage URL when type == 'pdf', null otherwise */
+   fileUrl: string | null;
    ```
-   npm install firebase-admin
+   with:
+   ```ts
+   /** Google Drive file ID when type == 'pdf', null otherwise */
+   driveFileId: string | null;
    ```
 
-2. **Add service account env var to `.env.example`**:
-   ```
-   FIREBASE_SERVICE_ACCOUNT_PATH=./service-account.json
-   ```
-   Note: `service-account.json` must be in `.gitignore` already — verify this.
+2. **Create `src/utils/drive.ts`** — Export two functions:
+   - `driveFileUrl(fileId: string): string` — returns
+     `https://drive.google.com/file/d/${fileId}/view`
+   - `driveDownloadUrl(fileId: string): string` — returns
+     `https://drive.google.com/uc?export=download&id=${fileId}`
+     (used for the download button in BylawsModal)
 
-3. **Scaffold the top of `scripts/transform-data.js`**:
-   - Add `require('dotenv').config()` at the top
-   - Initialize `firebase-admin` using `serviceAccount` from `FIREBASE_SERVICE_ACCOUNT_PATH`
-   - Export (or scope-close) a `db` reference to the Firestore instance
-   - Write a `batchWrite(collectionName, docs)` async function:
-     - Splits `docs` array into chunks of 500
-     - Uses `db.batch()` for each chunk with `batch.set()` for each doc
-     - Logs `[collectionName] Wrote N documents` after each chunk commits
-   - Write a `clearCollection(collectionName)` async function for re-run safety:
-     - Deletes all documents in the named collection using batched deletes
-     - Logs before and after
+3. **Fix TypeScript errors** — After changing the type, the compiler will flag
+   any references to `source.fileUrl` in `DocumentsAdmin.tsx` and
+   `BylawsModal.tsx`. Leave those as `// TODO: phase-3` and `// TODO: phase-4`
+   comments for now — they will be fixed in their respective sub-tasks. The goal
+   of this sub-task is only the type and utility, not the consumers.
 
-4. **Update the `update-data` npm script** to chain the transform after the fetch:
-   The script already exists as `node scripts/fetch-league-data.js && node scripts/transform-data.js`.
-   No change needed — just confirm it still works after adding the firebase-admin init.
+   Actually: since the TypeScript errors will break `npm run build`, instead
+   add a temporary type alias:
+   ```ts
+   /** @deprecated use driveFileId — remove after phase-3/phase-4 */
+   fileUrl?: string | null;
+   ```
+   keeping both fields temporarily so the build stays green until consumers
+   are updated.
 
 ## File Operations
 
+### Add
+- `src/utils/drive.ts` — Drive URL helper functions
+
 ### Edit
-- `scripts/transform-data.js` — Add dotenv config, firebase-admin init, `batchWrite()` helper, `clearCollection()` helper at the top of the file
-- `.env.example` — Add `FIREBASE_SERVICE_ACCOUNT_PATH` with placeholder and comment
-- `package.json` — `firebase-admin` added to `dependencies` by npm install
+- `src/types/index.ts` — Add `driveFileId` to `DocumentSource`; keep deprecated `fileUrl` temporarily
 
 ## Dependencies
 
 ### Depends On
-- `phase-1/sub-task-1` — Firebase project must be configured; `.env.example` must exist
+- *(none — pure type and utility work)*
 
 ### Blocks
-- `phase-2/sub-task-2` — leagueConfig mapping uses `batchWrite()`
-- `phase-2/sub-task-3` — teams/bowlers mapping uses `batchWrite()`
-- `phase-2/sub-task-4` — bowlerScores mapping uses `batchWrite()`
+- `phase-3/sub-task-1` — DocumentsAdmin needs `driveFileId` type and `driveFileUrl` util
+- `phase-4/sub-task-1` — BylawsModal needs `driveFileId` type and `driveFileUrl` util
 
 ## Acceptance Criteria
 
-- [ ] `firebase-admin` appears in `package.json` dependencies
-- [ ] `scripts/transform-data.js` initializes firebase-admin at the top using env-provided service account path
-- [ ] `batchWrite(collectionName, docs)` function exists, handles >500 docs by chunking
-- [ ] `clearCollection(collectionName)` function exists for idempotent re-runs
-- [ ] `.env.example` documents `FIREBASE_SERVICE_ACCOUNT_PATH`
-- [ ] `service-account.json` is in `.gitignore` (verify, add if missing)
-- [ ] `npm run build` still passes (no changes to React src/)
+- [ ] `src/utils/drive.ts` exports `driveFileUrl` and `driveDownloadUrl`
+- [ ] `driveFileUrl('abc')` returns `https://drive.google.com/file/d/abc/view`
+- [ ] `driveDownloadUrl('abc')` returns `https://drive.google.com/uc?export=download&id=abc`
+- [ ] `DocumentSource` has `driveFileId: string | null` field
+- [ ] `npm run build` passes with no new TypeScript errors
 
 ## Commit Convention
 
-`feat(phase-2/task-1): wire firebase-admin and batch write helper into transform script`
+`feat(phase-2/task-1): add driveFileId type and driveFileUrl utility`

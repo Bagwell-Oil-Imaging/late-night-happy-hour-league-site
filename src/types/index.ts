@@ -201,20 +201,35 @@ export interface Season {
   teams: SeasonTeam[];
 }
 
-/** DocumentSource — discriminated union for document content type */
+/**
+ * DocumentSource — discriminated union for document content type.
+ *
+ * When `type` is 'text', `content` holds Markdown and `driveFileId` is null.
+ * When `type` is 'pdf', `driveFileId` holds the Google Drive file ID and
+ * `content` is null. Use `driveFileUrl(driveFileId)` or
+ * `driveDownloadUrl(driveFileId)` from `src/utils/drive.ts` to produce a URL.
+ *
+ * Firebase Storage (`fileUrl`) was removed in phase-5/sub-task-1. All PDFs
+ * are now served from Google Drive via `driveFileId`.
+ */
 export interface DocumentSource {
   type: 'text' | 'pdf';
   /** Markdown content when type == 'text', null otherwise */
   content: string | null;
-  /** Firebase Storage URL when type == 'pdf', null otherwise */
-  fileUrl: string | null;
+  /**
+   * Google Drive file ID when type == 'pdf', null otherwise.
+   *
+   * Pass this value to `driveFileUrl(fileId)` or `driveDownloadUrl(fileId)`
+   * from `src/utils/drive.ts` to produce a usable URL.
+   */
+  driveFileId: string | null;
 }
 
-/** LeagueDocument — versioned league document (bylaws, rules, etc.) */
+/** LeagueDocument — versioned bylaws PDF per season */
 export interface LeagueDocument {
   id?: string;
   title: string;
-  type: 'bylaws' | 'rules' | 'prizefund' | 'handbook' | 'other';
+  type: 'bylaws';
   version: string;
   seasonYear: string | null;
   effectiveDate: string;

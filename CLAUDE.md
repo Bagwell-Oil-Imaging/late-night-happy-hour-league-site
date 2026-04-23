@@ -23,7 +23,7 @@ late-night-happy-hour-league-site/
 │   │   └── index.ts          # All TypeScript interfaces (Firestore schema)
 │   ├── utils/
 │   │   └── admin.ts          # Admin utility helpers
-│   ├── firebase.ts           # Firebase app initialization (db, auth, storage)
+│   ├── firebase.ts           # Firebase app initialization (db, auth only — no Storage)
 │   ├── App.tsx
 │   ├── App.css
 │   ├── main.tsx
@@ -38,8 +38,7 @@ late-night-happy-hour-league-site/
 ├── public/                   # Static assets
 ├── firestore.rules           # Firestore security rules (public read, auth write)
 ├── firestore.indexes.json    # Composite index definitions
-├── storage.rules             # Firebase Storage security rules
-├── firebase.json             # Firebase project deployment config
+├── firebase.json             # Firebase project deployment config (Firestore only)
 ├── .env.example              # Required environment variables
 ├── index.html
 ├── package.json
@@ -91,8 +90,8 @@ The admin panel is accessible at `/admin/login`. Authentication uses Firebase Au
 Admin panels available:
 - `/admin/announcements` — Create, edit, delete announcements
 - `/admin/events` — Create, edit, delete league events
-- `/admin/carousel` — Manage homepage carousel images (Firebase Storage)
-- `/admin/documents` — Upload and version PDF bylaws/documents
+- `/admin/carousel` — Manage homepage carousel images
+- `/admin/documents` — Upload and version PDF bylaws/documents (PDFs stored in Google Drive)
 
 ## AI-Assisted Changes
 
@@ -102,6 +101,7 @@ Admin panels available:
 - **Phase 4** (Component Migration): Migrated all React components from static JSON imports to Firestore hooks.
 - **Phase 5** (Admin CRUD UI): Built Firebase Auth–gated admin panels for announcements, events, carousel images, and documents.
 - **Phase 6** (Cleanup): Removed all static `src/data/*.json` files; resolved TypeScript errors; updated documentation.
+- **Google Drive Migration** (feature/google-drive-storage): Replaced Firebase Storage with Google Drive for bylaws PDF storage. Added Vercel serverless upload endpoint (`api/upload-to-drive.js`), `DocumentSource.driveFileId` type field, Drive URL utilities, and updated `DocumentsAdmin` + `BylawsModal`. Removed Firebase Storage SDK, `storage.rules`, `VITE_FIREBASE_STORAGE_BUCKET`, and the deprecated `fileUrl` field.
 
 ## Known Issues / Limitations
 

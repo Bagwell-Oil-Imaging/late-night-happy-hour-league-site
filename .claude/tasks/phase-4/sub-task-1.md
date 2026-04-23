@@ -1,91 +1,92 @@
 ---
 id: "phase-4/sub-task-1"
-title: "Standings + Teams + Matchups Components"
+title: "Update BylawsModal to serve PDFs from Google Drive"
 phase: 4
 task: 1
 status: pending
-depends_on: ["phase-3/sub-task-2"]
-blocks: ["phase-6/sub-task-1", "phase-6/sub-task-3"]
-branch: "feature/firebase-firestore-migration"
+depends_on: ["phase-2/sub-task-1"]
+blocks: ["phase-5/sub-task-1"]
+branch: "feature/google-drive-storage"
 commit_prefix: "feat(phase-4/task-1)"
-estimated_files: 5
+estimated_files: 1
 ---
 
-# Phase 4 / Sub-Task 1: Standings + Teams + Matchups Components
+# Phase 4 / Sub-Task 1: Update BylawsModal to serve PDFs from Google Drive
 
 ## Summary
 
-Migrates the standings, teams, and matchup display components from static JSON imports to Firestore
-hooks. Renames all field references (`team1Score` → `team1ScratchScore`, game totals
-`g1`/`g2`/`g3` → `game1Total`/`game2Total`/`game3Total`) and uses the new `Team` and `Matchup`
-interfaces. Adds loading/error states to all components using the hook return values.
+Updates `src/components/BylawsModal.tsx` to resolve PDF URLs from
+`source.driveFileId` using the `driveFileUrl()` and `driveDownloadUrl()` helpers
+instead of reading `source.fileUrl` directly. The component's visual structure,
+iframe embed, download button, and loading/empty states are unchanged — only
+the URL resolution logic swaps out.
 
 ## Implementation Plan
 
-For each component below, the migration pattern is:
-1. Remove the `import data from '../data/X.json'` line
-2. Import the relevant domain hook from `src/hooks`
-3. Replace the static data variable with `const { data, loading, error } = useXxx(...)`
-4. Add a loading state guard (`if (loading) return <div>Loading...</div>`)
-5. Rename all field references per the schema changes
-6. Update JSDoc comment on the component
+1. **Import Drive utilities** — Add:
+   ```ts
+   import { driveFileUrl, driveDownloadUrl } from '../utils/drive'
+   ```
 
-### Components to migrate:
+2. **Replace all `source.fileUrl` references** — There are three in the component:
 
-**`src/components/LeagueStandings.tsx`**:
-- Remove: `import teams from '../data/teams.json'`
-- Add: `const { data: teams, loading } = useTeams('2025-2026')`
-- Field renames: none expected (teams schema backward-compatible for display fields)
-- Note: standings are now sorted by `points DESC` (already correct)
+   a. Download button in modal header (line ~71):
+   ```tsx
+   // OLD
+   {doc?.source.type === 'pdf' && doc.source.fileUrl && (
+     <a href={doc.source.fileUrl} download ...>Download</a>
+   )}
+   // NEW
+   {doc?.source.type === 'pdf' && doc.source.driveFileId && (
+     <a href={driveDownloadUrl(doc.source.driveFileId)} download ...>Download</a>
+   )}
+   ```
 
-**`src/pages/TeamsPage.tsx`**:
-- Remove: `import teams from '../data/teams.json'`
-- Add: `const { data: teams, loading } = useTeams('2025-2026')`
-- New fields available: `average`, `scratchPins`, `totalPins`, `highGame` — optionally display
+   b. Iframe src (line ~103):
+   ```tsx
+   // OLD
+   {!loading && doc?.source.type === 'pdf' && doc.source.fileUrl && (
+     <iframe src={doc.source.fileUrl} ... />
+   )}
+   // NEW
+   {!loading && doc?.source.type === 'pdf' && doc.source.driveFileId && (
+     <iframe src={driveFileUrl(doc.source.driveFileId)} ... />
+   )}
+   ```
 
-**`src/pages/MatchupsPage.tsx`**:
-- Remove: `import matchups from '../data/matchups.json'`
-- Add: `const { data: matchups, loading } = useMatchups('2025-2026')`
-- Rename: `team1Score` → `team1ScratchScore`, `team2Score` → `team2ScratchScore`
+   c. Fallback download link (line ~111):
+   ```tsx
+   // OLD
+   <a href={doc.source.fileUrl} download ...>Download PDF</a>
+   // NEW
+   <a href={driveDownloadUrl(doc.source.driveFileId!)} download ...>Download PDF</a>
+   ```
 
-**`src/components/WeekMatchupsModal.tsx`**:
-- Remove JSON import for matchups
-- Add: `const { data: matchups } = useMatchups('2025-2026', week)`
-- Rename score fields as above
-
-**`src/components/MatchupDetailModal.tsx`**:
-- Remove: `import details from '../data/weeklyMatchupDetails.json'`
-- Add: `const { data: detail } = useMatchupDetail(matchupId)`
-- Rename `team.g1`/`g2`/`g3` → `team.game1Total`/`game2Total`/`game3Total`
-- Rename `team.gameTotals.g1` etc. if present
+3. **Update JSDoc** — Update the module docstring to replace "pointing at
+   `doc.source.fileUrl`" with "pointing at the Drive file URL resolved from
+   `doc.source.driveFileId`".
 
 ## File Operations
 
 ### Edit
-- `src/components/LeagueStandings.tsx` — Replace JSON import with `useTeams` hook
-- `src/pages/TeamsPage.tsx` — Replace JSON import with `useTeams` hook
-- `src/pages/MatchupsPage.tsx` — Replace JSON import with `useMatchups` hook, rename score fields
-- `src/components/WeekMatchupsModal.tsx` — Replace JSON import with `useMatchups` hook
-- `src/components/MatchupDetailModal.tsx` — Replace JSON import with `useMatchupDetail` hook, rename game total fields
+- `src/components/BylawsModal.tsx` — Replace `source.fileUrl` with `driveFileId` + helper functions
 
 ## Dependencies
 
 ### Depends On
-- `phase-3/sub-task-2` — Domain hooks must exist
+- `phase-2/sub-task-1` — `driveFileId` type and `driveFileUrl`/`driveDownloadUrl` utils must exist
 
 ### Blocks
-- `phase-6/sub-task-1` — JSON files can only be deleted after all components migrated
-- `phase-6/sub-task-3` — onSnapshot can only be added after hook usage is established
+- `phase-5/sub-task-1` — Firebase Storage can only be fully removed after all consumers are updated
 
 ## Acceptance Criteria
 
-- [ ] No `import ... from '../data/` JSON imports in any of the 5 files
-- [ ] All 5 components use Firestore hooks from `src/hooks`
-- [ ] All 5 components render a loading state while data is fetching
-- [ ] `team1Score`/`team2Score` references replaced with `team1ScratchScore`/`team2ScratchScore`
-- [ ] `g1`/`g2`/`g3` game total references replaced with `game1Total`/`game2Total`/`game3Total`
-- [ ] `npm run build` passes with no TypeScript errors in these 5 files
+- [ ] No references to `source.fileUrl` remain in `BylawsModal.tsx`
+- [ ] Iframe src uses `driveFileUrl(doc.source.driveFileId)`
+- [ ] Download buttons use `driveDownloadUrl(doc.source.driveFileId)`
+- [ ] Component renders correctly when `driveFileId` is null (no PDF case)
+- [ ] `npm run build` passes with no TypeScript errors
 
 ## Commit Convention
 
-`feat(phase-4/task-1): migrate standings, teams, and matchup components to Firestore hooks`
+`feat(phase-4/task-1): update BylawsModal to serve PDFs from Google Drive`

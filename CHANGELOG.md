@@ -9,6 +9,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- `scripts/get-drive-oauth-token.cjs` — one-time CLI script to obtain a Google OAuth2 refresh token for the league Google account; required for Drive uploads from the serverless function
+- `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` env vars — OAuth2 credentials for Drive uploads (replaces service-account-based Drive auth in `api/upload-to-drive.js`)
+
+### Fixed
+- `api/upload-to-drive.js` Drive auth: switched from service account to OAuth2 refresh token — service accounts have no Drive storage quota and cannot create files in personal Google Drives
+- `api/upload-to-drive.js` formidable import: destructure `{ formidable }` from the module — formidable v3 no longer exports a callable as its default export
+- `vercel.json` SPA rewrite: exclude `/@*` paths so Vite virtual modules (`/@vite/client`, `/@react-refresh`) are no longer intercepted by the rewrite rule, fixing `vercel dev`
+
+### Added
+- `src/utils/drive.ts` — `driveFileUrl(fileId)` and `driveDownloadUrl(fileId)` helpers that convert a Google Drive file ID to a viewer or download URL
+- `DocumentSource.driveFileId: string | null` field — replaces Firebase Storage URL with a Drive file ID for PDF documents
+- Drag-and-drop PDF upload zone in `DocumentsAdmin` — uploads immediately to Google Drive on file select or drop (no waiting for form submit); shows spinner while uploading, green checkmark + Drive link on success, error message on failure
+
+### Changed
+- **Admin panel UI overhaul** — comprehensive redesign across all admin routes:
+  - `AnnouncementsAdmin.css` — added missing `.admin-field`, `.admin-label`, `.admin-input`, `.admin-select`, `.admin-textarea`, `.admin-field-check`, `.admin-check-label` shared classes; polished buttons (hover lift + gold glow), form cards (gold left-border accent, section divider), inputs (gold focus ring), table (accent-colored headers, pill badges), and checkbox rows
+  - `DocumentsAdmin.css` — added all missing form class definitions, replaced raw upload input with drag-drop zone styles (idle / dragging / uploading / done states), active-row left-border indicator, improved badge and action-button styles; removed source-toggle and markdown-textarea styles (text source no longer supported)
+  - `AdminLayout.css` — added vertical brand/links separator, improved nav font to Anton display, added subtle nav gradient, polished active-link pill state
+  - `AdminLoginPage.css` — replaced all hard-coded hex values with design-system variables, added card entrance animation, improved button to full-width with hover lift
+
+### Changed
+- `DocumentsAdmin` simplified: bylaws PDFs only (type selector removed), season year is now a dropdown populated from the `seasons` collection, markdown/text content source removed, PDF upload is immediate (fires to Google Drive on file select/drop, before form submit)
+- `LeagueDocument.type` narrowed from union `'bylaws' | 'rules' | 'prizefund' | 'handbook' | 'other'` to just `'bylaws'`
+
+### Deprecated
+- `DocumentSource.fileUrl` — superseded by `driveFileId`; will be removed after phase-3 and phase-4 consumers are updated
+
+---
+
 - High Individual Game and High Individual Series highlight cards on the Home Page (top 3 bowlers per category for the latest completed week)
 - `useBowlerScoresByWeek` hook in `src/hooks/index.ts` — fetches non-blinded `BowlerScore` documents for a specific week; uses sentinel pattern to avoid over-fetching when the week is not yet resolved
 - Composite Firestore index: `bowlerScores` on `seasonYear ASC, week ASC, blinded ASC` (required by the new hook)
