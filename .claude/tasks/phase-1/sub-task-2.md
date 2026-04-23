@@ -1,81 +1,86 @@
 ---
 id: "phase-1/sub-task-2"
-title: "Seed Script (12 Collections)"
+title: "Create Vercel serverless upload endpoint (api/upload-to-drive.js)"
 phase: 1
 task: 2
 status: pending
 depends_on: ["phase-1/sub-task-1"]
-blocks: ["phase-1/sub-task-3"]
-branch: "feature/firebase-firestore-migration"
+blocks: ["phase-3/sub-task-1"]
+branch: "feature/google-drive-storage"
 commit_prefix: "feat(phase-1/task-2)"
 estimated_files: 2
 ---
 
-# Phase 1 / Sub-Task 2: Seed Script (12 Collections)
+# Phase 1 / Sub-Task 2: Create Vercel serverless upload endpoint
 
 ## Summary
 
-Writes `scripts/seed-firestore.js`, which reads all existing `src/data/*.json` files and seeds all
-12 Firestore collections using the new schema defined in `firebase-migration-plan.md`. This is a
-one-time bootstrap script — it transforms the existing JSON data into the correct Firestore document
-structure before the full transform pipeline (Phase 2) is ready. Handles the `bowlerStats.json`
-`.data` wrapper inconsistency.
+Creates a Vercel serverless function at `api/upload-to-drive.js` that accepts
+multipart PDF uploads from the browser admin UI, verifies the caller is an
+authenticated Firebase admin, uploads the file to Google Drive, sets it public,
+and returns the Drive file ID. This is necessary because the service account
+credentials cannot be exposed to the browser — they must live in Vercel
+environment variables server-side. Also updates `vercel.json` so the SPA
+catch-all rewrite does not swallow `/api/*` routes.
 
 ## Implementation Plan
 
-1. **Install `firebase-admin`** as a dev dependency: `npm install --save-dev firebase-admin dotenv`.
-   Add `GOOGLE_APPLICATION_CREDENTIALS` to `.env.example` pointing to a local service account JSON.
+1. **Update `vercel.json`** — Change the catch-all rewrite to exclude `/api/`
+   paths so Vercel routes them to serverless functions:
+   ```json
+   {
+     "rewrites": [{ "source": "/((?!api/).*)", "destination": "/" }]
+   }
+   ```
 
-2. **Create `scripts/seed-firestore.js`** with the following seeding logic:
+2. **Create `api/upload-to-drive.js`** — Vercel serverless function:
+   - Parse `multipart/form-data` using the `formidable` package (install it)
+   - Extract fields: `folderId` (string), `fileName` (string); and the uploaded file
+   - Verify Firebase Auth ID token from `Authorization: Bearer <token>` header
+     using the Firebase Admin SDK initialized with credentials from
+     `process.env.GOOGLE_SERVICE_ACCOUNT_JSON` (full JSON string) — NOT a file path
+   - Upload the file buffer to Drive using `googleapis` with credentials parsed
+     from `process.env.GOOGLE_SERVICE_ACCOUNT_JSON`
+   - Call `setPublic` on the new file ID
+   - Return `{ fileId }` as JSON with status 200
+   - Return `{ error }` with appropriate 4xx/5xx on failure
 
-   - Initialize `firebase-admin` using `applicationDefault()` or a service account file from `.env`
-   - Use Firestore batch writes (max 500 docs per batch) for all large collections
-   - Seed each of the 12 collections in this order (respecting FK dependencies):
-     1. `seasons` — from `src/data/seasons.json` → map `champion` string to `championTeamId: null, championTeamName: champion`
-     2. `leagueConfig` — **manually construct** a single document for `"2025-2026"` using hardcoded values from the migration plan (handicapPct: 0.85, bowlersPerTeam: 4, gamesPerNight: 3, etc.) since `league-public.json` raw data is in `leaguepals-data/` not `src/data/`
-     3. `scheduleWeeks` — from `src/data/scheduleWeeks.json` → remove `dataWeek` field, doc ID = `date`
-     4. `teams` — from `src/data/teams.json` → add `leaguePalsId` field (use existing `id` cast to string as placeholder until Phase 2 sets real ObjectIds), map all fields to schema
-     5. `bowlers` — from `src/data/bowlerStats.json` (unwrap `.data` array) → map to bowlers schema with `leaguePalsId: id`, `teamId` as string FK, split `name` into `firstName`/`lastName`
-     6. `matchups` — from `src/data/matchups.json` → rename `team1Score`/`team2Score` to `team1ScratchScore`/`team2ScratchScore`, cast team IDs to string
-     7. `matchupDetails` — from `src/data/weeklyMatchupDetails.json` → map `TeamDetail` to `TeamSummary`, rename `g1/g2/g3` to `game1/game2/game3`
-     8. `bowlerScores` — from each bowler's `weeks` array in `bowlerStats.json` → one doc per bowler×week, rename `g1/g2/g3` to `game1/game2/game3`, set `blinded: false` and `preBowled: false` for all (Phase 2 corrects this)
-     9. `announcements` — from `src/data/announcements.json` → add `pinned: false`, `expiresAt: null`, `createdAt`, `updatedAt`
-     10. `events` — from `src/data/events.json` → add `endDate: null`, `allDay: false`, `createdAt`, `updatedAt`
-     11. `carouselImages` — from `src/data/carouselImages.json` → rename `image` → `imageUrl`, add `createdAt`, `updatedAt`
-     12. `documents` — seed empty (no existing documents data), skip
+3. **Install `formidable`** — `npm install formidable` (for multipart parsing in
+   the serverless context; Vercel does not parse bodies automatically)
 
-3. **Add `seed` script to `package.json`**: `"seed": "node scripts/seed-firestore.js"`
+4. **Add env var docs** — Add `GOOGLE_SERVICE_ACCOUNT_JSON` to `.env.example`
+   with instructions to paste the full contents of `service-account.json`
 
-4. **Document service account setup** in a comment block at the top of the seed script.
+5. **Auth verification** — Use `firebase-admin`'s `auth().verifyIdToken(token)`.
+   Initialize firebase-admin from `GOOGLE_SERVICE_ACCOUNT_JSON` env var, not
+   a file path (file paths don't exist in Vercel's serverless environment).
 
 ## File Operations
 
 ### Add
-- `scripts/seed-firestore.js` — Full 12-collection seeder reading from `src/data/*.json`
+- `api/upload-to-drive.js` — Vercel serverless function for Drive uploads
 
 ### Edit
-- `package.json` — Add `"seed": "node scripts/seed-firestore.js"` to scripts
-- `.env.example` — Add `GOOGLE_APPLICATION_CREDENTIALS=./service-account.json` with comment
+- `vercel.json` — Exclude `/api/*` from SPA catch-all rewrite
+- `.env.example` — Document `GOOGLE_SERVICE_ACCOUNT_JSON` env var
 
 ## Dependencies
 
 ### Depends On
-- `phase-1/sub-task-1` — Firebase project config must exist; `.env.example` must document CREDENTIALS path
+- `phase-1/sub-task-1` — Mirrors drive-client.cjs logic using env-var credentials
 
 ### Blocks
-- `phase-1/sub-task-3` — Validation script runs the seeder
+- `phase-3/sub-task-1` — DocumentsAdmin calls this endpoint to upload PDFs
 
 ## Acceptance Criteria
 
-- [ ] `scripts/seed-firestore.js` exists and has no syntax errors (`node --check scripts/seed-firestore.js`)
-- [ ] All 12 collections are addressed in the script (even if some are empty)
-- [ ] `bowlerStats.json` `.data` wrapper is unwrapped correctly
-- [ ] `team1Score`/`team2Score` renamed to `team1ScratchScore`/`team2ScratchScore` in matchups seeding
-- [ ] `g1`/`g2`/`g3` renamed to `game1`/`game2`/`game3` everywhere
-- [ ] `dataWeek` field removed from scheduleWeeks documents
-- [ ] `npm run build` still passes (no changes to src/)
-- [ ] `.env.example` documents `GOOGLE_APPLICATION_CREDENTIALS`
+- [ ] `api/upload-to-drive.js` exists and exports a default handler function
+- [ ] `vercel.json` rewrite excludes `/api/` prefix
+- [ ] `formidable` is in `package.json` dependencies
+- [ ] `GOOGLE_SERVICE_ACCOUNT_JSON` is documented in `.env.example`
+- [ ] Function returns 401 when Authorization header is missing or invalid
+- [ ] Function returns `{ fileId: "..." }` on successful upload
 
 ## Commit Convention
 
-`feat(phase-1/task-2): add seed-firestore.js to bootstrap all 12 Firestore collections`
+`feat(phase-1/task-2): add Vercel serverless Drive upload endpoint`

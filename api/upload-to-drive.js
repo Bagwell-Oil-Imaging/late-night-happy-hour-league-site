@@ -16,12 +16,13 @@
  * On failure returns: { error: "<message>" } with 4xx or 5xx status code.
  *
  * Security model:
- *   - The Google service account credentials are stored server-side in the
- *     GOOGLE_SERVICE_ACCOUNT_JSON environment variable (full JSON string).
- *     They are NEVER exposed to the browser.
- *   - The caller must provide a valid Firebase ID token to prove they are an
- *     authenticated admin. The token is verified with firebase-admin before
- *     any Drive operation is performed.
+ *   - Drive uploads are authenticated via OAuth2 using a stored refresh token
+ *     for the league Google account. This is required because service accounts
+ *     have no Drive storage quota and cannot create files in personal Drives.
+ *   - Firebase Admin SDK (service account) is used only to verify the caller's
+ *     Firebase ID token — not for Drive operations.
+ *   - All credentials are stored server-side in environment variables and are
+ *     never exposed to the browser.
  *
  * Module format: ESM (export default) — the project uses "type": "module" in
  * package.json, so all .js files are treated as ESM. Vercel's serverless
@@ -29,9 +30,11 @@
  * api/ functions; ESM is used here to align with the project's module system.
  *
  * Environment variables required (set in Vercel dashboard and locally in .env):
- *   GOOGLE_SERVICE_ACCOUNT_JSON — Full JSON content of the service account key
- *   VITE_FIREBASE_PROJECT_ID    — Firebase project ID (used by firebase-admin
- *                                 to locate the project for token verification)
+ *   GOOGLE_SERVICE_ACCOUNT_JSON  — Service account JSON for Firebase Admin SDK
+ *                                  (token verification only, not Drive uploads)
+ *   GOOGLE_OAUTH_CLIENT_ID       — OAuth2 client ID for Drive uploads
+ *   GOOGLE_OAUTH_CLIENT_SECRET   — OAuth2 client secret for Drive uploads
+ *   GOOGLE_OAUTH_REFRESH_TOKEN   — Refresh token for the league Google account
  */
 
 import { google } from 'googleapis';
@@ -53,7 +56,7 @@ import admin from 'firebase-admin';
  * @type {import('formidable')}
  */
 const require = createRequire(import.meta.url);
-const formidable = require('formidable');
+const { formidable } = require('formidable');
 
 // ---------------------------------------------------------------------------
 // Firebase Admin SDK initialisation
@@ -96,33 +99,33 @@ function initFirebaseAdmin() {
 // ---------------------------------------------------------------------------
 
 /**
- * Creates an authenticated Google Drive v3 client using the service account
- * credentials stored in GOOGLE_SERVICE_ACCOUNT_JSON.
+ * Creates an authenticated Google Drive v3 client using OAuth2 credentials
+ * for the league Google account.
  *
- * This mirrors the approach used in scripts/drive-client.cjs but uses env-var
- * credentials instead of a keyFile path, because file paths do not exist in
- * Vercel's serverless environment.
+ * Service accounts cannot create files in personal Google Drives because they
+ * have no Drive storage quota. OAuth2 with a stored refresh token authenticates
+ * as the real Google account (which has quota) instead.
+ *
+ * Required env vars:
+ *   GOOGLE_OAUTH_CLIENT_ID      — OAuth2 client ID
+ *   GOOGLE_OAUTH_CLIENT_SECRET  — OAuth2 client secret
+ *   GOOGLE_OAUTH_REFRESH_TOKEN  — Offline refresh token for the league account
  *
  * @returns {import('googleapis').drive_v3.Drive} Authenticated Drive v3 client.
- * @throws {Error} When GOOGLE_SERVICE_ACCOUNT_JSON is missing or malformed.
+ * @throws {Error} When any required OAuth env var is missing.
  */
 function getDriveClient() {
-  const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const { GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REFRESH_TOKEN } = process.env;
 
-  if (!serviceAccountJson) {
+  if (!GOOGLE_OAUTH_CLIENT_ID || !GOOGLE_OAUTH_CLIENT_SECRET || !GOOGLE_OAUTH_REFRESH_TOKEN) {
     throw new Error(
-      'GOOGLE_SERVICE_ACCOUNT_JSON environment variable is not set.'
+      'Missing OAuth2 credentials. Set GOOGLE_OAUTH_CLIENT_ID, ' +
+      'GOOGLE_OAUTH_CLIENT_SECRET, and GOOGLE_OAUTH_REFRESH_TOKEN.'
     );
   }
 
-  const credentials = JSON.parse(serviceAccountJson);
-
-  const auth = new google.auth.GoogleAuth({
-    // Pass the parsed credentials object directly — no keyFile path needed.
-    credentials,
-    // Full Drive scope — required for creating files and managing permissions.
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
+  const auth = new google.auth.OAuth2(GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET);
+  auth.setCredentials({ refresh_token: GOOGLE_OAUTH_REFRESH_TOKEN });
 
   return google.drive({ version: 'v3', auth });
 }

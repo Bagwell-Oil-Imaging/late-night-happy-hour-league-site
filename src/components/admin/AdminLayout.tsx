@@ -11,10 +11,14 @@
  * it can safely assume the current user is authenticated.
  */
 
+import { useEffect, useRef } from 'react'
 import { useNavigate, NavLink, Outlet } from 'react-router-dom'
 import { signOut } from 'firebase/auth'
 import { auth } from '../../firebase'
 import './AdminLayout.css'
+
+/** Sign out automatically after 30 minutes of no mouse/keyboard/touch activity. */
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000
 
 /**
  * AdminLayout component.
@@ -31,6 +35,31 @@ import './AdminLayout.css'
  */
 function AdminLayout() {
   const navigate = useNavigate()
+  const lastActivityRef = useRef(Date.now())
+
+  /**
+   * Idle timeout: reset the activity timestamp on any user interaction.
+   * Check every minute — if the gap exceeds IDLE_TIMEOUT_MS, sign out.
+   */
+  useEffect(() => {
+    function resetTimer() {
+      lastActivityRef.current = Date.now()
+    }
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'] as const
+    events.forEach(e => window.addEventListener(e, resetTimer, { passive: true }))
+
+    const interval = setInterval(() => {
+      if (Date.now() - lastActivityRef.current >= IDLE_TIMEOUT_MS) {
+        signOut(auth).finally(() => navigate('/admin/login', { replace: true }))
+      }
+    }, 60_000)
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetTimer))
+      clearInterval(interval)
+    }
+  }, [navigate])
 
   /**
    * Signs the current user out of Firebase Auth and redirects to the login page.
@@ -64,6 +93,9 @@ function AdminLayout() {
             Admin
           </NavLink>
         </div>
+
+        {/* Vertical separator between brand and panel links */}
+        <div className="admin-nav-sep" aria-hidden="true" />
 
         {/* Panel navigation links */}
         <ul className="admin-nav-links" role="list">

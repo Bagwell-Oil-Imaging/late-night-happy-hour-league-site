@@ -225,11 +225,11 @@ export interface DocumentSource {
   driveFileId: string | null;
 }
 
-/** LeagueDocument — versioned league document (bylaws, rules, etc.) */
+/** LeagueDocument — versioned bylaws PDF per season */
 export interface LeagueDocument {
   id?: string;
   title: string;
-  type: 'bylaws' | 'rules' | 'prizefund' | 'handbook' | 'other';
+  type: 'bylaws';
   version: string;
   seasonYear: string | null;
   effectiveDate: string;

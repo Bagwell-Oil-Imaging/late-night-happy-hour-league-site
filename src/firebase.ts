@@ -16,7 +16,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getAuth, setPersistence, browserSessionPersistence } from "firebase/auth";
 
 /**
  * Firebase project configuration.
@@ -42,6 +42,9 @@ export const db = getFirestore(app);
 
 /**
  * Firebase Auth client.
- * Used by the admin panel for email/password authentication.
+ * Session persistence is set to browserSessionPersistence so the auth token
+ * is cleared when the browser tab/window is closed. The user must sign in
+ * again in each new session — no "remember me" behaviour.
  */
 export const auth = getAuth(app);
+setPersistence(auth, browserSessionPersistence);
