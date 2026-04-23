@@ -19,6 +19,7 @@ import {
   doc,
   getDocs,
   query,
+  updateDoc,
   where,
   writeBatch,
   orderBy,
@@ -86,6 +87,10 @@ function DocumentsAdmin() {
   const [formOpen, setFormOpen] = useState(false)
   const [seasonYear, setSeasonYear] = useState('')
   const [saving, setSaving] = useState(false)
+
+  // ── Inline season-edit state ──────────────────────────────────────────────
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingSeason, setEditingSeason] = useState('')
 
   // ── Upload state ─────────────────────────────────────────────────────────
   const [uploadedDriveFileId, setUploadedDriveFileId] = useState<string | null>(null)
@@ -221,6 +226,39 @@ function DocumentsAdmin() {
     } catch (err) {
       console.error('[DocumentsAdmin] save error:', err)
       alert('Save failed — see console for details.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // ── Season edit handler ───────────────────────────────────────────────────
+
+  /**
+   * Saves a season change for an existing document.
+   * Recalculates version number for the new season and auto-activates.
+   *
+   * @param d         - The document being edited.
+   * @param newSeason - The newly selected season year.
+   */
+  async function handleSaveSeason(d: LeagueDocument, newSeason: string) {
+    if (newSeason === d.seasonYear) { setEditingId(null); return }
+    setSaving(true)
+    try {
+      const otherDocs = documents.filter(x => x.id !== d.id)
+      const newRevision = nextRevision(otherDocs, newSeason)
+      const newVersion = formatVersion(newSeason, newRevision)
+      const now = nowIso()
+      await updateDoc(doc(db, 'documents', d.id!), {
+        seasonYear: newSeason,
+        version: newVersion,
+        title: `League Bylaws ${newSeason}`,
+        updatedAt: now,
+      })
+      await batchSetActive(d.id!, newSeason)
+      setEditingId(null)
+    } catch (err) {
+      console.error('[DocumentsAdmin] season update error:', err)
+      alert('Update failed — see console for details.')
     } finally {
       setSaving(false)
     }
@@ -424,38 +462,85 @@ function DocumentsAdmin() {
               </tr>
             </thead>
             <tbody>
-              {documents.map(d => (
-                <tr key={d.id} className={d.active ? 'doc-row-active' : ''}>
-                  <td className="doc-cell-title">{d.version}</td>
-                  <td>{d.seasonYear ?? '—'}</td>
-                  <td>
-                    {d.active
-                      ? <span className="doc-badge-active">Active</span>
-                      : <span className="doc-badge-inactive">Superseded</span>
-                    }
-                  </td>
-                  <td>
-                    {d.source.driveFileId ? (
-                      <a
-                        href={driveFileUrl(d.source.driveFileId)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="doc-pdf-link"
-                      >
-                        PDF ↗
-                      </a>
-                    ) : '—'}
-                  </td>
-                  <td className="admin-col-actions">
-                    <button
-                      className={`admin-btn-action admin-btn-delete${d.active ? ' admin-btn-delete-warn' : ''}`}
-                      onClick={() => handleDelete(d)}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {documents.map(d => {
+                const isEditing = editingId === d.id
+                return (
+                  <tr key={d.id} className={d.active ? 'doc-row-active' : ''}>
+                    <td className="doc-cell-title">{d.version}</td>
+                    <td>
+                      {isEditing ? (
+                        <select
+                          className="admin-select doc-season-select"
+                          value={editingSeason}
+                          onChange={e => setEditingSeason(e.target.value)}
+                          autoFocus
+                        >
+                          {seasons.map(s => (
+                            <option key={s.year} value={s.year}>{s.year}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        d.seasonYear ?? '—'
+                      )}
+                    </td>
+                    <td>
+                      {d.active
+                        ? <span className="doc-badge-active">Active</span>
+                        : <span className="doc-badge-inactive">Superseded</span>
+                      }
+                    </td>
+                    <td>
+                      {d.source.driveFileId ? (
+                        <a
+                          href={driveFileUrl(d.source.driveFileId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="doc-pdf-link"
+                        >
+                          PDF ↗
+                        </a>
+                      ) : '—'}
+                    </td>
+                    <td className="admin-col-actions">
+                      {isEditing ? (
+                        <>
+                          <button
+                            className="admin-btn-action admin-btn-save"
+                            onClick={() => handleSaveSeason(d, editingSeason)}
+                            disabled={saving}
+                          >
+                            {saving ? '…' : 'Save'}
+                          </button>
+                          <button
+                            className="admin-btn-action admin-btn-secondary"
+                            onClick={() => setEditingId(null)}
+                            disabled={saving}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="admin-btn-action admin-btn-edit"
+                            onClick={() => { setEditingId(d.id!); setEditingSeason(d.seasonYear ?? '') }}
+                            disabled={saving}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className={`admin-btn-action admin-btn-delete${d.active ? ' admin-btn-delete-warn' : ''}`}
+                            onClick={() => handleDelete(d)}
+                            disabled={saving}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
