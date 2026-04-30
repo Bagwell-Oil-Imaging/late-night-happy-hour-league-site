@@ -52,8 +52,11 @@ if (!LEAGUEPALS_EMAIL || !LEAGUEPALS_PASSWORD) {
   process.exit(1)
 }
 
-// Drive upload is optional — set DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS to enable
-const DRIVE_FOLDER_STANDINGS = process.env.DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS || ''
+// Drive upload target — auto-created on first run if not explicitly set
+const DRIVE_FOLDER_STANDINGS_ENV = process.env.DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS || ''
+// Optional parent season folder — if set, the weekly standings folder is created inside it
+const DRIVE_FOLDER_SEASON = process.env.DRIVE_FOLDER_2025_2026 || ''
+const STANDINGS_FOLDER_NAME = 'Weekly Standings — 2025-2026'
 
 /** @param {number} ms */
 const wait = ms => new Promise(r => setTimeout(r, ms))
@@ -545,16 +548,17 @@ function getDriveClient() {
  * @param {string} pdfPath     Absolute path to the local PDF file.
  * @param {number} weekNum     1-based week number used in the file name.
  * @param {string} weekLabel   Human-readable week label (e.g. "Week 12").
+ * @param {string} folderId    Google Drive folder ID to upload into.
  * @returns {Promise<string>}  Resolves with the new Drive file ID.
  * @throws {Error}             On any Drive API error.
  */
-async function uploadPdfToDrive(drive, pdfPath, weekNum, weekLabel) {
+async function uploadPdfToDrive(drive, pdfPath, weekNum, weekLabel, folderId) {
   const fileName = `Week ${String(weekNum).padStart(2, '0')} - ${weekLabel}.pdf`
   const buffer = readFileSync(pdfPath)
   const bodyStream = Readable.from(buffer)
 
   const { data } = await drive.files.create({
-    requestBody: { name: fileName, parents: [DRIVE_FOLDER_STANDINGS] },
+    requestBody: { name: fileName, parents: [folderId] },
     media: { mimeType: 'application/pdf', body: bodyStream },
     fields: 'id',
   })
@@ -569,6 +573,64 @@ async function uploadPdfToDrive(drive, pdfPath, weekNum, weekLabel) {
   })
 
   return data.id
+}
+
+/**
+ * Finds or creates the "Weekly Standings — 2025-2026" folder in Google Drive.
+ *
+ * Search order:
+ *   1. Return DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS env var immediately if set.
+ *   2. Return cached folder ID from snapshot-ids.json (_folderSetup key) if present.
+ *   3. Query Drive for an existing folder with STANDINGS_FOLDER_NAME inside the
+ *      season parent (DRIVE_FOLDER_2025_2026 env var) or anywhere in My Drive.
+ *   4. Create the folder if not found; place it inside the season parent when set.
+ *
+ * The resolved ID is cached in snapshot-ids.json so subsequent runs skip the API call.
+ *
+ * @param {import('googleapis').drive_v3.Drive} drive  Authenticated Drive client.
+ * @param {Record<string, string>} snapshotCache        Mutable snapshot cache (will be updated).
+ * @returns {Promise<string>} Google Drive folder ID.
+ */
+async function getOrCreateStandingsFolder(drive, snapshotCache) {
+  // 1. Explicit env var wins — no API call needed
+  if (DRIVE_FOLDER_STANDINGS_ENV) return DRIVE_FOLDER_STANDINGS_ENV
+
+  // 2. Cached from a previous run
+  if (snapshotCache._folderSetup) {
+    console.log(`  ✓ Using cached standings folder: ${snapshotCache._folderSetup}`)
+    return snapshotCache._folderSetup
+  }
+
+  // 3. Search Drive for an existing folder with this name
+  const parentClause = DRIVE_FOLDER_SEASON
+    ? ` and '${DRIVE_FOLDER_SEASON}' in parents`
+    : ''
+  const q = `mimeType='application/vnd.google-apps.folder' and name='${STANDINGS_FOLDER_NAME}' and trashed=false${parentClause}`
+  const search = await drive.files.list({ q, fields: 'files(id,name,parents)', spaces: 'drive' })
+
+  if (search.data.files.length > 0) {
+    const folderId = search.data.files[0].id
+    console.log(`  ✓ Found existing folder "${STANDINGS_FOLDER_NAME}": ${folderId}`)
+    snapshotCache._folderSetup = folderId
+    saveCache(snapshotCache)
+    return folderId
+  }
+
+  // 4. Create the folder
+  const metadata = {
+    name: STANDINGS_FOLDER_NAME,
+    mimeType: 'application/vnd.google-apps.folder',
+    ...(DRIVE_FOLDER_SEASON ? { parents: [DRIVE_FOLDER_SEASON] } : {}),
+  }
+  const created = await drive.files.create({ requestBody: metadata, fields: 'id' })
+  const folderId = created.data.id
+  console.log(`  ✓ Created folder "${STANDINGS_FOLDER_NAME}": ${folderId}`)
+  console.log(`  → Add to .env: DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS=${folderId}`)
+  console.log(`  → Add the same value as a GitHub Actions secret`)
+
+  snapshotCache._folderSetup = folderId
+  saveCache(snapshotCache)
+  return folderId
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────
@@ -693,34 +755,39 @@ async function main() {
     }
 
     // ── 7. Upload PDFs to Google Drive ──────────────────────────────────
-    if (!DRIVE_FOLDER_STANDINGS) {
-      console.log('\nSkipping Drive upload — set DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS to enable')
-    } else {
-      const driveCache = loadDriveCache()
-      const uploadable = sortedEntries.filter(({ weekNum }) => {
-        const pdfPath = join(PDF_DIR, `week-${String(weekNum).padStart(2, '0')}.pdf`)
-        return existsSync(pdfPath) && !driveCache[String(weekNum)]
-      })
+    let drive
+    try {
+      drive = getDriveClient()
+    } catch (err) {
+      console.error(`\nSkipping Drive upload — OAuth creds missing: ${err.message}`)
+    }
 
-      console.log(
-        `\nUploading ${uploadable.length} PDF(s) to Google Drive ` +
-        `(${sortedEntries.length - uploadable.length} already uploaded)...`
-      )
-
-      let drive
+    if (drive) {
+      console.log('\nResolving Google Drive standings folder...')
+      let standingsFolderId
       try {
-        drive = getDriveClient()
+        standingsFolderId = await getOrCreateStandingsFolder(drive, cache)
       } catch (err) {
-        console.error(`  ✗ Drive client init failed: ${err.message}`)
-        console.error('  Set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REFRESH_TOKEN')
+        console.error(`  ✗ Could not resolve Drive folder: ${err.message}`)
       }
 
-      if (drive) {
+      if (standingsFolderId) {
+        const driveCache = loadDriveCache()
+        const uploadable = sortedEntries.filter(({ weekNum }) => {
+          const pdfPath = join(PDF_DIR, `week-${String(weekNum).padStart(2, '0')}.pdf`)
+          return existsSync(pdfPath) && !driveCache[String(weekNum)]
+        })
+
+        console.log(
+          `\nUploading ${uploadable.length} PDF(s) to Google Drive ` +
+          `(${sortedEntries.length - uploadable.length} already uploaded)...`
+        )
+
         for (const { weekNum, label } of uploadable) {
           const pdfPath = join(PDF_DIR, `week-${String(weekNum).padStart(2, '0')}.pdf`)
           process.stdout.write(`  [Week ${String(weekNum).padStart(2, '0')}] ${label} → Drive … `)
           try {
-            const fileId = await uploadPdfToDrive(drive, pdfPath, weekNum, label)
+            const fileId = await uploadPdfToDrive(drive, pdfPath, weekNum, label, standingsFolderId)
             driveCache[String(weekNum)] = fileId
             saveDriveCache(driveCache)
             console.log(`✓  ${fileId}`)
