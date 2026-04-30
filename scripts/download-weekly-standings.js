@@ -475,6 +475,12 @@ async function downloadPdf(browser, snapshotId, weekNum, weekLabel) {
   const outPath = join(PDF_DIR, filename)
   const url = `${BASE_URL}/currentstandings?id=${snapshotId}`
 
+  // Skip if the file already exists locally — avoids re-rendering on every run
+  if (existsSync(outPath)) {
+    console.log(`  [Week ${num}] ${weekLabel} … ✓  ${filename} (cached)`)
+    return true
+  }
+
   process.stdout.write(`  [Week ${num}] ${weekLabel} … `)
 
   const pg = await browser.newPage()
@@ -737,6 +743,7 @@ async function main() {
     const weekLabelMap = Object.fromEntries(weeks.map(w => [String(w.weekNum), w.label]))
 
     const sortedEntries = Object.entries(cache)
+      .filter(([wn]) => /^\d+$/.test(wn))  // exclude metadata keys like _folderSetup
       .map(([wn, id]) => ({ weekNum: parseInt(wn), id, label: weekLabelMap[wn] ?? `Week ${wn}` }))
       .sort((a, b) => a.weekNum - b.weekNum)
 
