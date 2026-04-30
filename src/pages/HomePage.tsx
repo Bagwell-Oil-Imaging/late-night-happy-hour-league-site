@@ -27,7 +27,7 @@ import LeagueStandings from '../components/LeagueStandings'
 import AwardLeaders from '../components/AwardLeaders'
 import MatchupDetailModal from '../components/MatchupDetailModal'
 import BowlerProfileModal from '../components/BowlerProfileModal'
-import { useMatchupDetails, useMatchups, useTeams, useBowlerScoresByWeek } from '../hooks'
+import { useMatchupDetails, useMatchups, useTeams, useBowlers, useBowlerScoresByWeek, useSeasons } from '../hooks'
 import { useSeasonYear } from '../context/SeasonContext'
 import type { MatchupDetail } from '../types'
 import './HomePage.css'
@@ -115,6 +115,8 @@ function HomePage() {
   const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails(SEASON_YEAR)
   const { data: teams, loading: teamsLoading } = useTeams(SEASON_YEAR)
   const { data: allMatchups, loading: matchupsLoading } = useMatchups(SEASON_YEAR)
+  const { data: bowlers } = useBowlers(SEASON_YEAR)
+  const { data: seasons } = useSeasons()
 
   // Derive the latest week number from available matchup details
   const latestWeek = useMemo(() => {
@@ -521,9 +523,30 @@ function HomePage() {
           stat={`Wk ${latestWeek}`}
           statLabel="Latest"
         />
-        <NavCard to="/teams"   icon="👥" title="Teams"   description="" />
-        <NavCard to="/bowlers" icon="🎯" title="Bowlers" description="" />
-        <NavCard to="/history" icon="📜" title="History" description="" />
+        <NavCard
+          to="/teams"
+          icon="👥"
+          title="Teams"
+          description=""
+          stat={teams.length ? String(teams.length) : undefined}
+          statLabel="This Season"
+        />
+        <NavCard
+          to="/bowlers"
+          icon="🎯"
+          title="Bowlers"
+          description=""
+          stat={bowlers.length ? String(bowlers.length) : undefined}
+          statLabel="This Season"
+        />
+        <NavCard
+          to="/history"
+          icon="📜"
+          title="History"
+          description=""
+          stat={seasons.length ? String(seasons.length) : undefined}
+          statLabel={seasons.length === 1 ? 'Season' : 'Seasons'}
+        />
       </div>
 
       {/* Standings + Award Leaders */}

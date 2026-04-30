@@ -1,7 +1,6 @@
 .header {
   background: linear-gradient(180deg, var(--navy-950) 0%, var(--navy-800) 100%);
   border-bottom: 1px solid var(--border-default);
-  /* Subtle gold glow at the bottom edge */
   box-shadow: 0 1px 0 var(--border-subtle), 0 4px 24px rgba(0, 0, 0, 0.6);
   position: sticky;
   top: 0;
@@ -14,7 +13,7 @@
   margin: 0 auto;
   padding: var(--space-3) var(--space-8);
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   gap: var(--space-5);
 }
@@ -43,7 +42,7 @@
 .logo-text h1 {
   font-family: var(--font-display);
   font-size: var(--text-3xl);
-  font-weight: 400; /* Anton is always bold, weight 400 is its only weight */
+  font-weight: 400;
   color: var(--text-primary);
   margin: 0;
   letter-spacing: 1px;
@@ -61,13 +60,42 @@
   text-transform: uppercase;
 }
 
-/* ── Nav ──────────────────────────────────────────────────────────────── */
+.logo-text .season-indicator {
+  font-family: var(--font-heading);
+  font-size: 0.58rem;
+  color: var(--text-muted, var(--text-secondary));
+  margin: 3px 0 0 0;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+/* ── Inline nav (desktop only) ────────────────────────────────────────── */
 
 .nav {
   display: flex;
   align-items: center;
   gap: 2px;
+  margin-left: auto;
 }
+
+.announcements-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Header actions (right side) ──────────────────────────────────────── */
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+/* ── Join the League CTA ──────────────────────────────────────────────── */
 
 .nav-link {
   font-family: var(--font-heading);
@@ -80,11 +108,9 @@
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
-  position: relative;
   background: none;
   border: none;
   cursor: pointer;
-  font-family: var(--font-heading);
   white-space: nowrap;
 }
 
@@ -93,18 +119,83 @@
   background-color: rgba(240, 180, 41, 0.08);
 }
 
-.announcements-button {
+.nav-link-contact {
+  color: var(--accent);
+  border: 1px solid var(--border-gold);
+}
+
+.nav-link-contact:hover {
+  background-color: rgba(240, 180, 41, 0.14) !important;
+  color: var(--accent-bright);
+}
+
+/* ── Hamburger dropdown menu ──────────────────────────────────────────── */
+
+.menu-wrapper {
+  position: relative;
+}
+
+.nav-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 210px;
+  background: linear-gradient(160deg, var(--navy-950) 0%, var(--navy-800) 100%);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.65), 0 0 0 1px var(--border-subtle);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2) 0;
+  animation: dropdown-in 0.15s ease-out;
+}
+
+@keyframes dropdown-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dropdown-link {
+  font-family: var(--font-heading);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: var(--space-3) var(--space-5);
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  display: block;
+  width: 100%;
+  text-align: left;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.dropdown-link:hover {
+  color: var(--accent);
+  background-color: rgba(240, 180, 41, 0.08);
+  border-left-color: var(--accent);
+  padding-left: calc(var(--space-5) + 4px);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: var(--space-2) 0;
+}
+
+.dropdown-announcements {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--text-secondary);
-  border: none;
 }
 
-.announcements-button:hover {
-  color: var(--accent);
-  background-color: rgba(240, 180, 41, 0.08);
-}
+/* ── Shared badge + icon (used in dropdown) ───────────────────────────── */
 
 .announcements-icon { font-size: 0.95rem; line-height: 1; }
 
@@ -124,27 +215,16 @@
   line-height: 1;
 }
 
-.nav-link-contact {
-  color: var(--accent);
-  border: 1px solid var(--border-gold);
-  margin-left: var(--space-1);
-}
-
-.nav-link-contact:hover {
-  background-color: rgba(240, 180, 41, 0.14) !important;
-  color: var(--accent-bright);
-}
-
 /* ── Mobile ───────────────────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
   .header-content {
     padding: var(--space-3) var(--space-4);
-    flex-wrap: nowrap;
   }
 
-  .logo { flex: 1; gap: var(--space-3); }
+  .nav { display: none; }
 
+  .logo { gap: var(--space-3); }
   .logo-image { height: 52px; }
 
   .logo-text h1 {
@@ -154,45 +234,12 @@
 
   .logo-text .subtitle { font-size: 0.60rem; letter-spacing: 2px; }
 
-  .nav {
+  /* Dropdown fills viewport width on small screens */
+  .nav-dropdown {
     position: fixed;
-    top: 0;
-    right: -100%;
-    height: 100vh;
-    width: 280px;
-    background: linear-gradient(160deg, var(--navy-950) 0%, var(--navy-800) 100%);
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    padding: 90px 0 var(--space-6);
-    box-shadow: -8px 0 40px rgba(0, 0, 0, 0.7);
-    transition: right var(--transition-slow);
-    overflow-y: auto;
-    border-left: 1px solid var(--border-default);
-  }
-
-  .nav.nav-open { right: 0; }
-
-  .nav-link {
-    padding: var(--space-4) var(--space-6);
-    border-radius: 0;
-    border-bottom: 1px solid var(--border-subtle);
-    text-align: left;
-    font-size: var(--text-base);
-    border-left: 3px solid transparent;
-    transition: all var(--transition-fast);
-  }
-
-  .nav-link:hover {
-    border-left-color: var(--accent);
-    padding-left: calc(var(--space-6) + 4px);
-    background-color: rgba(240, 180, 41, 0.06);
-  }
-
-  .announcements-button {
-    border: none;
-    border-radius: 0;
-    border-bottom: 1px solid var(--border-subtle);
+    top: auto;
+    right: var(--space-3);
+    min-width: 220px;
   }
 }
 
@@ -201,5 +248,7 @@
   .logo-image { height: 44px; }
   .logo-text h1 { font-size: var(--text-xl); }
   .logo-text .subtitle { display: none; }
-  .nav { width: 100%; }
+  .logo-text .season-indicator { display: none; }
+
+  .nav-link-contact { display: none; }
 }
