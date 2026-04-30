@@ -31,6 +31,8 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { config as loadEnv } from 'dotenv'
+import { google } from 'googleapis'
+import { Readable } from 'stream'
 
 loadEnv()
 
@@ -38,6 +40,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, '..')
 const PDF_DIR = join(ROOT, 'weekly-standings-pdfs')
 const SNAPSHOT_CACHE_PATH = join(PDF_DIR, 'snapshot-ids.json')
+const DRIVE_CACHE_PATH = join(PDF_DIR, 'drive-uploads.json')
 
 const BASE_URL = 'https://www.leaguepals.com'
 const LEAGUE_ID = '688118301406d3982ec379a1'
@@ -48,6 +51,9 @@ if (!LEAGUEPALS_EMAIL || !LEAGUEPALS_PASSWORD) {
   console.error('Missing LEAGUEPALS_EMAIL or LEAGUEPALS_PASSWORD in .env')
   process.exit(1)
 }
+
+// Drive upload is optional — set DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS to enable
+const DRIVE_FOLDER_STANDINGS = process.env.DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS || ''
 
 /** @param {number} ms */
 const wait = ms => new Promise(r => setTimeout(r, ms))
@@ -490,6 +496,81 @@ async function downloadPdf(browser, snapshotId, weekNum, weekLabel) {
   }
 }
 
+// ── Google Drive upload ────────────────────────────────────────────────────
+
+/**
+ * Loads the Drive upload cache from disk.
+ * Maps weekNum (string) → Drive file ID string.
+ * @returns {Record<string, string>}
+ */
+function loadDriveCache() {
+  if (!existsSync(DRIVE_CACHE_PATH)) return {}
+  try { return JSON.parse(readFileSync(DRIVE_CACHE_PATH, 'utf8')) }
+  catch { return {} }
+}
+
+/**
+ * Persists the Drive upload cache to disk.
+ * @param {Record<string, string>} cache
+ */
+function saveDriveCache(cache) {
+  writeFileSync(DRIVE_CACHE_PATH, JSON.stringify(cache, null, 2))
+}
+
+/**
+ * Creates an authenticated Google Drive v3 client using OAuth2.
+ * Uses the same credentials as api/upload-to-drive.js (offline refresh token
+ * for the league Google account — service accounts have no Drive quota).
+ *
+ * @returns {import('googleapis').drive_v3.Drive}
+ * @throws {Error} When any required OAuth env var is missing.
+ */
+function getDriveClient() {
+  const { GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REFRESH_TOKEN } = process.env
+  if (!GOOGLE_OAUTH_CLIENT_ID || !GOOGLE_OAUTH_CLIENT_SECRET || !GOOGLE_OAUTH_REFRESH_TOKEN) {
+    throw new Error(
+      'Missing OAuth2 credentials for Drive upload. ' +
+      'Set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, and GOOGLE_OAUTH_REFRESH_TOKEN.'
+    )
+  }
+  const auth = new google.auth.OAuth2(GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET)
+  auth.setCredentials({ refresh_token: GOOGLE_OAUTH_REFRESH_TOKEN })
+  return google.drive({ version: 'v3', auth })
+}
+
+/**
+ * Uploads a PDF file to the standings Google Drive folder and makes it public.
+ *
+ * @param {import('googleapis').drive_v3.Drive} drive  Authenticated Drive client.
+ * @param {string} pdfPath     Absolute path to the local PDF file.
+ * @param {number} weekNum     1-based week number used in the file name.
+ * @param {string} weekLabel   Human-readable week label (e.g. "Week 12").
+ * @returns {Promise<string>}  Resolves with the new Drive file ID.
+ * @throws {Error}             On any Drive API error.
+ */
+async function uploadPdfToDrive(drive, pdfPath, weekNum, weekLabel) {
+  const fileName = `Week ${String(weekNum).padStart(2, '0')} - ${weekLabel}.pdf`
+  const buffer = readFileSync(pdfPath)
+  const bodyStream = Readable.from(buffer)
+
+  const { data } = await drive.files.create({
+    requestBody: { name: fileName, parents: [DRIVE_FOLDER_STANDINGS] },
+    media: { mimeType: 'application/pdf', body: bodyStream },
+    fields: 'id',
+  })
+
+  if (!data.id) throw new Error(`Drive API returned no file ID for ${fileName}`)
+
+  // Make the file publicly readable so it can be embedded in the site
+  await drive.permissions.create({
+    fileId: data.id,
+    requestBody: { type: 'anyone', role: 'reader' },
+    sendNotificationEmail: false,
+  })
+
+  return data.id
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -499,11 +580,17 @@ async function main() {
   const cache = loadCache()
   console.log(`Snapshot cache loaded: ${Object.keys(cache).length} week(s) already have IDs`)
 
+  // In CI (GitHub Actions sets CI=true) run headless with extra sandbox flags
+  const isCI = Boolean(process.env.CI)
   const browser = await puppeteer.launch({
-    headless: false, // Keep visible so we can watch/debug the modal interaction
-    slowMo: 30,
+    headless: isCI,
+    slowMo: isCI ? 0 : 30,
     defaultViewport: { width: 1280, height: 900 },
-    args: ['--no-sandbox'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      ...(isCI ? ['--disable-dev-shm-usage'] : []),
+    ],
   })
 
   let allWeeks = []
@@ -603,6 +690,49 @@ async function main() {
 
     if (okCount < sortedEntries.length) {
       console.log(`  ✗ ${sortedEntries.length - okCount} PDF(s) failed — re-run to retry`)
+    }
+
+    // ── 7. Upload PDFs to Google Drive ──────────────────────────────────
+    if (!DRIVE_FOLDER_STANDINGS) {
+      console.log('\nSkipping Drive upload — set DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS to enable')
+    } else {
+      const driveCache = loadDriveCache()
+      const uploadable = sortedEntries.filter(({ weekNum }) => {
+        const pdfPath = join(PDF_DIR, `week-${String(weekNum).padStart(2, '0')}.pdf`)
+        return existsSync(pdfPath) && !driveCache[String(weekNum)]
+      })
+
+      console.log(
+        `\nUploading ${uploadable.length} PDF(s) to Google Drive ` +
+        `(${sortedEntries.length - uploadable.length} already uploaded)...`
+      )
+
+      let drive
+      try {
+        drive = getDriveClient()
+      } catch (err) {
+        console.error(`  ✗ Drive client init failed: ${err.message}`)
+        console.error('  Set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REFRESH_TOKEN')
+      }
+
+      if (drive) {
+        for (const { weekNum, label } of uploadable) {
+          const pdfPath = join(PDF_DIR, `week-${String(weekNum).padStart(2, '0')}.pdf`)
+          process.stdout.write(`  [Week ${String(weekNum).padStart(2, '0')}] ${label} → Drive … `)
+          try {
+            const fileId = await uploadPdfToDrive(drive, pdfPath, weekNum, label)
+            driveCache[String(weekNum)] = fileId
+            saveDriveCache(driveCache)
+            console.log(`✓  ${fileId}`)
+          } catch (err) {
+            console.log(`✗  ${err.message}`)
+          }
+          await wait(300)
+        }
+
+        const uploadedCount = Object.keys(driveCache).length
+        console.log(`\n✓ Drive: ${uploadedCount} PDF(s) uploaded total`)
+      }
     }
 
   } finally {
