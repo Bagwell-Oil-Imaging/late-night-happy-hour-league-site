@@ -316,17 +316,18 @@ async function generateSnapshot(page, weekIndex, templateName = 'Late Night Note
   const onResponse = async (res) => {
     const url = res.url()
     const method = res.request().method()
-    if (method !== 'GET' && (url.includes('leaguepals') || url.includes('localhost'))) {
+    // Log ALL non-GET leaguepals calls so we can see what fires when PRINT is clicked
+    if (method !== 'GET' && url.includes('leaguepals')) {
       console.log(`    [net] ${method} ${url.replace('https://www.leaguepals.com', '')}`)
     }
-    if (!url.includes('saveCurrentStandings') && !url.includes('currentStandings') &&
-        !url.includes('standings') && !url.includes('Standings')) return
+    // Only capture the ID from the actual save endpoint — NOT from getStandings or
+    // other read endpoints that fire during refreshScores() and share the same _id field.
+    if (!url.includes('/saveCurrentStandings')) return
     try {
       const text = await res.text()
-      console.log(`    [intercept] ${url.replace('https://www.leaguepals.com', '')} → ${text.slice(0, 400)}`)
+      console.log(`    [intercept] /saveCurrentStandings → ${text.slice(0, 400)}`)
       const json = JSON.parse(text)
-      const candidate = json._id ?? json.data?._id ?? json.id ?? json.standingsId
-        ?? json.currentStandingId ?? json.snapshotId ?? null
+      const candidate = json._id ?? json.data?._id ?? json.id ?? json.snapshotId ?? null
       if (candidate && /^[a-f0-9]{24}$/i.test(String(candidate))) {
         snapshotId = String(candidate)
       }
