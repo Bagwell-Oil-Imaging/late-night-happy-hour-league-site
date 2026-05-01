@@ -52,6 +52,10 @@ if (!LEAGUEPALS_EMAIL || !LEAGUEPALS_PASSWORD) {
   process.exit(1)
 }
 
+// --limit N: stop after generating N snapshot IDs (useful for testing one week first)
+const limitArg = process.argv.indexOf('--limit')
+const LIMIT = limitArg !== -1 ? parseInt(process.argv[limitArg + 1]) : Infinity
+
 // Drive upload target — auto-created on first run if not explicitly set
 const DRIVE_FOLDER_STANDINGS_ENV = process.env.DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS || ''
 // Optional parent season folder — if set, the weekly standings folder is created inside it
@@ -320,12 +324,12 @@ async function generateSnapshot(page, weekIndex, templateName = 'Late Night Note
     if (method !== 'GET' && url.includes('leaguepals')) {
       console.log(`    [net] ${method} ${url.replace('https://www.leaguepals.com', '')}`)
     }
-    // Only capture the ID from the actual save endpoint — NOT from getStandings or
+    // Only capture the ID from the actual save endpoints — NOT from getStandings or
     // other read endpoints that fire during refreshScores() and share the same _id field.
-    if (!url.includes('/saveCurrentStandings')) return
+    if (!url.includes('/saveCurrentStandings') && !url.includes('/saveStandingsReport')) return
     try {
       const text = await res.text()
-      console.log(`    [intercept] /saveCurrentStandings → ${text.slice(0, 400)}`)
+      console.log(`    [intercept] ${url.replace('https://www.leaguepals.com', '')} → ${text.slice(0, 400)}`)
       const json = JSON.parse(text)
       const candidate = json._id ?? json.data?._id ?? json.id ?? json.snapshotId ?? null
       if (candidate && /^[a-f0-9]{24}$/i.test(String(candidate))) {
@@ -716,9 +720,10 @@ async function main() {
 
     // ── 5. Generate snapshot IDs for uncached weeks ─────────────────────
     const missing = weeks.filter(w => !cache[String(w.weekNum)])
-    console.log(`\n${missing.length} weeks need snapshot generation (${weeks.length - missing.length} cached)`)
+    const toGenerate = missing.slice(0, LIMIT)
+    console.log(`\n${missing.length} weeks need snapshot generation (${weeks.length - missing.length} cached)${LIMIT < Infinity ? ` — limiting to ${LIMIT}` : ''}`)
 
-    for (const week of missing) {
+    for (const week of toGenerate) {
       console.log(`\nGenerating snapshot for Week ${week.weekNum} (${week.label})...`)
 
       // Re-navigate to Scoring tab and re-open the modal each iteration.
@@ -741,6 +746,7 @@ async function main() {
     }
 
     // ── 6. Download a PDF for every cached snapshot ID ──────────────────
+    // When running with --limit, only download weeks that were just generated
     const weekLabelMap = Object.fromEntries(weeks.map(w => [String(w.weekNum), w.label]))
 
     const sortedEntries = Object.entries(cache)
