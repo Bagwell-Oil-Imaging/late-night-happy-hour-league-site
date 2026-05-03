@@ -27,8 +27,10 @@ import LeagueStandings from '../components/LeagueStandings'
 import AwardLeaders from '../components/AwardLeaders'
 import MatchupDetailModal from '../components/MatchupDetailModal'
 import BowlerProfileModal from '../components/BowlerProfileModal'
+import StandingsPdfModal from '../components/StandingsPdfModal'
 import { useMatchupDetails, useMatchups, useTeams, useBowlers, useBowlerScoresByWeek, useSeasons } from '../hooks'
 import { useSeasonYear } from '../context/SeasonContext'
+import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import type { MatchupDetail } from '../types'
 import './HomePage.css'
 import './MatchupsPage.css'
@@ -107,6 +109,7 @@ function HomePage() {
   // Modal state — null means no modal is open
   const [selectedMatchupId, setSelectedMatchupId] = useState<string | null>(null)
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null)
+  const [pdfWeek, setPdfWeek] = useState<number | null>(null)
 
   // Controls which panel is visible in the recap/preview toggle
   const [weekView, setWeekView] = useState<'recap' | 'preview'>('recap')
@@ -261,18 +264,33 @@ function HomePage() {
               </span>
             </button>
           </div>
-          <button
-            className="recap-detail-link"
-            onClick={() =>
-              navigate(
-                weekView === 'recap'
-                  ? `/matchups?week=${latestWeek}`
-                  : `/matchups?week=${nextWeek}`
-              )
-            }
-          >
-            {weekView === 'recap' ? 'All Weeks →' : 'Full Schedule →'}
-          </button>
+          <div className="week-view-tabs-right">
+            {/* Show standings PDF button only in Recap mode when a PDF is available */}
+            {weekView === 'recap' && getStandingsPdfId(latestWeek) && (
+              <button
+                className="standings-pdf-btn"
+                onClick={() => setPdfWeek(latestWeek)}
+                aria-label={`View standings PDF for Week ${latestWeek}`}
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5L14 4.5zm-3 0A1.5 1.5 0 019.5 3V1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4.5h-2z"/>
+                </svg>
+                Standings PDF
+              </button>
+            )}
+            <button
+              className="recap-detail-link"
+              onClick={() =>
+                navigate(
+                  weekView === 'recap'
+                    ? `/matchups?week=${latestWeek}`
+                    : `/matchups?week=${nextWeek}`
+                )
+              }
+            >
+              {weekView === 'recap' ? 'All Weeks →' : 'Full Schedule →'}
+            </button>
+          </div>
         </div>
 
         {/* ── Recap panel ── */}
@@ -565,6 +583,7 @@ function HomePage() {
         bowlerId={selectedBowlerId}
         onClose={() => setSelectedBowlerId(null)}
       />
+      <StandingsPdfModal weekNum={pdfWeek} onClose={() => setPdfWeek(null)} />
     </div>
   )
 }

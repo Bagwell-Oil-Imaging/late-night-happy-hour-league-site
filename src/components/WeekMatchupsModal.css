@@ -68,6 +68,14 @@
   border: 1px solid var(--border-strong);
 }
 
+/* ── Badge + PDF button row ────────────────────────────────────────────────── */
+.wm-header-badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 /* ── Body ──────────────────────────────────────────────────────────────────── */
 .wm-body {
   overflow-y: auto;

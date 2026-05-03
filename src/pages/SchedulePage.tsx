@@ -15,7 +15,9 @@
 import { useMemo, useState } from 'react'
 import { useScheduleWeeks } from '../hooks'
 import WeekMatchupsModal from '../components/WeekMatchupsModal'
+import StandingsPdfModal from '../components/StandingsPdfModal'
 import { useSeasonYear } from '../context/SeasonContext'
+import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import type { ScheduleWeek } from '../types'
 import './SchedulePage.css'
 
@@ -142,6 +144,7 @@ function MonthCalendar({
 function SchedulePage() {
   const SEASON_YEAR = useSeasonYear()
   const [selectedWeek, setSelectedWeek] = useState<ScheduleWeek | null>(null)
+  const [pdfWeek, setPdfWeek] = useState<number | null>(null)
 
   // Firestore subscription for all schedule weeks in the current season
   const { data: scheduleWeeks, loading } = useScheduleWeeks(SEASON_YEAR)
@@ -276,16 +279,30 @@ function SchedulePage() {
                       )}
                     </td>
 
-                    {/* Action button */}
+                    {/* Action buttons: View Matchups + optional Standings PDF */}
                     <td className="sch-col-action">
                       {!isSkip && (
-                        <button
-                          className={`sch-view-btn sch-view-btn--${entry.status}`}
-                          onClick={() => setSelectedWeek(entry)}
-                          aria-label={`View matchups for week ${entry.week}`}
-                        >
-                          View Matchups
-                        </button>
+                        <div className="sch-action-group">
+                          <button
+                            className={`sch-view-btn sch-view-btn--${entry.status}`}
+                            onClick={() => setSelectedWeek(entry)}
+                            aria-label={`View matchups for week ${entry.week}`}
+                          >
+                            View Matchups
+                          </button>
+                          {entry.status === 'completed' && entry.week != null && getStandingsPdfId(entry.week) && (
+                            <button
+                              className="standings-pdf-btn"
+                              onClick={() => setPdfWeek(entry.week ?? null)}
+                              aria-label={`View standings PDF for Week ${entry.week}`}
+                            >
+                              <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                                <path d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5L14 4.5zm-3 0A1.5 1.5 0 019.5 3V1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4.5h-2z"/>
+                              </svg>
+                              PDF
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -301,6 +318,9 @@ function SchedulePage() {
         weekEntry={selectedWeek}
         onClose={() => setSelectedWeek(null)}
       />
+
+      {/* ── Standings PDF viewer ──────────────────────────────────────── */}
+      <StandingsPdfModal weekNum={pdfWeek} onClose={() => setPdfWeek(null)} />
     </div>
   )
 }

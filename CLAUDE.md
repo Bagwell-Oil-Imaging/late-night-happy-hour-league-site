@@ -13,6 +13,7 @@ late-night-happy-hour-league-site/
 │   │   ├── Header.tsx
 │   │   ├── HistoricalScores.tsx
 │   │   ├── LeagueStandings.tsx
+│   │   ├── StandingsPdfModal.tsx  # Google Drive PDF viewer modal (weekly standings)
 │   │   └── UpcomingEvents.tsx
 │   ├── hooks/                # Firestore React hooks
 │   │   ├── useFirestore.ts   # Generic useCollection<T> and useDocument<T>
@@ -22,7 +23,8 @@ late-night-happy-hour-league-site/
 │   ├── types/
 │   │   └── index.ts          # All TypeScript interfaces (Firestore schema)
 │   ├── utils/
-│   │   └── admin.ts          # Admin utility helpers
+│   │   ├── admin.ts              # Admin utility helpers
+│   │   └── weeklyStandingsPdf.ts # Drive file ID lookup for weekly standings PDFs
 │   ├── firebase.ts           # Firebase app initialization (db, auth only — no Storage)
 │   ├── App.tsx
 │   ├── App.css
@@ -102,6 +104,7 @@ Admin panels available:
 - **Phase 5** (Admin CRUD UI): Built Firebase Auth–gated admin panels for announcements, events, carousel images, and documents.
 - **Phase 6** (Cleanup): Removed all static `src/data/*.json` files; resolved TypeScript errors; updated documentation.
 - **Google Drive Migration** (feature/google-drive-storage): Replaced Firebase Storage with Google Drive for bylaws PDF storage. Added Vercel serverless upload endpoint (`api/upload-to-drive.js`), `DocumentSource.driveFileId` type field, Drive URL utilities, and updated `DocumentsAdmin` + `BylawsModal`. Removed Firebase Storage SDK, `storage.rules`, `VITE_FIREBASE_STORAGE_BUCKET`, and the deprecated `fileUrl` field.
+- **Weekly Standings PDFs** (feature/admin-updates): Added Puppeteer script (`scripts/download-weekly-standings.js`) to scrape LeaguePals and upload weekly standings PDFs to Google Drive. GitHub Actions workflow runs each Saturday 4am UTC. Drive file IDs cached in `weekly-standings-pdfs/drive-uploads.json`. Front-end surfaces PDFs via `StandingsPdfModal` + `.standings-pdf-btn` button wired into MatchupsPage, WeekMatchupsModal, HomePage (Recap tab), SchedulePage, and TeamsPage week cards.
 
 ## Known Issues / Limitations
 

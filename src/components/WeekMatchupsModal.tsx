@@ -21,6 +21,8 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMatchupDetails, useMatchups, useTeams } from '../hooks'
 import MatchupDetailModal from './MatchupDetailModal'
+import StandingsPdfModal from './StandingsPdfModal'
+import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import type { ScheduleWeek, MatchupDetail } from '../types'
 import './WeekMatchupsModal.css'
 
@@ -44,6 +46,9 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
 
   /** Firestore document ID of the individual matchup the user drilled into. */
   const [detailMatchupId, setDetailMatchupId] = useState<string | null>(null)
+
+  /** Week number for the standings PDF modal (null = closed). */
+  const [pdfWeek, setPdfWeek] = useState<number | null>(null)
 
   // Fetch all matchup detail records (completed weeks scoreboard)
   const { data: matchupDetails } = useMatchupDetails('2025-2026')
@@ -168,7 +173,21 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
                 <span className="wm-badge wm-badge--upcoming">Upcoming</span>
               )}
               {weekEntry.status === 'completed' && (
-                <span className="wm-badge wm-badge--completed">Final</span>
+                <div className="wm-header-badges">
+                  <span className="wm-badge wm-badge--completed">Final</span>
+                  {weekEntry.week != null && getStandingsPdfId(weekEntry.week) && (
+                    <button
+                      className="standings-pdf-btn"
+                      onClick={() => setPdfWeek(weekEntry.week ?? null)}
+                      aria-label={`View standings PDF for Week ${weekEntry.week}`}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5L14 4.5zm-3 0A1.5 1.5 0 019.5 3V1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4.5h-2z"/>
+                      </svg>
+                      Standings PDF
+                    </button>
+                  )}
+                </div>
               )}
             </div>
             <button className="modal-close-button" onClick={onClose} aria-label="Close">✕</button>
@@ -310,6 +329,9 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
         onClose={() => setDetailMatchupId(null)}
         onSelectBowler={handleSelectBowler}
       />
+
+      {/* ── Standings PDF viewer ──────────────────────────────────────────── */}
+      <StandingsPdfModal weekNum={pdfWeek} onClose={() => setPdfWeek(null)} />
     </>
   )
 }

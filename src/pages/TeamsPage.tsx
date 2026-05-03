@@ -17,6 +17,8 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTeams, useMatchupDetails, useMatchups, useBowlerScoresByTeamWeek } from '../hooks'
+import StandingsPdfModal from '../components/StandingsPdfModal'
+import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import type { TeamSummary } from '../types'
 import { LanePairGraphic, aggregateLaneData } from './LanesPage'
 import './TeamsPage.css'
@@ -50,9 +52,10 @@ function formatLanePair(lane: number | null | undefined): string {
  * @param won        - Whether the selected team won the overall series
  * @param lost       - Whether the selected team lost the overall series
  * @param seasonYear - Season year string for the Firestore query
+ * @param onViewPdf  - Optional callback to open the standings PDF for this week
  */
 function WeekCardDetail({
-  my, opp, week, won, lost, seasonYear,
+  my, opp, week, won, lost, seasonYear, onViewPdf,
 }: {
   my: TeamSummary
   opp: TeamSummary
@@ -60,6 +63,7 @@ function WeekCardDetail({
   won: boolean
   lost: boolean
   seasonYear: string
+  onViewPdf?: () => void
 }) {
   const { data: myScores }  = useBowlerScoresByTeamWeek(my.teamId,  week, seasonYear)
   const { data: oppScores } = useBowlerScoresByTeamWeek(opp.teamId, week, seasonYear)
@@ -80,7 +84,8 @@ function WeekCardDetail({
   const oppPts = 4 - myPts
 
   return (
-    <div className="wcard-detail">
+    <div className="wcard-detail-wrapper">
+      <div className="wcard-detail">
       {/* Points panels flank the table on each side */}
       <div className="wcd-pts-panel wcd-pts-opp">
         <span className="wcd-pts-label">{opp.teamName}</span>
@@ -211,6 +216,23 @@ function WeekCardDetail({
         <span className={`wcd-pts-value ${won ? 'wcd-pts-win' : lost ? 'wcd-pts-loss' : ''}`}>{myPts % 1 === 0 ? myPts : myPts.toFixed(1)}</span>
         <span className="wcd-pts-unit">pts</span>
       </div>
+      </div>{/* end .wcard-detail */}
+
+      {/* Standings PDF footer — only rendered when a PDF exists for this week */}
+      {onViewPdf && getStandingsPdfId(week) && (
+        <div className="wcd-pdf-footer">
+          <button
+            className="standings-pdf-btn"
+            onClick={onViewPdf}
+            aria-label={`View standings PDF for Week ${week}`}
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5L14 4.5zm-3 0A1.5 1.5 0 019.5 3V1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4.5h-2z"/>
+            </svg>
+            View Standings PDF — Week {week}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -226,6 +248,7 @@ function TeamsPage() {
   const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
   const [selectedLane, setSelectedLane] = useState<number | null>(null)
   const [laneSelectedTeamId, setLaneSelectedTeamId] = useState<string | null>(null)
+  const [pdfWeek, setPdfWeek] = useState<number | null>(null)
 
   const { data: teams, loading: teamsLoading } = useTeams('2025-2026')
   const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails('2025-2026')
@@ -541,6 +564,7 @@ function TeamsPage() {
                               won={won}
                               lost={lost}
                               seasonYear="2025-2026"
+                              onViewPdf={() => setPdfWeek(match.week)}
                             />
                           )}
                         </div>
@@ -740,6 +764,9 @@ function TeamsPage() {
           </div>
         )}
       </div>
+
+      {/* Standings PDF viewer — triggered from expanded week card footers */}
+      <StandingsPdfModal weekNum={pdfWeek} onClose={() => setPdfWeek(null)} />
     </div>
   )
 }

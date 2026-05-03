@@ -464,11 +464,17 @@
   color: var(--accent);
 }
 
+/* Wrapper holds the score detail + optional PDF footer as a column */
+.wcard-detail-wrapper {
+  border-top: 1px solid var(--border-default);
+  background: rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+}
+
 /* Expanded score breakdown */
 .wcard-detail {
-  border-top: 1px solid var(--border-default);
   padding: var(--space-2) var(--space-4) var(--space-3);
-  background: rgba(0, 0, 0, 0.18);
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -491,6 +497,15 @@
 
 .wcd-pts-my {
   order: 1;    /* right of table */
+}
+
+/* PDF action footer — sits below the wcard-detail grid */
+.wcd-pdf-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  background: rgba(0, 0, 0, 0.18);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .wcd-pts-label {
