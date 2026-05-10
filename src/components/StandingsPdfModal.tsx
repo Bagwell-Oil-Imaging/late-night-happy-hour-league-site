@@ -83,20 +83,6 @@ function StandingsPdfModal({ weekNum, onClose }: StandingsPdfModalProps) {
                   </svg>
                   Download
                 </a>
-                <a
-                  href={`https://drive.google.com/file/d/${fileId}/view`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="pdf-action-link pdf-action-link--drive"
-                  title="Open in Google Drive"
-                  aria-label="Open in Google Drive"
-                >
-                  {/* External link icon */}
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                    <path d="M6 3v2H3v8h8v-3h2v5H1V3h5zm9-3v7l-2.5-2.5-5 5L6 8l5-5L8.5 0H15z"/>
-                  </svg>
-                  Open in Drive
-                </a>
               </div>
             )}
           </div>

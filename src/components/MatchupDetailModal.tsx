@@ -20,7 +20,7 @@
  */
 
 import { useEffect } from 'react'
-import { useMatchupDetail, useBowlerScoresByTeamWeek } from '../hooks'
+import { useMatchupDetail, useBowlerScoresByTeamWeek, useBowlers } from '../hooks'
 import { useSeasonYear } from '../context/SeasonContext'
 import './MatchupDetailModal.css'
 
@@ -54,6 +54,13 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
   // too many documents (e.g. a prior unconstrained subscription or a failed index).
   const team1Scores = team1ScoresRaw.filter(s => s.teamId === match?.team1?.teamId)
   const team2Scores = team2ScoresRaw.filter(s => s.teamId === match?.team2?.teamId)
+
+  // Roster (bowler names) for teams whose individual scores are unavailable.
+  // '__never__' sentinel prevents fetching all bowlers when not needed.
+  const { data: team1Roster } = useBowlers(SEASON_YEAR,
+    match?.team1?.individualScoresUnavailable ? match.team1.teamId : '__never__')
+  const { data: team2Roster } = useBowlers(SEASON_YEAR,
+    match?.team2?.individualScoresUnavailable ? match.team2.teamId : '__never__')
 
   /* ── Lock body scroll while open ────────────────────────────────────────── */
   useEffect(() => {
@@ -122,6 +129,7 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
             {[match.team1, match.team2].map((team, idx) => {
               const isWinner = idx === 0 ? team1Won : team2Won
               const scores = idx === 0 ? team1Scores : team2Scores
+              const roster = idx === 0 ? team1Roster : team2Roster
               return (
                 <div key={team.teamId} className={`matchup-team-panel ${isWinner ? 'winner-panel' : ''}`}>
                   <div className="team-panel-header">
@@ -150,56 +158,108 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
                         </tr>
                       </thead>
                       <tbody>
-                        {scores.map((s) => (
-                          <tr
-                            key={s.bowlerId}
-                            className="bowler-score-row"
-                            onClick={() => onSelectBowler(s.bowlerId)}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <td className="col-name">{s.bowlerName}</td>
-                            <td className="col-game">{s.game1 ?? '—'}</td>
-                            <td className="col-game">{s.game2 ?? '—'}</td>
-                            <td className="col-game">{s.game3 ?? '—'}</td>
-                            <td className="col-series">{s.series ?? '—'}</td>
-                          </tr>
-                        ))}
+                        {team.individualScoresUnavailable ? (
+                          /*
+                           * Per-bowler scores were not recorded — show roster names with
+                           * dash placeholders so the scorecard still lists the players.
+                           * Falls back to a single placeholder row if the roster is empty.
+                           */
+                          roster.length > 0 ? roster.map(b => (
+                            <tr key={b.id} className="scores-unavailable-row">
+                              <td className="col-name">{b.name}</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-series scores-unavailable-cell">—</td>
+                            </tr>
+                          )) : (
+                            <tr className="scores-unavailable-row">
+                              <td className="col-name scores-unavailable-label">* Individual scores not available</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-series scores-unavailable-cell">—</td>
+                            </tr>
+                          )
+                        ) : (
+                          scores.map((s) => (
+                            <tr
+                              key={s.bowlerId}
+                              className="bowler-score-row"
+                              onClick={() => onSelectBowler(s.bowlerId)}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              <td className="col-name">{s.bowlerName}</td>
+                              <td className="col-game">{s.game1 ?? '—'}</td>
+                              <td className="col-game">{s.game2 ?? '—'}</td>
+                              <td className="col-game">{s.game3 ?? '—'}</td>
+                              <td className="col-series">{s.series ?? '—'}</td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
+
+                    {team.individualScoresUnavailable && (
+                      <p className="scores-unavailable-legend">
+                        * Individual bowler scores were not recorded for this matchup.
+                        Team game totals and match points are accurate.
+                      </p>
+                    )}
 
                     {/* Totals — pinned to the bottom of the panel */}
                     <table className="matchup-scores-table totals-table">
                       <tbody>
                         <tr className="totals-row scratch-row">
                           <td className="col-name">Scratch</td>
-                          <td className="col-game">{team.game1Total}</td>
-                          <td className="col-game">{team.game2Total}</td>
-                          <td className="col-game">{team.game3Total}</td>
-                          <td className="col-series">{team.scratchSeries}</td>
+                          {team.individualScoresUnavailable ? (
+                            <><td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-series scores-unavailable-cell">—</td></>
+                          ) : (
+                            <><td className="col-game">{team.game1Total}</td>
+                              <td className="col-game">{team.game2Total}</td>
+                              <td className="col-game">{team.game3Total}</td>
+                              <td className="col-series">{team.scratchSeries}</td></>
+                          )}
                         </tr>
                         <tr className="totals-row handicap-row">
                           <td className="col-name">Handicap</td>
-                          <td className="col-game">+{team.handicapPerGame}</td>
-                          <td className="col-game">+{team.handicapPerGame}</td>
-                          <td className="col-game">+{team.handicapPerGame}</td>
-                          <td className="col-series">+{team.handicapSeries}</td>
+                          {team.individualScoresUnavailable ? (
+                            <><td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-series scores-unavailable-cell">—</td></>
+                          ) : (
+                            <><td className="col-game">+{team.handicapPerGame}</td>
+                              <td className="col-game">+{team.handicapPerGame}</td>
+                              <td className="col-game">+{team.handicapPerGame}</td>
+                              <td className="col-series">+{team.handicapSeries}</td></>
+                          )}
                         </tr>
                         <tr className={`totals-row grand-total-row ${isWinner ? 'winner' : ''}`}>
                           <td className="col-name">Total</td>
-                          <td className="col-game">{team.game1Total + team.handicapPerGame}</td>
-                          <td className="col-game">{team.game2Total + team.handicapPerGame}</td>
-                          <td className="col-game">{team.game3Total + team.handicapPerGame}</td>
+                          <td className="col-game">{team.game1Total}</td>
+                          <td className="col-game">{team.game2Total}</td>
+                          <td className="col-game">{team.game3Total}</td>
                           <td className="col-series">
-                            <span title={`Scratch: ${team.scratchSeries} + HDCP: ${team.handicapSeries}`}>
-                              {team.totalSeries}
-                            </span>
-                            {team.handicapSeries > 0 && (
-                              <span
-                                className="score-hcp"
-                                title={`Scratch: ${team.scratchSeries} + HDCP: ${team.handicapSeries}`}
-                              >
-                                (+{team.handicapSeries})
-                              </span>
+                            {team.individualScoresUnavailable ? (
+                              team.totalSeries
+                            ) : (
+                              <>
+                                <span title={`Scratch: ${team.scratchSeries} + HDCP: ${team.handicapSeries}`}>
+                                  {team.totalSeries}
+                                </span>
+                                {team.handicapSeries > 0 && (
+                                  <span
+                                    className="score-hcp"
+                                    title={`Scratch: ${team.scratchSeries} + HDCP: ${team.handicapSeries}`}
+                                  >
+                                    (+{team.handicapSeries})
+                                  </span>
+                                )}
+                              </>
                             )}
                           </td>
                         </tr>

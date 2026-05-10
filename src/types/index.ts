@@ -51,6 +51,9 @@ export interface LeagueConfig {
 export interface Team {
   id?: string;
   leaguePalsId: string;
+  /** When true, this document was created via the admin Data Correction panel
+   *  and must not be overwritten by the automated data pipeline. */
+  adminOverride?: boolean;
   displayId: number;
   seasonYear: string;
   name: string;
@@ -73,6 +76,9 @@ export interface Team {
 export interface Bowler {
   id?: string;
   leaguePalsId: string;
+  /** When true, this document was created or edited via the admin Data Correction panel
+   *  and must not be overwritten by the automated data pipeline. */
+  adminOverride?: boolean;
   seasonYear: string;
   teamId: string;
   teamName: string;
@@ -97,6 +103,9 @@ export interface Bowler {
 /** BowlerScore — one document per bowler per week (fact table) */
 export interface BowlerScore {
   id?: string;
+  /** When true, this document was created or edited via the admin Data Correction panel
+   *  and must not be overwritten by the automated data pipeline. */
+  adminOverride?: boolean;
   bowlerId: string;
   bowlerName: string;
   teamId: string;
@@ -155,11 +164,21 @@ export interface TeamSummary {
   handicapSeries: number;
   totalSeries: number;
   points: number;
+  /**
+   * When true, only team-level game totals were recorded for this week.
+   * Individual bowler scores are not available and should be shown as `*`
+   * in public-facing views. Set by the admin Data Correction panel when
+   * entering team totals without per-bowler breakdown.
+   */
+  individualScoresUnavailable?: boolean;
 }
 
 /** MatchupDetail — team-level aggregate for a completed matchup */
 export interface MatchupDetail {
   id?: string;
+  /** When true, this document was corrected via the admin Data Correction panel
+   *  and must not be overwritten by the automated data pipeline. */
+  adminOverride?: boolean;
   matchupId: string;
   seasonYear: string;
   week: number;

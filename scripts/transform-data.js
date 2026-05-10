@@ -1986,6 +1986,64 @@ async function populateBowlerScores(seasonYear) {
   await batchWrite('bowlerScores', bowlerScoreDocs)
 }
 
+// ─── Admin Override Preservation ─────────────────────────────────────────────
+
+/**
+ * Reads all documents with `adminOverride === true` from a Firestore collection
+ * before it is cleared by the pipeline.
+ *
+ * Returns an array of objects where each entry pairs the original Firestore
+ * DocumentReference with the document's full data payload. Passing these objects
+ * to `restoreAdminOverrides` re-inserts them at their original paths after the
+ * collection has been repopulated, so admin-corrected records survive data refreshes.
+ *
+ * If Firestore is not initialized or the query fails, returns an empty array so
+ * the rest of the pipeline is unaffected.
+ *
+ * @param {string} collectionName - Firestore collection to scan
+ * @returns {Promise<Array<{_ref: FirebaseFirestore.DocumentReference, [key: string]: any}>>}
+ */
+async function preserveAdminOverrides(collectionName) {
+  if (!db) return []
+  try {
+    const snap = await db.collection(collectionName).where('adminOverride', '==', true).get()
+    if (snap.empty) return []
+    const overrides = snap.docs.map(d => ({ _ref: d.ref, ...d.data() }))
+    console.log(`[preserveAdminOverrides] Saved ${overrides.length} admin-override doc(s) from ${collectionName}`)
+    return overrides
+  } catch (err) {
+    console.warn(`[preserveAdminOverrides] Could not read ${collectionName}:`, err.message)
+    return []
+  }
+}
+
+/**
+ * Re-inserts admin-overridden documents into their original Firestore paths after
+ * the collection has been cleared and repopulated by the pipeline.
+ *
+ * Uses `set()` (not `add()`) so each document lands at the same DocumentReference
+ * it occupied before the clear, overwriting any pipeline-generated document at
+ * that path. This guarantees admin corrections always take precedence.
+ *
+ * No-ops silently when `docs` is empty or Firestore is not initialized.
+ *
+ * @param {Array<{_ref: FirebaseFirestore.DocumentReference, [key: string]: any}>} docs
+ *   Objects produced by `preserveAdminOverrides` — each has a `_ref` plus data fields.
+ * @returns {Promise<void>}
+ */
+async function restoreAdminOverrides(docs) {
+  if (!db || docs.length === 0) return
+  const CHUNK_SIZE = 500
+  for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
+    const batch = db.batch()
+    docs.slice(i, i + CHUNK_SIZE).forEach(({ _ref, ...data }) => {
+      batch.set(_ref, data)
+    })
+    await batch.commit()
+  }
+  console.log(`[restoreAdminOverrides] Restored ${docs.length} admin-override doc(s)`)
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -2078,14 +2136,23 @@ async function main() {
   await populateScheduleWeeks(SEASON)
 
   // 4. Teams — FK for bowlers, matchups, bowlerScores
+  // Preserve admin-created team records (e.g. teams deleted from LeaguePals
+  // mid-season but still needed for historical data backfill) before clearing.
   console.log('\n[4/11] teams...')
+  const teamOverrides = await preserveAdminOverrides('teams')
   await clearCollection('teams')
   await populateTeams(SEASON)
+  await restoreAdminOverrides(teamOverrides)
 
   // 5. Bowlers — FK for bowlerScores
+  // Preserve admin-corrected bowler records before clearing (e.g. St Hugh's members
+  // whose LeaguePals data was deleted mid-season) and restore them afterward so
+  // the pipeline never overwrites manually entered data.
   console.log('\n[5/11] bowlers...')
+  const bowlerOverrides = await preserveAdminOverrides('bowlers')
   await clearCollection('bowlers')
   await populateBowlers(SEASON)
+  await restoreAdminOverrides(bowlerOverrides)
 
   // 6. Matchups — must be populated before matchupDetails and bowlerScores
   //    to generate stable Firestore IDs for FK wiring
@@ -2095,14 +2162,25 @@ async function main() {
   console.log(`[matchups] matchupIdMap has ${matchupIdMap.size} entries for FK wiring`)
 
   // 7. Matchup details — mirrors matchups doc IDs (1:1 relationship)
+  // Preserve admin-corrected matchup detail documents (e.g. weeks where St Hugh's
+  // handicap and team totals were manually corrected) so the pipeline restore
+  // overwrites the freshly-written pipeline version at the same document path.
   console.log('\n[7/11] matchupDetails...')
+  const matchupDetailOverrides = await preserveAdminOverrides('matchupDetails')
   await clearCollection('matchupDetails')
   await populateMatchupDetails(SEASON, matchupIdMap)
+  await restoreAdminOverrides(matchupDetailOverrides)
 
   // 8. Bowler scores — one doc per bowler per week; uses matchupIdMap for FK
+  // Preserve admin-entered bowler score docs (e.g. manually backfilled weekly
+  // scores for St Hugh's) before clearing and restore them after pipeline writes.
+  // Because bowlerScores uses auto-generated IDs, admin docs land at their
+  // original paths without collision with newly-written pipeline docs.
   console.log('\n[8/11] bowlerScores...')
+  const bowlerScoreOverrides = await preserveAdminOverrides('bowlerScores')
   await clearCollection('bowlerScores')
   await populateBowlerScores(SEASON)
+  await restoreAdminOverrides(bowlerScoreOverrides)
 
   // 9. Announcements — admin-managed; empty array is a valid initial state
   console.log('\n[9/11] announcements...')

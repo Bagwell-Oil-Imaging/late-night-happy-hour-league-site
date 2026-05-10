@@ -21,6 +21,7 @@ import EventsAdmin from './pages/admin/EventsAdmin'
 import CarouselAdmin from './pages/admin/CarouselAdmin'
 import DocumentsAdmin from './pages/admin/DocumentsAdmin'
 import SettingsAdmin from './pages/admin/SettingsAdmin'
+import DataCorrectionAdmin from './pages/admin/DataCorrectionAdmin'
 import { SeasonProvider } from './context/SeasonContext'
 import { useAnnouncements } from './hooks'
 
@@ -74,6 +75,7 @@ function App() {
           <Route path="carousel" element={<CarouselAdmin />} />
           <Route path="documents" element={<DocumentsAdmin />} />
           <Route path="settings" element={<SettingsAdmin />} />
+          <Route path="data-correction" element={<DataCorrectionAdmin />} />
         </Route>
       </Route>
 

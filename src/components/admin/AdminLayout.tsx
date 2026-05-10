@@ -149,6 +149,16 @@ function AdminLayout() {
               Settings
             </NavLink>
           </li>
+          <li>
+            <NavLink
+              to="/admin/data-correction"
+              className={({ isActive }) =>
+                ['admin-nav-link', isActive ? 'admin-nav-link--active' : ''].join(' ').trim()
+              }
+            >
+              Data Correction
+            </NavLink>
+          </li>
         </ul>
 
         {/* Logout action — always visible on the right */}

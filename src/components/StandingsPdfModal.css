@@ -84,16 +84,6 @@
   color: var(--accent-bright);
 }
 
-.pdf-action-link--drive {
-  background: rgba(96, 165, 250, 0.08);
-  color: var(--blue-link);
-  border-color: rgba(96, 165, 250, 0.20);
-}
-
-.pdf-action-link--drive:hover {
-  background: rgba(96, 165, 250, 0.16);
-  border-color: rgba(96, 165, 250, 0.40);
-}
 
 /* ── Body / iframe container ─────────────────────────────────────────────── */
 .pdf-modal-body {
@@ -205,6 +195,5 @@
 }
 
 @media (max-width: 480px) {
-  .pdf-action-link--drive { display: none; }
   .pdf-header-info h2 { font-size: var(--text-base); letter-spacing: 1px; }
 }
