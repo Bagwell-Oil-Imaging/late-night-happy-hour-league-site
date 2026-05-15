@@ -74,9 +74,10 @@ function formatLanePair(lane: number | null | undefined): JSX.Element {
 
 /**
  * Returns the display value for a single game score.
- * Null scores indicate blinded weeks and are shown as "-" rather than "0".
+ * Null scores indicate missing data and are shown as "-".
+ * After the pipeline fix, blinded weeks store the computed blind score (not null).
  *
- * @param score - Game score, or null when the bowler was blinded/absent
+ * @param score - Game score, or null when data is missing
  * @returns String representation of the score, or "-"
  */
 function renderGameScore(score: number | null): string {
@@ -98,7 +99,8 @@ interface ScoresTableProps {
  * Features:
  *  - Highlights cells that match the bowler's season high game (`high-game` CSS class)
  *  - Highlights the series cell when it matches the season high series
- *  - Shows "-" for null game values (blinded weeks)
+ *  - Shows "-" for null game values (missing data)
+ *  - Displays a "B" badge for blinded weeks (computed blind score, not actual)
  *  - Displays a "PB" badge with tooltip for pre-bowled weeks
  *  - Shows the actual bowl date in parentheses when different from scheduled date
  *
@@ -132,10 +134,14 @@ function ScoresTable({ scores, bowler }: ScoresTableProps) {
               g !== null && g === bowler.highGame
 
             return (
-              <tr key={score.id ?? score.week} className="week-row">
-                {/* Week number + optional Pre-bowl badge */}
+              <tr key={score.id ?? score.week} className={`week-row${score.blinded ? ' blinded-row' : ''}`}>
+                {/* Week number + optional Blind / Pre-bowl badges */}
                 <td className="col-week">
                   {score.week}
+                  {/* B badge for blinded weeks — score is computed blind value, not actual */}
+                  {score.blinded && (
+                    <span className="blind-badge" title="Blind score — bowler was absent; score is computed from their average">B</span>
+                  )}
                   {score.preBowled && (
                     <span
                       className="prebowl-badge"

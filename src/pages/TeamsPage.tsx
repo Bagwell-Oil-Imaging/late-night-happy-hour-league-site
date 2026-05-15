@@ -16,10 +16,10 @@
 
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useTeams, useMatchupDetails, useMatchups, useBowlerScoresByTeamWeek } from '../hooks'
+import { useTeams, useMatchupDetails, useMatchups, useBowlerScoresByTeamWeek, useBowlers } from '../hooks'
 import StandingsPdfModal from '../components/StandingsPdfModal'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
-import type { TeamSummary } from '../types'
+import type { TeamSummary, BowlerScore } from '../types'
 import { LanePairGraphic, aggregateLaneData } from './LanesPage'
 import './TeamsPage.css'
 import './LanesPage.css'
@@ -55,7 +55,7 @@ function formatLanePair(lane: number | null | undefined): string {
  * @param onViewPdf  - Optional callback to open the standings PDF for this week
  */
 function WeekCardDetail({
-  my, opp, week, won, lost, seasonYear, onViewPdf,
+  my, opp, week, won: _won, lost: _lost, seasonYear, onViewPdf,
 }: {
   my: TeamSummary
   opp: TeamSummary
@@ -68,19 +68,60 @@ function WeekCardDetail({
   const { data: myScores }  = useBowlerScoresByTeamWeek(my.teamId,  week, seasonYear)
   const { data: oppScores } = useBowlerScoresByTeamWeek(opp.teamId, week, seasonYear)
 
-  // Sort both teams' bowlers by series descending (best scorer first)
-  const myBowlers  = [...myScores].sort((a, b)  => (b.series ?? 0) - (a.series ?? 0))
-  const oppBowlers = [...oppScores].sort((a, b) => (b.series ?? 0) - (a.series ?? 0))
+  // Rosters supply enteringAvg as a fallback for blind bowlers whose rollingAvg is
+  // null in Firestore (old pipeline stored null when no games had been accumulated yet).
+  const { data: myRoster }  = useBowlers(seasonYear, my.teamId)
+  const { data: oppRoster } = useBowlers(seasonYear, opp.teamId)
+
+  const myEnteringAvgMap  = new Map(myRoster.map(b => [b.id!, b.enteringAvg ?? 0]))
+  const oppEnteringAvgMap = new Map(oppRoster.map(b => [b.id!, b.enteringAvg ?? 0]))
+
+  // If a BowlerScore is blinded but has null game scores (old pipeline data),
+  // compute the blind value from rollingAvg, falling back to roster enteringAvg.
+  const makeResolveBlind = (enteringAvgMap: Map<string, number>) => (s: BowlerScore): BowlerScore => {
+    if (!s.blinded || s.game1 !== null) return s
+    const avg = s.rollingAvg ?? enteringAvgMap.get(s.bowlerId) ?? 0
+    if (avg <= 0) return s
+    const penalty = Math.floor(avg * 0.10)
+    const blind = avg - penalty
+    return { ...s, game1: blind, game2: blind, game3: blind, series: blind * 3 }
+  }
+
+  const myResolved  = myScores.map(makeResolveBlind(myEnteringAvgMap))
+  const oppResolved = oppScores.map(makeResolveBlind(oppEnteringAvgMap))
+
+  // Sort by series descending for display (best scorer first)
+  const myBowlers  = [...myResolved].sort((a, b) => (b.series ?? 0) - (a.series ?? 0))
+  const oppBowlers = [...oppResolved].sort((a, b) => (b.series ?? 0) - (a.series ?? 0))
   const rowCount   = Math.max(myBowlers.length, oppBowlers.length)
 
-  // Pre-compute per-game handicap-adjusted totals for colour logic and points
-  const myTotals  = [my.game1Total  + my.handicapPerGame,  my.game2Total  + my.handicapPerGame,  my.game3Total  + my.handicapPerGame]
-  const oppTotals = [opp.game1Total + opp.handicapPerGame, opp.game2Total + opp.handicapPerGame, opp.game3Total + opp.handicapPerGame]
+  // Compute scratch game totals from resolved BowlerScore records so blind
+  // contributions are included. Fall back to stored values when per-bowler
+  // scores were not recorded (individualScoresUnavailable weeks, e.g. St. Hughs).
+  const myScratch1 = my.individualScoresUnavailable  ? my.game1Total  : myResolved.reduce((s, r) => s + (r.game1 ?? 0), 0)
+  const myScratch2 = my.individualScoresUnavailable  ? my.game2Total  : myResolved.reduce((s, r) => s + (r.game2 ?? 0), 0)
+  const myScratch3 = my.individualScoresUnavailable  ? my.game3Total  : myResolved.reduce((s, r) => s + (r.game3 ?? 0), 0)
+  const myScratchTotal = myScratch1 + myScratch2 + myScratch3
 
-  // Calculate matchup points: 1pt per game won + 1pt for series; ties split 0.5
+  const oppScratch1 = opp.individualScoresUnavailable ? opp.game1Total : oppResolved.reduce((s, r) => s + (r.game1 ?? 0), 0)
+  const oppScratch2 = opp.individualScoresUnavailable ? opp.game2Total : oppResolved.reduce((s, r) => s + (r.game2 ?? 0), 0)
+  const oppScratch3 = opp.individualScoresUnavailable ? opp.game3Total : oppResolved.reduce((s, r) => s + (r.game3 ?? 0), 0)
+  const oppScratchTotal = oppScratch1 + oppScratch2 + oppScratch3
+
+  // Handicap-adjusted per-game totals for winner colouring and point calculation
+  const myTotals  = [myScratch1 + my.handicapPerGame,  myScratch2 + my.handicapPerGame,  myScratch3 + my.handicapPerGame]
+  const oppTotals = [oppScratch1 + opp.handicapPerGame, oppScratch2 + opp.handicapPerGame, oppScratch3 + opp.handicapPerGame]
+  const myTotalSeries  = myScratchTotal  + my.handicapSeries
+  const oppTotalSeries = oppScratchTotal + opp.handicapSeries
+
+  // Recompute won/lost from corrected totals so series colouring and pts are accurate
+  const myWon  = myTotalSeries > oppTotalSeries
+  const myLost = myTotalSeries < oppTotalSeries
+
+  // 1pt per game won + 1pt for total series; ties split 0.5
   const gamePoints = (a: number, b: number) => a > b ? 1 : a === b ? 0.5 : 0
   const myPts = myTotals.reduce((sum, myG, i) => sum + gamePoints(myG, oppTotals[i]), 0)
-              + gamePoints(my.totalSeries, opp.totalSeries)
+              + gamePoints(myTotalSeries, oppTotalSeries)
   const oppPts = 4 - myPts
 
   return (
@@ -149,17 +190,17 @@ function WeekCardDetail({
           <tr className="wct-scratch wct-totals-divider">
             <td>Scratch</td>
             <td className="wct-opp-col wct-name-col" />
-            <td className="wct-opp-col">{opp.game1Total}</td>
-            <td className="wct-opp-col">{opp.game2Total}</td>
-            <td className="wct-opp-col">{opp.game3Total}</td>
-            <td className="wct-opp-col">{opp.scratchSeries}</td>
+            <td className="wct-opp-col">{oppScratch1}</td>
+            <td className="wct-opp-col">{oppScratch2}</td>
+            <td className="wct-opp-col">{oppScratch3}</td>
+            <td className="wct-opp-col">{oppScratchTotal}</td>
             <td className="wct-opp-col" />
             <td className="wct-divider" />
             <td className="wct-name-col" />
-            <td>{my.game1Total}</td>
-            <td>{my.game2Total}</td>
-            <td>{my.game3Total}</td>
-            <td>{my.scratchSeries}</td>
+            <td>{myScratch1}</td>
+            <td>{myScratch2}</td>
+            <td>{myScratch3}</td>
+            <td>{myScratchTotal}</td>
             <td />
           </tr>
 
@@ -193,7 +234,7 @@ function WeekCardDetail({
                 </td>
               )
             })}
-            <td className={`wct-opp-col ${lost ? 'wct-game-win-opp' : won ? 'wct-game-loss-opp' : ''}`}>{opp.totalSeries}</td>
+            <td className={`wct-opp-col ${myLost ? 'wct-game-win-opp' : myWon ? 'wct-game-loss-opp' : ''}`}>{oppTotalSeries}</td>
             <td className="wct-opp-col" />
             <td className="wct-divider" />
             <td className="wct-name-col" />
@@ -205,7 +246,7 @@ function WeekCardDetail({
                 </td>
               )
             })}
-            <td className={won ? 'wct-game-win' : lost ? 'wct-game-loss' : ''}>{my.totalSeries}</td>
+            <td className={myWon ? 'wct-game-win' : myLost ? 'wct-game-loss' : ''}>{myTotalSeries}</td>
             <td />
           </tr>
         </tbody>
@@ -213,7 +254,7 @@ function WeekCardDetail({
 
       <div className="wcd-pts-panel wcd-pts-my">
         <span className="wcd-pts-label">{my.teamName}</span>
-        <span className={`wcd-pts-value ${won ? 'wcd-pts-win' : lost ? 'wcd-pts-loss' : ''}`}>{myPts % 1 === 0 ? myPts : myPts.toFixed(1)}</span>
+        <span className={`wcd-pts-value ${myWon ? 'wcd-pts-win' : myLost ? 'wcd-pts-loss' : ''}`}>{myPts % 1 === 0 ? myPts : myPts.toFixed(1)}</span>
         <span className="wcd-pts-unit">pts</span>
       </div>
       </div>{/* end .wcard-detail */}

@@ -50,7 +50,7 @@
 .col-team-right { text-align: right;  width: 32%; }
 .col-pts        { width: 52px; }
 .col-score      { width: 100px; }
-.col-sep        { width: 36px; }
+.col-sep        { width: 80px; }
 .col-lanes      { width: 52px; font-size: var(--text-xs); letter-spacing: 0.5px; color: var(--text-muted); }
 
 /* ── Header band ─────────────────────────────────────────────────────────── */
@@ -194,9 +194,11 @@
 
 /* ── Separator ───────────────────────────────────────────────────────────── */
 .sep-cell {
-  color: var(--border-strong);
-  font-size: var(--text-lg);
-  font-weight: 300;
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 1px;
   padding: 20px 4px;
   position: relative;
   user-select: none;

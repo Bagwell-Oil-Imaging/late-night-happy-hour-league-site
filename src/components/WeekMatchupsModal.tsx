@@ -93,12 +93,16 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
      canonical week number on both ScheduleWeek and MatchupDetail.             */
   const completedMatchups = useMemo(() => {
     if (!weekEntry || weekEntry.status !== 'completed') return []
-    return matchupDetails.filter(m => m.week === weekEntry.week)
+    return matchupDetails
+      .filter(m => m.week === weekEntry.week)
+      .sort((a, b) => a.team1.lane - b.team1.lane)
   }, [weekEntry, matchupDetails])
 
   const upcomingPairings = useMemo(() => {
     if (!weekEntry || weekEntry.status !== 'upcoming') return []
-    return upcomingMatchups.filter(m => m.week === weekEntry.week)
+    return upcomingMatchups
+      .filter(m => m.week === weekEntry.week)
+      .sort((a, b) => a.team1Lane - b.team1Lane)
   }, [weekEntry, upcomingMatchups])
 
   /* ── Point calculation helpers (mirrors MatchupsPage logic) ──────────────── */
@@ -205,7 +209,7 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
                       <th className="wm-col-team wm-left">Team</th>
                       <th className="wm-col-pts center">Pts</th>
                       <th className="wm-col-score center">Total</th>
-                      <th className="wm-col-sep center"></th>
+                      <th className="wm-col-sep center">Lanes</th>
                       <th className="wm-col-score center">Total</th>
                       <th className="wm-col-pts center">Pts</th>
                       <th className="wm-col-team wm-right">Team</th>
@@ -239,7 +243,12 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
                               </span>
                             )}
                           </td>
-                          <td className="wm-col-sep center wm-sep-cell">–</td>
+                          <td className="wm-col-sep center wm-sep-cell">
+                            –
+                            <div className="wm-lane-badge">
+                              Lanes {match.team1.lane} &amp; {match.team1.lane + 1}
+                            </div>
+                          </td>
                           <td className={`wm-col-score center wm-score-cell ${t2Won ? 'wm-winner' : ''}`}>
                             <span title={`Scratch: ${match.team2.scratchSeries} + HDCP: ${match.team2.handicapSeries}`}>
                               {match.team2.totalSeries}
@@ -297,7 +306,12 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
                           {/* team1Id/team2Id are now string leaguePalsId values */}
                           {teamNameMap[m.team1Id] ?? `Team ${m.team1Id}`}
                         </td>
-                        <td className="wm-col-sep center wm-sep-cell">vs</td>
+                        <td className="wm-col-sep center wm-sep-cell">
+                          vs
+                          <div className="wm-lane-badge">
+                            Lanes {m.team1Lane} &amp; {m.team2Lane}
+                          </div>
+                        </td>
                         <td className="wm-col-team wm-right wm-team-cell">
                           {teamNameMap[m.team2Id] ?? `Team ${m.team2Id}`}
                         </td>

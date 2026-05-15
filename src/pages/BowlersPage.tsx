@@ -55,9 +55,10 @@ function formatLanePair(lane: number | null | undefined): JSX.Element {
 
 /**
  * Renders a single game score cell.
- * Displays "-" for null values (blinded weeks where the bowler did not bowl).
+ * Displays "-" for null values; after the pipeline fix blinded weeks store
+ * the computed blind score (not null), so this mostly handles missing data.
  *
- * @param score - Game score, or null when the bowler was blinded
+ * @param score - Game score, or null when data is missing
  * @returns The score as a string, or "-" for null
  */
 function renderGameScore(score: number | null): string {
@@ -143,8 +144,8 @@ interface ScoresTableProps {
 /**
  * Renders a table of per-week bowling scores for a bowler.
  * Highlights the bowler's high game and high series cells.
- * Shows "-" for null game values (blinded weeks) and a "Pre-bowl" badge
- * when `score.preBowled === true`.
+ * Shows a "B" badge for blinded weeks (score is the computed blind value, not null)
+ * and a "PB" badge when `score.preBowled === true`.
  *
  * @param scores - Array of `BowlerScore` documents ordered by week asc
  * @param bowler - Parent `Bowler` document, used to identify high-game/series cells
@@ -175,9 +176,13 @@ function ScoresTable({ scores, bowler }: ScoresTableProps) {
               g !== null && g === bowler.highGame
 
             return (
-              <tr key={score.id ?? score.week} className="week-row">
+              <tr key={score.id ?? score.week} className={`week-row${score.blinded ? ' blinded-row' : ''}`}>
                 <td className="col-week">
                   {score.week}
+                  {/* B badge for blinded weeks — score is computed blind value, not actual */}
+                  {score.blinded && (
+                    <span className="blind-badge" title="Blind score — bowler was absent; score is computed from their average">B</span>
+                  )}
                   {/* PB badge only when the bowl date differs from the scheduled date */}
                   {score.preBowled && score.actualBowlDate && score.actualBowlDate !== score.date && (
                     <span className="prebowl-badge" title={`Bowled on ${formatDate(score.actualBowlDate)}`}>

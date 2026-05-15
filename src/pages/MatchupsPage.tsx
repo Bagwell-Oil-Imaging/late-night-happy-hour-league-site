@@ -102,7 +102,9 @@ function MatchupsPage() {
 
   // Filter matchup details to only the selected week
   const weekMatchups = useMemo(() =>
-    matchupDetails.filter(m => m.week === currentWeek),
+    matchupDetails
+      .filter(m => m.week === currentWeek)
+      .sort((a, b) => a.team1.lane - b.team1.lane),
     [matchupDetails, currentWeek]
   )
 
@@ -171,7 +173,7 @@ function MatchupsPage() {
                 <th className="col-team-left">Team</th>
                 <th className="col-pts center">Pts</th>
                 <th className="col-score center">Total</th>
-                <th className="col-sep center"></th>
+                <th className="col-sep center">Lanes</th>
                 <th className="col-score center">Total</th>
                 <th className="col-pts center">Pts</th>
                 <th className="col-team-right">Team</th>
@@ -210,7 +212,9 @@ function MatchupsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="col-sep center sep-cell">–</td>
+                    <td className="col-sep center sep-cell">
+                      {match.team1.lane}-{match.team1.lane + 1}
+                    </td>
                     <td className={`col-score center score-cell ${t2Won ? 'winner' : ''}`}>
                       <span title={`Scratch: ${match.team2.scratchSeries} + HDCP: ${match.team2.handicapSeries}`}>
                         {match.team2.totalSeries}

@@ -124,7 +124,12 @@ export interface BowlerScore {
   game3: number | null;
   series: number | null;
   preBowled: boolean;
+  /** True when all three games are blind (fully absent). For partial-blind, use blind1/blind2/blind3. */
   blinded: boolean;
+  /** Per-game blind flags — set when a bowler was absent for that specific game only. */
+  blind1?: boolean;
+  blind2?: boolean;
+  blind3?: boolean;
   isSubstitute: boolean;
   substituteFor: string | null;
   /** Running season average through this week (floor of total scratch pins ÷ total games, blind weeks excluded). null before first game. */
