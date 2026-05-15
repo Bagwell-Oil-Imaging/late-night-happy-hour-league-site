@@ -201,7 +201,7 @@
 .sch-col-date    { width: 130px; }
 .sch-col-matchups{ /* flexible */ }
 .sch-col-notes   { width: 140px; }
-.sch-col-action  { width: 130px; }
+.sch-col-action  { width: 200px; }
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
 .schedule-table thead {
@@ -386,6 +386,15 @@
 .sch-col-action {
   vertical-align: middle;
   text-align: right;
+}
+
+/* Groups View Matchups + optional PDF button side-by-side */
+.sch-action-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .sch-view-btn {

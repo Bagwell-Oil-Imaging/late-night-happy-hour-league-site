@@ -1,89 +1,97 @@
 /**
- * @fileoverview One-time script to obtain a Google OAuth2 refresh token for
- * Drive uploads. Run this once; paste the resulting refresh token into .env
- * and the Vercel dashboard as GOOGLE_OAUTH_REFRESH_TOKEN.
+ * @fileoverview Obtains a Google OAuth2 refresh token for Drive uploads.
  *
- * Prerequisites:
- *   1. In Google Cloud Console → APIs & Services → Credentials, create an
- *      OAuth 2.0 Client ID (Application type: "Desktop app").
- *   2. Download the JSON and note the client_id and client_secret.
- *   3. Set those values in .env:
- *        GOOGLE_OAUTH_CLIENT_ID=<your-client-id>
- *        GOOGLE_OAUTH_CLIENT_SECRET=<your-client-secret>
- *   4. Run: node scripts/get-drive-oauth-token.cjs
- *   5. Open the printed URL in a browser, sign in as the LEAGUE Google account,
- *      approve the Drive permission.
- *   6. Google redirects to localhost (will fail to load — that's fine). Copy
- *      the `code=` value from the URL.
- *   7. Paste the code into the terminal prompt.
- *   8. The script prints the refresh token. Add it to .env and Vercel.
+ * Starts a local HTTP server, opens the Google consent page in the default
+ * browser, captures the auth code from the redirect, exchanges it for tokens,
+ * and writes the new GOOGLE_OAUTH_REFRESH_TOKEN directly into .env.
  *
- * This script only needs to be run once. The refresh token does not expire
- * unless access is revoked in the Google account's security settings.
+ * Usage:  node scripts/get-drive-oauth-token.cjs
+ *
+ * Prerequisites: GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET must
+ * already be set in .env (they have not changed — only the refresh token expired).
  */
 
 'use strict';
 
 const { google } = require('googleapis');
-const readline = require('readline');
+const http = require('http');
+const { exec } = require('child_process');
+const { readFileSync, writeFileSync } = require('fs');
+const { join } = require('path');
 require('dotenv/config');
 
 const CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+const PORT = 9876;
+const REDIRECT_URI = `http://localhost:${PORT}/callback`;
+const ENV_PATH = join(__dirname, '..', '.env');
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
-  console.error(
-    '\nError: GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET must be set in .env\n' +
-    '  1. Create a Desktop OAuth2 client at https://console.cloud.google.com/apis/credentials\n' +
-    '  2. Add the values to .env, then re-run this script.\n'
-  );
+  console.error('Missing GOOGLE_OAUTH_CLIENT_ID or GOOGLE_OAUTH_CLIENT_SECRET in .env');
   process.exit(1);
 }
 
-// Use the same redirect URI Google uses for desktop/CLI flows.
-const REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob';
-
 const oAuth2Client = new google.auth.OAuth2(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
 
-// Request offline access so we get a refresh token (not just an access token).
 const authUrl = oAuth2Client.generateAuthUrl({
   access_type: 'offline',
-  prompt: 'consent',
+  prompt: 'select_account consent',
   scope: ['https://www.googleapis.com/auth/drive'],
 });
 
-console.log('\n=== Google Drive OAuth2 Token Setup ===\n');
-console.log('1. Open this URL in a browser and sign in as the LEAGUE Google account:\n');
-console.log('   ' + authUrl);
-console.log('\n2. Approve the Drive permission.');
-console.log('3. Copy the authorization code shown on the page.\n');
+// Spin up a one-shot local server to catch the OAuth callback
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://localhost:${PORT}`);
+  if (url.pathname !== '/callback') return;
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const code = url.searchParams.get('code');
+  const error = url.searchParams.get('error');
 
-rl.question('Paste the authorization code here: ', async (code) => {
-  rl.close();
+  if (error || !code) {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    res.end(`OAuth error: ${error || 'no code returned'}`);
+    server.close();
+    process.exit(1);
+  }
+
+  res.writeHead(200, { 'Content-Type': 'text/html' });
+  res.end('<h2>✓ Authorized. You can close this tab.</h2>');
+  server.close();
 
   try {
-    const { tokens } = await oAuth2Client.getToken(code.trim());
+    const { tokens } = await oAuth2Client.getToken(code);
 
     if (!tokens.refresh_token) {
       console.error(
-        '\nNo refresh token in response. This can happen if the account already\n' +
-        'granted access. Revoke access at https://myaccount.google.com/permissions\n' +
-        'then re-run this script.\n'
+        '\nNo refresh token returned. The account may still have active access.\n' +
+        'Revoke it at https://myaccount.google.com/permissions then re-run.\n'
       );
       process.exit(1);
     }
 
-    console.log('\n=== Success! Add this to .env and the Vercel dashboard ===\n');
-    console.log('GOOGLE_OAUTH_REFRESH_TOKEN=' + tokens.refresh_token);
-    console.log('\nVercel command to add it to production:');
-    console.log(
-      `  echo "${tokens.refresh_token}" | vercel env add GOOGLE_OAUTH_REFRESH_TOKEN production --force`
-    );
-    console.log('\nAlso add GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET to Vercel if not done yet.\n');
+    // Write the new token into .env, replacing the old value
+    let env = readFileSync(ENV_PATH, 'utf8');
+    if (env.includes('GOOGLE_OAUTH_REFRESH_TOKEN=')) {
+      env = env.replace(/GOOGLE_OAUTH_REFRESH_TOKEN=.*/m, `GOOGLE_OAUTH_REFRESH_TOKEN=${tokens.refresh_token}`);
+    } else {
+      env += `\nGOOGLE_OAUTH_REFRESH_TOKEN=${tokens.refresh_token}\n`;
+    }
+    writeFileSync(ENV_PATH, env);
+
+    console.log('\n✓ Refresh token saved to .env');
+    console.log(`  GOOGLE_OAUTH_REFRESH_TOKEN=${tokens.refresh_token.slice(0, 20)}...`);
+    console.log('\nRun "npm run standings" to upload PDFs to Drive.\n');
   } catch (err) {
-    console.error('\nFailed to exchange code for tokens:', err.message, '\n');
+    console.error('\nFailed to exchange code for tokens:', err.message);
     process.exit(1);
   }
+});
+
+server.listen(PORT, () => {
+  console.log(`\nOpening Google authorization page in your browser...`);
+  // Open the default browser on Windows
+  exec(`start "" "${authUrl}"`);
+  console.log('Sign in as the LEAGUE Google account and approve Drive access.');
+  console.log('(If the browser did not open, visit this URL manually:)');
+  console.log(`\n  ${authUrl}\n`);
 });

@@ -1,0 +1,93 @@
+# Downloads the weekly standings PDF for each completed week from LeaguePals,
+# then uploads each PDF to the 2025-2026 Weekly Reports folder in Google Drive.
+#
+# Schedule: runs Saturday at 4am UTC (Friday midnight Central Time), which is
+# the morning after Thursday league night so all scores are posted.
+#
+# Can also be triggered manually via workflow_dispatch (Actions → Run workflow).
+#
+# Required repository secrets (Settings → Secrets → Actions):
+#   LEAGUEPALS_EMAIL                      — league member login email
+#   LEAGUEPALS_PASSWORD                   — league member login password
+#   DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS — Google Drive folder ID for uploads
+#   GOOGLE_OAUTH_CLIENT_ID                — OAuth2 client ID for Drive API
+#   GOOGLE_OAUTH_CLIENT_SECRET            — OAuth2 client secret for Drive API
+#   GOOGLE_OAUTH_REFRESH_TOKEN            — Offline refresh token for league account
+
+name: Weekly Standings Download
+
+on:
+  schedule:
+    # Friday midnight Central Time = Saturday 04:00 UTC (CT is UTC-6 in bowling season)
+    - cron: '0 4 * * 6'
+  workflow_dispatch:
+    inputs:
+      force_redownload:
+        description: 'Delete cached snapshot IDs and re-generate all PDFs (use if IDs are stale)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  download-standings:
+    name: Download & Upload Weekly Standings
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # needed to commit updated snapshot/drive JSON caches back to the repo
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch with a token that can push commits back to the branch
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        # npm ci uses package-lock.json for a reproducible install.
+        # Puppeteer will download its bundled Chromium during postinstall.
+        run: npm ci
+
+      - name: Install Chromium system dependencies
+        # ubuntu-latest is missing a few libs that Puppeteer's Chromium needs.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libgbm-dev \
+            libxss1 \
+            libasound2t64 \
+            libatk-bridge2.0-0 \
+            libgtk-3-0
+
+      - name: Force re-download (optional)
+        # If the workflow was manually triggered with force_redownload=true,
+        # remove the snapshot cache so all IDs are re-generated from scratch.
+        if: ${{ github.event.inputs.force_redownload == 'true' }}
+        run: rm -f weekly-standings-pdfs/snapshot-ids.json weekly-standings-pdfs/drive-uploads.json
+
+      - name: Download and upload weekly standings
+        env:
+          CI: 'true'
+          LEAGUEPALS_EMAIL: ${{ secrets.LEAGUEPALS_EMAIL }}
+          LEAGUEPALS_PASSWORD: ${{ secrets.LEAGUEPALS_PASSWORD }}
+          DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS: ${{ secrets.DRIVE_FOLDER_2025_2026_WEEKLY_REPORTS }}
+          GOOGLE_OAUTH_CLIENT_ID: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          GOOGLE_OAUTH_CLIENT_SECRET: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+          GOOGLE_OAUTH_REFRESH_TOKEN: ${{ secrets.GOOGLE_OAUTH_REFRESH_TOKEN }}
+        run: npm run standings
+
+      - name: Commit updated cache files
+        # Persist snapshot-ids.json and drive-uploads.json so the next run
+        # skips weeks that were already processed.
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add weekly-standings-pdfs/snapshot-ids.json weekly-standings-pdfs/drive-uploads.json
+          git diff --staged --quiet || git commit -m "chore(standings): update weekly standings cache [skip ci]"
+          git push

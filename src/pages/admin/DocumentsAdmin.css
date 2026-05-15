@@ -386,6 +386,37 @@
   color: var(--text-primary);
 }
 
+/* Edit — neutral */
+.admin-btn-edit {
+  border-color: rgba(var(--accent-rgb, 180, 145, 60), 0.4);
+  color: var(--accent);
+}
+
+.admin-btn-edit:hover {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-dark);
+}
+
+/* Save — success green */
+.admin-btn-save {
+  border-color: rgba(82, 184, 100, 0.4);
+  color: #52b864;
+}
+
+.admin-btn-save:hover {
+  background-color: #52b864;
+  border-color: #52b864;
+  color: #fff;
+}
+
+/* Inline season dropdown inside table cell */
+.doc-season-select {
+  padding: 2px var(--space-2);
+  font-size: 0.8rem;
+  min-width: 100px;
+}
+
 /* Delete — danger */
 .admin-btn-delete {
   border-color: rgba(224, 82, 82, 0.35);

@@ -28,8 +28,12 @@
   margin-bottom: var(--space-6);
 }
 
-/* The "All Weeks →" link lives in the third column, pushed to the right */
-.week-view-tabs > .recap-detail-link {
+/* Right column: holds the optional PDF button + "All Weeks →" link */
+.week-view-tabs-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
   justify-self: end;
   align-self: center;
 }

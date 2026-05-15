@@ -21,7 +21,7 @@
 
 import { useEffect } from 'react'
 import { useActiveDocument } from '../hooks'
-import { driveFileUrl, driveDownloadUrl } from '../utils/drive'
+import { driveDownloadUrl, driveEmbedUrl } from '../utils/drive'
 import './BylawsModal.css'
 
 /** Props accepted by the BylawsModal component */
@@ -108,7 +108,7 @@ function BylawsModal({ isOpen, onClose }: BylawsModalProps) {
           {!loading && doc?.source.type === 'pdf' && doc.source.driveFileId && (
             <>
               <iframe
-                src={driveFileUrl(doc.source.driveFileId)}
+                src={driveEmbedUrl(doc.source.driveFileId)}
                 title={doc.title}
                 className="bylaws-iframe"
               />

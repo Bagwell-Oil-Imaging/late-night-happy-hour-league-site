@@ -13,6 +13,7 @@ late-night-happy-hour-league-site/
 │   │   ├── Header.tsx
 │   │   ├── HistoricalScores.tsx
 │   │   ├── LeagueStandings.tsx
+│   │   ├── StandingsPdfModal.tsx  # Google Drive PDF viewer modal (weekly standings)
 │   │   └── UpcomingEvents.tsx
 │   ├── hooks/                # Firestore React hooks
 │   │   ├── useFirestore.ts   # Generic useCollection<T> and useDocument<T>
@@ -22,7 +23,8 @@ late-night-happy-hour-league-site/
 │   ├── types/
 │   │   └── index.ts          # All TypeScript interfaces (Firestore schema)
 │   ├── utils/
-│   │   └── admin.ts          # Admin utility helpers
+│   │   ├── admin.ts              # Admin utility helpers
+│   │   └── weeklyStandingsPdf.ts # Drive file ID lookup for weekly standings PDFs
 │   ├── firebase.ts           # Firebase app initialization (db, auth only — no Storage)
 │   ├── App.tsx
 │   ├── App.css
@@ -102,6 +104,7 @@ Admin panels available:
 - **Phase 5** (Admin CRUD UI): Built Firebase Auth–gated admin panels for announcements, events, carousel images, and documents.
 - **Phase 6** (Cleanup): Removed all static `src/data/*.json` files; resolved TypeScript errors; updated documentation.
 - **Google Drive Migration** (feature/google-drive-storage): Replaced Firebase Storage with Google Drive for bylaws PDF storage. Added Vercel serverless upload endpoint (`api/upload-to-drive.js`), `DocumentSource.driveFileId` type field, Drive URL utilities, and updated `DocumentsAdmin` + `BylawsModal`. Removed Firebase Storage SDK, `storage.rules`, `VITE_FIREBASE_STORAGE_BUCKET`, and the deprecated `fileUrl` field.
+- **Weekly Standings PDFs** (feature/admin-updates): Added Puppeteer script (`scripts/download-weekly-standings.js`) to scrape LeaguePals and upload weekly standings PDFs to Google Drive. GitHub Actions workflow runs each Saturday 4am UTC. Drive file IDs cached in `weekly-standings-pdfs/drive-uploads.json`. Front-end surfaces PDFs via `StandingsPdfModal` + `.standings-pdf-btn` button wired into MatchupsPage, WeekMatchupsModal, HomePage (Recap tab), SchedulePage, and TeamsPage week cards.
 
 ## Known Issues / Limitations
 
@@ -113,3 +116,47 @@ Admin panels available:
 - Add real-time Firestore listeners (`onSnapshot`) for live score updates during league night.
 - Implement composite Firestore indexes for complex queries (e.g., `bowlerScores` ordered by `weekId` + `teamId`).
 - Consider lazy-loading admin route chunks to reduce initial bundle size.
+
+<!-- gitnexus:start -->
+# GitNexus — Code Intelligence
+
+This project is indexed by GitNexus as **late-night-happy-hour-league-site** (1775 symbols, 2718 relationships, 86 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+
+> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+
+## Always Do
+
+- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
+- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
+- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+
+## Never Do
+
+- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
+- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
+- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+
+## Resources
+
+| Resource | Use for |
+|----------|---------|
+| `gitnexus://repo/late-night-happy-hour-league-site/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/late-night-happy-hour-league-site/clusters` | All functional areas |
+| `gitnexus://repo/late-night-happy-hour-league-site/processes` | All execution flows |
+| `gitnexus://repo/late-night-happy-hour-league-site/process/{name}` | Step-by-step execution trace |
+
+## CLI
+
+| Task | Read this skill file |
+|------|---------------------|
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+
+<!-- gitnexus:end -->

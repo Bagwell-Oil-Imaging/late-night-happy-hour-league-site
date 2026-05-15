@@ -9,20 +9,178 @@
  * Data is fetched from Firestore via `useMatchupDetail` — no static JSON
  * import.
  *
- * Field renames from the pre-migration schema:
- *  - `gameTotals.g1/g2/g3` → `game1Total/game2Total/game3Total` (TeamSummary)
- *  - `matchupId` prop type changed from `number | null` → `string | null`
- *    because Firestore document IDs are strings.
- *
- * Note: individual bowler rows have been removed from this component because
- * per-bowler scores are now in the `BowlerScore` collection. Bowler drill-
- * through is handled at the page level via BowlerProfileModal.
+ * Blind score handling:
+ *   The roster for each team is always loaded alongside BowlerScore records.
+ *   Pipeline-recorded blinds (blinded: true in Firestore) show a B badge.
+ *   If the pipeline stored blinded: true but null game scores (pre-fix data),
+ *   blind scores are computed client-side from the bowler's entering average
+ *   so the display is never blank for known absent bowlers.
+ *   Roster members with no score record at all are shown as absent (dashes,
+ *   no badge) — we do not assume absence equals a counted blind.
  */
 
 import { useEffect } from 'react'
-import { useMatchupDetail, useBowlerScoresByTeamWeek } from '../hooks'
+import { useMatchupDetail, useBowlerScoresByTeamWeek, useBowlers } from '../hooks'
 import { useSeasonYear } from '../context/SeasonContext'
+import type { Bowler, BowlerScore } from '../types'
 import './MatchupDetailModal.css'
+
+// Matches the formula in transform-data.js — blind score = avg − floor(avg × penalty)
+const BLIND_PENALTY_PCT = 0.10
+
+// ── Display row type ──────────────────────────────────────────────────────────
+
+interface MatchupBowlerRow {
+  bowlerId: string
+  bowlerName: string
+  game1: number | null
+  game2: number | null
+  game3: number | null
+  series: number | null
+  blinded: boolean
+  /** Cumulative non-blind games bowled through this week; null for absent bowlers with no record. */
+  rollingGames: number | null
+  /** Bowler's average entering this week — used for handicap and blind score calculation. */
+  avgBeforeThisWeek: number | null
+}
+
+/**
+ * Computes a blind score from a bowler's entering average.
+ * Used as a display-side fallback when the pipeline stored `blinded: true`
+ * but null game scores (pre-fix pipeline data still in Firestore).
+ */
+function computeBlindScore(enteringAvg: number): number | null {
+  if (enteringAvg <= 0) return null
+  const penalty = Math.floor(enteringAvg * BLIND_PENALTY_PCT)
+  return enteringAvg - penalty
+}
+
+/**
+ * Merges a team's roster against its BowlerScore records for the week.
+ *
+ * - Bowlers WITH a score record: returned as-is. If the record is `blinded: true`
+ *   but has null game scores (old pipeline data), blind scores are computed
+ *   client-side from the bowler's `enteringAvg` so the display is never blank.
+ * - Bowlers WITHOUT a score record: shown as absent (dashes, no blind badge).
+ *   We don't assume absence = blind — that distinction belongs to the pipeline.
+ *
+ * Falls back to score-records-only order when the roster hasn't loaded yet.
+ *
+ * @param roster - Full bowler roster for the team (may be empty while loading)
+ * @param scores - BowlerScore records for this team+week from Firestore
+ * @returns Display rows in roster order (or score order if roster is empty)
+ */
+function buildBowlerRows(roster: Bowler[], scores: BowlerScore[]): MatchupBowlerRow[] {
+  const rosterById = new Map(roster.map(b => [b.id!, b]))
+
+  /**
+   * Computes the bowler's average ENTERING this week (before this week's games
+   * are counted). Used for handicap and blind score display.
+   *
+   * For blind weeks: rollingAvg already excludes the blind, so it IS the entering avg.
+   * For non-blind weeks: reverse out this week's 3 games from the cumulative.
+   *   approxPinsBefore = rollingAvg × rollingGames − series  (±1 pin due to floor)
+   * Falls back to enteringAvg when no prior games exist (e.g. week 1).
+   */
+  const computeAvgBeforeThisWeek = (s: BowlerScore): number | null => {
+    const enteringAvg = rosterById.get(s.bowlerId)?.enteringAvg ?? 0
+    if (s.blinded) {
+      // Blind weeks don't accumulate — rollingAvg is already the pre-week average
+      return s.rollingAvg ?? (enteringAvg > 0 ? enteringAvg : null)
+    }
+    const gamesBeforeWeek = (s.rollingGames ?? 0) - 3
+    if (gamesBeforeWeek <= 0) {
+      return enteringAvg > 0 ? enteringAvg : null
+    }
+    const approxPinsBefore = (s.rollingAvg ?? 0) * (s.rollingGames ?? 0) - (s.series ?? 0)
+    return Math.floor(approxPinsBefore / gamesBeforeWeek)
+  }
+
+  const resolveScore = (s: BowlerScore): MatchupBowlerRow => {
+    // If the pipeline recorded blinded: true but stored null scores (pre-fix data),
+    // compute the blind score client-side from the bowler's entering average.
+    const needsClientBlind = s.blinded && s.game1 === null
+    if (needsClientBlind) {
+      const avg = rosterById.get(s.bowlerId)?.enteringAvg ?? 0
+      const blindScore = computeBlindScore(avg)
+      return {
+        bowlerId: s.bowlerId,
+        bowlerName: s.bowlerName,
+        game1: blindScore,
+        game2: blindScore,
+        game3: blindScore,
+        series: blindScore !== null ? blindScore * 3 : null,
+        blinded: true,
+        rollingGames: s.rollingGames ?? null,
+        avgBeforeThisWeek: computeAvgBeforeThisWeek(s),
+      }
+    }
+    return {
+      bowlerId: s.bowlerId,
+      bowlerName: s.bowlerName,
+      game1: s.game1,
+      game2: s.game2,
+      game3: s.game3,
+      series: s.series,
+      blinded: s.blinded,
+      rollingGames: s.rollingGames ?? null,
+      avgBeforeThisWeek: computeAvgBeforeThisWeek(s),
+    }
+  }
+
+  if (roster.length === 0) {
+    return scores.map(resolveScore)
+  }
+
+  const scoreMap = new Map(scores.map(s => [s.bowlerId, s]))
+
+  const rows: MatchupBowlerRow[] = roster.map(b => {
+    const score = scoreMap.get(b.id!)
+    if (score) return resolveScore(score)
+
+    // Bowler is on the roster but has no score record — show as absent (dashes).
+    // No blind badge: absence without a recorded blind means the score did not
+    // count toward the team total this week.
+    const enteringAvg = b.enteringAvg ?? 0
+    return {
+      bowlerId: b.id!,
+      bowlerName: b.name,
+      game1: null,
+      game2: null,
+      game3: null,
+      series: null,
+      blinded: false,
+      rollingGames: null,
+      avgBeforeThisWeek: enteringAvg > 0 ? enteringAvg : null,
+    }
+  })
+
+  // Apply blind selection rule: of all rows marked blinded, only the top N
+  // (by games-before-this-week desc, then avg desc) actually count.
+  // Excess blind rows are demoted to absent so they show dashes and no B badge.
+  const actualBowlerCount = rows.filter(r => !r.blinded && r.game1 !== null).length
+  const allowedBlinds = Math.min(3, Math.max(0, 4 - actualBowlerCount))
+  const blindRows = rows.filter(r => r.blinded)
+
+  if (blindRows.length > allowedBlinds) {
+    blindRows.sort((a, b) => {
+      const gA = a.rollingGames ?? 0
+      const gB = b.rollingGames ?? 0
+      if (gB !== gA) return gB - gA
+      return (b.avgBeforeThisWeek ?? 0) - (a.avgBeforeThisWeek ?? 0)
+    })
+    const selectedIds = new Set(blindRows.slice(0, allowedBlinds).map(r => r.bowlerId))
+    return rows.map(r =>
+      r.blinded && !selectedIds.has(r.bowlerId)
+        ? { ...r, blinded: false, game1: null, game2: null, game3: null, series: null }
+        : r
+    )
+  }
+
+  return rows
+}
+
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 interface MatchupDetailModalProps {
   /** Firestore document ID of the matchup detail to display, or null when closed. */
@@ -36,13 +194,11 @@ interface MatchupDetailModalProps {
  *
  * @param matchupId       - Firestore document ID to look up, or null to hide the modal.
  * @param onClose         - Callback invoked when the modal requests dismissal.
- * @param onSelectBowler  - Callback for bowler profile drill-through (reserved for
- *                          future use when individual scores are surfaced here).
+ * @param onSelectBowler  - Callback for bowler profile drill-through.
  * @returns Modal JSX when open and data is available, null otherwise.
  */
 function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetailModalProps) {
   const SEASON_YEAR = useSeasonYear()
-  // Fetch the single MatchupDetail document from Firestore (skips when null)
   const { data: match, loading } = useMatchupDetail(matchupId)
   const isOpen = matchupId !== null
 
@@ -50,10 +206,14 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
   const { data: team1ScoresRaw } = useBowlerScoresByTeamWeek(match?.team1?.teamId, match?.week, SEASON_YEAR)
   const { data: team2ScoresRaw } = useBowlerScoresByTeamWeek(match?.team2?.teamId, match?.week, SEASON_YEAR)
 
-  // Client-side filter guards against stale data if the Firestore query returned
-  // too many documents (e.g. a prior unconstrained subscription or a failed index).
+  // Client-side filter guards against stale data from a prior unconstrained subscription
   const team1Scores = team1ScoresRaw.filter(s => s.teamId === match?.team1?.teamId)
   const team2Scores = team2ScoresRaw.filter(s => s.teamId === match?.team2?.teamId)
+
+  // Always load the full roster for both teams so we can detect absent bowlers
+  // and synthesize blind rows for any who have no score record this week.
+  const { data: team1Roster } = useBowlers(SEASON_YEAR, match?.team1?.teamId ?? '__never__')
+  const { data: team2Roster } = useBowlers(SEASON_YEAR, match?.team2?.teamId ?? '__never__')
 
   /* ── Lock body scroll while open ────────────────────────────────────────── */
   useEffect(() => {
@@ -70,10 +230,8 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
     return () => document.removeEventListener('keydown', handleEscape)
   }, [isOpen, onClose])
 
-  // Not open — render nothing
   if (!isOpen) return null
 
-  // Open but still loading from Firestore
   if (loading) {
     return (
       <div className="modal-overlay" onClick={onClose}>
@@ -84,15 +242,8 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
     )
   }
 
-  // Open and loaded, but document not found (e.g. deleted or bad ID)
   if (!match) return null
 
-  /**
-   * Formats a date string into a human-readable long-form date.
-   *
-   * @param dateString - ISO date string, e.g. "2025-01-09"
-   * @returns Formatted string, e.g. "Thursday, January 9, 2025"
-   */
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString + 'T12:00:00')
     return date.toLocaleDateString('en-US', {
@@ -100,8 +251,34 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
     })
   }
 
-  const team1Won = match.team1.totalSeries > match.team2.totalSeries
-  const team2Won = match.team2.totalSeries > match.team1.totalSeries
+  // Build display rows first — required to compute corrected scratch totals
+  const team1Rows = buildBowlerRows(team1Roster, team1Scores)
+  const team2Rows = buildBowlerRows(team2Roster, team2Scores)
+
+  // Compute corrected scratch totals from display rows so blind contributions are
+  // included even when stored Firestore totals predate the blind-score pipeline fix.
+  // Falls back to stored values when individualScoresUnavailable (manual entry).
+  const getScratches = (team: typeof match.team1, rows: MatchupBowlerRow[]): [number, number, number] =>
+    team.individualScoresUnavailable
+      ? [team.game1Total, team.game2Total, team.game3Total]
+      : [
+          rows.reduce((s, r) => s + (r.game1 ?? 0), 0),
+          rows.reduce((s, r) => s + (r.game2 ?? 0), 0),
+          rows.reduce((s, r) => s + (r.game3 ?? 0), 0),
+        ]
+
+  const t1Scratches = getScratches(match.team1, team1Rows)
+  const t2Scratches = getScratches(match.team2, team2Rows)
+
+  // Handicap-adjusted per-game totals — used for per-game winner colouring
+  const t1GameTotals = t1Scratches.map(g => g + match.team1.handicapPerGame)
+  const t2GameTotals = t2Scratches.map(g => g + match.team2.handicapPerGame)
+  const t1TotalSeries = t1Scratches.reduce((s, g) => s + g, 0) + match.team1.handicapSeries
+  const t2TotalSeries = t2Scratches.reduce((s, g) => s + g, 0) + match.team2.handicapSeries
+
+  // Winner determined from corrected totals, not stale stored totalSeries
+  const team1Won = t1TotalSeries > t2TotalSeries
+  const team2Won = t2TotalSeries > t1TotalSeries
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -121,7 +298,24 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
           <div className="matchup-teams">
             {[match.team1, match.team2].map((team, idx) => {
               const isWinner = idx === 0 ? team1Won : team2Won
-              const scores = idx === 0 ? team1Scores : team2Scores
+              const rows = idx === 0 ? team1Rows : team2Rows
+              const roster = idx === 0 ? team1Roster : team2Roster
+
+              // Use pre-computed corrected totals (blind contributions included)
+              const [scratchGame1, scratchGame2, scratchGame3] = idx === 0 ? t1Scratches : t2Scratches
+              const scratchTotal  = scratchGame1 + scratchGame2 + scratchGame3
+              const grandTotal    = idx === 0 ? t1TotalSeries : t2TotalSeries
+
+              // Per-game totals vs opponent for cell-level win/loss colouring
+              const myGameTotals  = idx === 0 ? t1GameTotals : t2GameTotals
+              const oppGameTotals = idx === 0 ? t2GameTotals : t1GameTotals
+              const oppTotalSeries = idx === 0 ? t2TotalSeries : t1TotalSeries
+              const gameClass = (i: number) =>
+                myGameTotals[i] > oppGameTotals[i] ? 'game-cell-win'
+                : myGameTotals[i] < oppGameTotals[i] ? 'game-cell-loss' : ''
+              const seriesClass = grandTotal > oppTotalSeries ? 'game-cell-win'
+                : grandTotal < oppTotalSeries ? 'game-cell-loss' : ''
+
               return (
                 <div key={team.teamId} className={`matchup-team-panel ${isWinner ? 'winner-panel' : ''}`}>
                   <div className="team-panel-header">
@@ -133,12 +327,9 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
                     Two-table layout so Scratch / Handicap / Total always pin to
                     the bottom of both equally-tall grid cells regardless of how
                     many bowlers each team has.
-                    - bowler-table  grows (flex: 1) to absorb any leftover height
-                    - totals-table  is fixed height and always at the bottom
                   */}
                   <div className="scores-table-wrapper">
 
-                    {/* Bowler rows — grows to fill available space */}
                     <table className="matchup-scores-table bowler-table">
                       <thead>
                         <tr>
@@ -150,56 +341,139 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
                         </tr>
                       </thead>
                       <tbody>
-                        {scores.map((s) => (
-                          <tr
-                            key={s.bowlerId}
-                            className="bowler-score-row"
-                            onClick={() => onSelectBowler(s.bowlerId)}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <td className="col-name">{s.bowlerName}</td>
-                            <td className="col-game">{s.game1 ?? '—'}</td>
-                            <td className="col-game">{s.game2 ?? '—'}</td>
-                            <td className="col-game">{s.game3 ?? '—'}</td>
-                            <td className="col-series">{s.series ?? '—'}</td>
-                          </tr>
-                        ))}
+                        {team.individualScoresUnavailable ? (
+                          /*
+                           * Per-bowler scores were not recorded — show roster names with
+                           * dash placeholders so the scorecard still lists the players.
+                           */
+                          roster.length > 0 ? roster.map(b => (
+                            <tr key={b.id} className="scores-unavailable-row">
+                              <td className="col-name">{b.name}</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-series scores-unavailable-cell">—</td>
+                            </tr>
+                          )) : (
+                            <tr className="scores-unavailable-row">
+                              <td className="col-name scores-unavailable-label">* Individual scores not available</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-series scores-unavailable-cell">—</td>
+                            </tr>
+                          )
+                        ) : (
+                          rows.map((row) => (
+                            <tr
+                              key={row.bowlerId}
+                              className={`bowler-score-row${row.blinded ? ' blinded-score-row' : ''}`}
+                              onClick={() => onSelectBowler(row.bowlerId)}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              <td className="col-name">
+                                <span className="bowler-name-text">{row.bowlerName}</span>
+                                {row.blinded && (
+                                  <span
+                                    className="blind-badge"
+                                    title="Blind score — bowler was absent; score computed from their average"
+                                  >B</span>
+                                )}
+                                {(row.rollingGames !== null || row.avgBeforeThisWeek !== null) && (() => {
+                                  const gamesBeforeThisWeek = row.rollingGames === null ? null
+                                    : row.blinded ? row.rollingGames
+                                    : Math.max(0, row.rollingGames - 3)
+                                  return (
+                                    <span className="bowler-games-count" title="Games bowled and average entering this week">
+                                      {gamesBeforeThisWeek !== null && `${gamesBeforeThisWeek} Games Played`}
+                                      {gamesBeforeThisWeek !== null && row.avgBeforeThisWeek !== null && ' · '}
+                                      {row.avgBeforeThisWeek !== null && `Avg ${row.avgBeforeThisWeek}`}
+                                    </span>
+                                  )
+                                })()}
+                              </td>
+                              <td className="col-game">
+                                {row.blinded && <span className="blind-cell-label">Blind</span>}
+                                {row.game1 ?? '—'}
+                              </td>
+                              <td className="col-game">
+                                {row.blinded && <span className="blind-cell-label">Blind</span>}
+                                {row.game2 ?? '—'}
+                              </td>
+                              <td className="col-game">
+                                {row.blinded && <span className="blind-cell-label">Blind</span>}
+                                {row.game3 ?? '—'}
+                              </td>
+                              <td className="col-series">
+                                {row.blinded && <span className="blind-cell-label">Blind</span>}
+                                {row.series ?? '—'}
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
+
+                    {team.individualScoresUnavailable && (
+                      <p className="scores-unavailable-legend">
+                        * Individual bowler scores were not recorded for this matchup.
+                        Team game totals and match points are accurate.
+                      </p>
+                    )}
 
                     {/* Totals — pinned to the bottom of the panel */}
                     <table className="matchup-scores-table totals-table">
                       <tbody>
                         <tr className="totals-row scratch-row">
                           <td className="col-name">Scratch</td>
-                          <td className="col-game">{team.game1Total}</td>
-                          <td className="col-game">{team.game2Total}</td>
-                          <td className="col-game">{team.game3Total}</td>
-                          <td className="col-series">{team.scratchSeries}</td>
+                          {team.individualScoresUnavailable ? (
+                            <><td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-series scores-unavailable-cell">—</td></>
+                          ) : (
+                            <><td className="col-game">{scratchGame1}</td>
+                              <td className="col-game">{scratchGame2}</td>
+                              <td className="col-game">{scratchGame3}</td>
+                              <td className="col-series">{scratchTotal}</td></>
+                          )}
                         </tr>
                         <tr className="totals-row handicap-row">
                           <td className="col-name">Handicap</td>
-                          <td className="col-game">+{team.handicapPerGame}</td>
-                          <td className="col-game">+{team.handicapPerGame}</td>
-                          <td className="col-game">+{team.handicapPerGame}</td>
-                          <td className="col-series">+{team.handicapSeries}</td>
+                          {team.individualScoresUnavailable ? (
+                            <><td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-game scores-unavailable-cell">—</td>
+                              <td className="col-series scores-unavailable-cell">—</td></>
+                          ) : (
+                            <><td className="col-game">+{team.handicapPerGame}</td>
+                              <td className="col-game">+{team.handicapPerGame}</td>
+                              <td className="col-game">+{team.handicapPerGame}</td>
+                              <td className="col-series">+{team.handicapSeries}</td></>
+                          )}
                         </tr>
                         <tr className={`totals-row grand-total-row ${isWinner ? 'winner' : ''}`}>
                           <td className="col-name">Total</td>
-                          <td className="col-game">{team.game1Total + team.handicapPerGame}</td>
-                          <td className="col-game">{team.game2Total + team.handicapPerGame}</td>
-                          <td className="col-game">{team.game3Total + team.handicapPerGame}</td>
-                          <td className="col-series">
-                            <span title={`Scratch: ${team.scratchSeries} + HDCP: ${team.handicapSeries}`}>
-                              {team.totalSeries}
-                            </span>
-                            {team.handicapSeries > 0 && (
-                              <span
-                                className="score-hcp"
-                                title={`Scratch: ${team.scratchSeries} + HDCP: ${team.handicapSeries}`}
-                              >
-                                (+{team.handicapSeries})
-                              </span>
+                          <td className={`col-game ${gameClass(0)}`}>{scratchGame1 + team.handicapPerGame}</td>
+                          <td className={`col-game ${gameClass(1)}`}>{scratchGame2 + team.handicapPerGame}</td>
+                          <td className={`col-game ${gameClass(2)}`}>{scratchGame3 + team.handicapPerGame}</td>
+                          <td className={`col-series ${seriesClass}`}>
+                            {team.individualScoresUnavailable ? (
+                              team.totalSeries
+                            ) : (
+                              <>
+                                <span title={`Scratch: ${scratchTotal} + HDCP: ${team.handicapSeries}`}>
+                                  {grandTotal}
+                                </span>
+                                {team.handicapSeries > 0 && (
+                                  <span
+                                    className="score-hcp"
+                                    title={`Scratch: ${scratchTotal} + HDCP: ${team.handicapSeries}`}
+                                  >
+                                    (+{team.handicapSeries})
+                                  </span>
+                                )}
+                              </>
                             )}
                           </td>
                         </tr>

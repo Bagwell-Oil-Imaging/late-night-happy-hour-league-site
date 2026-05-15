@@ -21,6 +21,8 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMatchupDetails, useMatchups, useTeams } from '../hooks'
 import MatchupDetailModal from './MatchupDetailModal'
+import StandingsPdfModal from './StandingsPdfModal'
+import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import type { ScheduleWeek, MatchupDetail } from '../types'
 import './WeekMatchupsModal.css'
 
@@ -44,6 +46,9 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
 
   /** Firestore document ID of the individual matchup the user drilled into. */
   const [detailMatchupId, setDetailMatchupId] = useState<string | null>(null)
+
+  /** Week number for the standings PDF modal (null = closed). */
+  const [pdfWeek, setPdfWeek] = useState<number | null>(null)
 
   // Fetch all matchup detail records (completed weeks scoreboard)
   const { data: matchupDetails } = useMatchupDetails('2025-2026')
@@ -88,12 +93,16 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
      canonical week number on both ScheduleWeek and MatchupDetail.             */
   const completedMatchups = useMemo(() => {
     if (!weekEntry || weekEntry.status !== 'completed') return []
-    return matchupDetails.filter(m => m.week === weekEntry.week)
+    return matchupDetails
+      .filter(m => m.week === weekEntry.week)
+      .sort((a, b) => a.team1.lane - b.team1.lane)
   }, [weekEntry, matchupDetails])
 
   const upcomingPairings = useMemo(() => {
     if (!weekEntry || weekEntry.status !== 'upcoming') return []
-    return upcomingMatchups.filter(m => m.week === weekEntry.week)
+    return upcomingMatchups
+      .filter(m => m.week === weekEntry.week)
+      .sort((a, b) => a.team1Lane - b.team1Lane)
   }, [weekEntry, upcomingMatchups])
 
   /* ── Point calculation helpers (mirrors MatchupsPage logic) ──────────────── */
@@ -168,7 +177,21 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
                 <span className="wm-badge wm-badge--upcoming">Upcoming</span>
               )}
               {weekEntry.status === 'completed' && (
-                <span className="wm-badge wm-badge--completed">Final</span>
+                <div className="wm-header-badges">
+                  <span className="wm-badge wm-badge--completed">Final</span>
+                  {weekEntry.week != null && getStandingsPdfId(weekEntry.week) && (
+                    <button
+                      className="standings-pdf-btn"
+                      onClick={() => setPdfWeek(weekEntry.week ?? null)}
+                      aria-label={`View standings PDF for Week ${weekEntry.week}`}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                        <path d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5L14 4.5zm-3 0A1.5 1.5 0 019.5 3V1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4.5h-2z"/>
+                      </svg>
+                      Standings PDF
+                    </button>
+                  )}
+                </div>
               )}
             </div>
             <button className="modal-close-button" onClick={onClose} aria-label="Close">✕</button>
@@ -186,7 +209,7 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
                       <th className="wm-col-team wm-left">Team</th>
                       <th className="wm-col-pts center">Pts</th>
                       <th className="wm-col-score center">Total</th>
-                      <th className="wm-col-sep center"></th>
+                      <th className="wm-col-sep center">Lanes</th>
                       <th className="wm-col-score center">Total</th>
                       <th className="wm-col-pts center">Pts</th>
                       <th className="wm-col-team wm-right">Team</th>
@@ -220,7 +243,12 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
                               </span>
                             )}
                           </td>
-                          <td className="wm-col-sep center wm-sep-cell">–</td>
+                          <td className="wm-col-sep center wm-sep-cell">
+                            –
+                            <div className="wm-lane-badge">
+                              Lanes {match.team1.lane} &amp; {match.team1.lane + 1}
+                            </div>
+                          </td>
                           <td className={`wm-col-score center wm-score-cell ${t2Won ? 'wm-winner' : ''}`}>
                             <span title={`Scratch: ${match.team2.scratchSeries} + HDCP: ${match.team2.handicapSeries}`}>
                               {match.team2.totalSeries}
@@ -278,7 +306,12 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
                           {/* team1Id/team2Id are now string leaguePalsId values */}
                           {teamNameMap[m.team1Id] ?? `Team ${m.team1Id}`}
                         </td>
-                        <td className="wm-col-sep center wm-sep-cell">vs</td>
+                        <td className="wm-col-sep center wm-sep-cell">
+                          vs
+                          <div className="wm-lane-badge">
+                            Lanes {m.team1Lane} &amp; {m.team2Lane}
+                          </div>
+                        </td>
                         <td className="wm-col-team wm-right wm-team-cell">
                           {teamNameMap[m.team2Id] ?? `Team ${m.team2Id}`}
                         </td>
@@ -310,6 +343,9 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
         onClose={() => setDetailMatchupId(null)}
         onSelectBowler={handleSelectBowler}
       />
+
+      {/* ── Standings PDF viewer ──────────────────────────────────────────── */}
+      <StandingsPdfModal weekNum={pdfWeek} onClose={() => setPdfWeek(null)} />
     </>
   )
 }

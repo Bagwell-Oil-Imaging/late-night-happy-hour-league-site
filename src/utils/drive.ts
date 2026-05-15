@@ -51,3 +51,19 @@ export const driveFileUrl = (fileId: string): string =>
  */
 export const driveDownloadUrl = (fileId: string): string =>
   `https://drive.google.com/uc?export=download&id=${fileId}`
+
+/**
+ * Returns a Google Drive embed URL for use as an `<iframe src>`.
+ *
+ * The `/preview` endpoint is specifically designed for iframe embedding and
+ * works for publicly-shared files without requiring the viewer to be signed
+ * in to Google. The `/view` URL (used for direct links) shows an access
+ * prompt when embedded due to third-party cookie restrictions in modern
+ * browsers.
+ *
+ * @param fileId - The Google Drive file ID.
+ * @returns A fully-qualified embed URL, e.g.
+ *   `"https://drive.google.com/file/d/abc123/preview"`.
+ */
+export const driveEmbedUrl = (fileId: string): string =>
+  `https://drive.google.com/file/d/${fileId}/preview`

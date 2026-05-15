@@ -68,6 +68,14 @@
   border: 1px solid var(--border-strong);
 }
 
+/* ── Badge + PDF button row ────────────────────────────────────────────────── */
+.wm-header-badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 /* ── Body ──────────────────────────────────────────────────────────────────── */
 .wm-body {
   overflow-y: auto;
@@ -93,7 +101,7 @@
 .wm-col-team   { width: 30%; }
 .wm-col-pts    { width: 48px; }
 .wm-col-score  { width: 90px; }
-.wm-col-sep    { width: 36px; }
+.wm-col-sep    { width: 90px; }
 .wm-col-action { width: 90px; }
 
 .wm-left  { text-align: left; }
@@ -202,6 +210,17 @@
   font-size: var(--text-lg);
   font-weight: 300;
   user-select: none;
+}
+
+.wm-lane-badge {
+  font-family: var(--font-heading);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 4px;
+  white-space: nowrap;
 }
 
 /* ── Details button ────────────────────────────────────────────────────────── */

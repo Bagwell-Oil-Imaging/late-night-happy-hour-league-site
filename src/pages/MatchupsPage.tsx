@@ -20,7 +20,9 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import WeekSelector from '../components/WeekSelector'
 import MatchupDetailModal from '../components/MatchupDetailModal'
 import BowlerProfileModal from '../components/BowlerProfileModal'
+import StandingsPdfModal from '../components/StandingsPdfModal'
 import { useMatchups, useMatchupDetails } from '../hooks'
+import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import type { MatchupDetail } from '../types'
 import './MatchupsPage.css'
 
@@ -77,6 +79,7 @@ function MatchupsPage() {
   const navigate = useNavigate()
   const [selectedMatchupId, setSelectedMatchupId] = useState<string | null>(null)
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null)
+  const [pdfWeek, setPdfWeek] = useState<number | null>(null)
 
   // Fetch lightweight matchup records to determine the latest completed week
   const { data: matchups, loading: matchupsLoading } = useMatchups('2025-2026')
@@ -99,7 +102,9 @@ function MatchupsPage() {
 
   // Filter matchup details to only the selected week
   const weekMatchups = useMemo(() =>
-    matchupDetails.filter(m => m.week === currentWeek),
+    matchupDetails
+      .filter(m => m.week === currentWeek)
+      .sort((a, b) => a.team1.lane - b.team1.lane),
     [matchupDetails, currentWeek]
   )
 
@@ -120,6 +125,7 @@ function MatchupsPage() {
 
   const closeDetail = () => setSelectedMatchupId(null)
   const closeBowler = () => setSelectedBowlerId(null)
+  const closePdf = () => setPdfWeek(null)
 
   const handleSelectBowler = (id: string) => {
     setSelectedMatchupId(null)
@@ -141,6 +147,22 @@ function MatchupsPage() {
         onJump={setWeek}
       />
 
+      {/* Standings PDF shortcut — only rendered when a PDF exists for this week */}
+      {weekMatchups.length > 0 && getStandingsPdfId(currentWeek) && (
+        <div className="week-pdf-bar">
+          <button
+            className="standings-pdf-btn"
+            onClick={() => setPdfWeek(currentWeek)}
+            aria-label={`View standings PDF for Week ${currentWeek}`}
+          >
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5L14 4.5zm-3 0A1.5 1.5 0 019.5 3V1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4.5h-2z"/>
+            </svg>
+            Standings PDF
+          </button>
+        </div>
+      )}
+
       {weekMatchups.length === 0 ? (
         <p className="no-data">No matchup data for this week.</p>
       ) : (
@@ -151,7 +173,7 @@ function MatchupsPage() {
                 <th className="col-team-left">Team</th>
                 <th className="col-pts center">Pts</th>
                 <th className="col-score center">Total</th>
-                <th className="col-sep center"></th>
+                <th className="col-sep center">Lanes</th>
                 <th className="col-score center">Total</th>
                 <th className="col-pts center">Pts</th>
                 <th className="col-team-right">Team</th>
@@ -190,7 +212,9 @@ function MatchupsPage() {
                         </span>
                       )}
                     </td>
-                    <td className="col-sep center sep-cell">–</td>
+                    <td className="col-sep center sep-cell">
+                      {match.team1.lane}-{match.team1.lane + 1}
+                    </td>
                     <td className={`col-score center score-cell ${t2Won ? 'winner' : ''}`}>
                       <span title={`Scratch: ${match.team2.scratchSeries} + HDCP: ${match.team2.handicapSeries}`}>
                         {match.team2.totalSeries}
@@ -227,6 +251,7 @@ function MatchupsPage() {
         bowlerId={selectedBowlerId}
         onClose={closeBowler}
       />
+      <StandingsPdfModal weekNum={pdfWeek} onClose={closePdf} />
     </div>
   )
 }
