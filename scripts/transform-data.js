@@ -516,8 +516,30 @@ function buildWeeklyMatchupDetails() {
   let matchId = 1
   const HDCP_PCT = 0.85
 
+  // ── Blind score penalty (mirrors populateBowlerScores logic) ───────────────
+  // blindPenaltyPct is the fraction deducted from average to get the blind score
+  // (e.g. 0.10 means blind score = avg - floor(avg * 0.10) = 90% of avg).
+  let blindPenaltyPct = 0.10
+  const leaguePublicPathForBlind = join(RAW_DIR, 'league-public.json')
+  if (existsSync(leaguePublicPathForBlind)) {
+    const lpRaw = JSON.parse(readFileSync(leaguePublicPathForBlind, 'utf8'))
+    const rawPct = lpRaw?.againstBlindScorePct
+    if (typeof rawPct === 'number') {
+      const blindScorePct = rawPct > 1 ? rawPct / 100 : rawPct
+      blindPenaltyPct = 1 - blindScorePct
+    }
+  }
+
+  // Rolling pin/game totals per bowler — keyed by LP ObjectId (_id).
+  // Updated each week after non-blind scores are recorded so that a bowler
+  // who is absent later in the season uses their correct in-season average
+  // (not just their entering average) when the blind score is computed.
+  const bowlerPinsMap = new Map() // bowlerId → { pins, games }
+
   /**
    * Gathers active bowler scores and per-game/series totals for one side of a match.
+   * Blind bowlers (absent with "-" game markers) are included using a calculated
+   * blind score (running average × blind-score percentage) so team totals are complete.
    *
    * @param {string} teamLpId - LP ObjectId for the team
    * @param {number} siteId   - Sequential site integer ID
@@ -533,17 +555,49 @@ function buildWeeklyMatchupDetails() {
       const entry = b.weekGames?.[dateStr]?.[0]
       if (!entry) continue
       const games = entry.games ?? []
-      const series = games[3]
-      if (typeof series !== 'number' || series <= 0) continue
 
-      activeBowlers.push({
-        name: b.name,
-        g1: games[0],
-        g2: games[1],
-        g3: games[2],
-        series,
-        average: b.average ?? 0,
-      })
+      // Absent bowlers have "-" string or null game markers in the LP data.
+      const blinded = games.some(g => g === '-' || g === null)
+
+      if (blinded) {
+        // Use running average if available, otherwise fall back to entering average.
+        // This matches the formula in populateBowlerScores so the team total in
+        // matchupDetails aligns with the sum of individual BowlerScore documents.
+        const running = bowlerPinsMap.get(b._id)
+        const avg = (running && running.games > 0)
+          ? Math.floor(running.pins / running.games)
+          : (b.enteringAvg ?? b.average ?? 0)
+        const blindScore = avg > 0 ? avg - Math.floor(avg * blindPenaltyPct) : 0
+        if (blindScore > 0) {
+          activeBowlers.push({
+            name: b.name,
+            g1: blindScore,
+            g2: blindScore,
+            g3: blindScore,
+            series: blindScore * 3,
+            average: b.average ?? 0,
+          })
+        }
+      } else {
+        const series = games[3]
+        if (typeof series !== 'number' || series <= 0) continue
+
+        // Update rolling average so subsequent blind-week calculations are accurate.
+        if (b._id) {
+          const prev = bowlerPinsMap.get(b._id) ?? { pins: 0, games: 0 }
+          const gamesThisWeek = [games[0], games[1], games[2]].filter(g => typeof g === 'number').length
+          bowlerPinsMap.set(b._id, { pins: prev.pins + series, games: prev.games + gamesThisWeek })
+        }
+
+        activeBowlers.push({
+          name: b.name,
+          g1: games[0],
+          g2: games[1],
+          g3: games[2],
+          series,
+          average: b.average ?? 0,
+        })
+      }
     }
 
     const toNum = v => (typeof v === 'number' ? v : 0)
@@ -1222,9 +1276,9 @@ async function populateMatchups(seasonYear) {
           completed: team1ScratchScore !== null && team2ScratchScore !== null,
         }
 
-        // Pre-allocate a Firestore doc ref with an auto-generated ID so we can
-        // record the stable ID in the refMap before the batch commit happens.
-        const ref = db.collection('matchups').doc()
+        // Use the LP match ObjectId as the Firestore doc ID so the same match always
+        // lands at the same path regardless of how many times the pipeline runs.
+        const ref = db.collection('matchups').doc(leaguePalsMatchId)
         refMap.set(leaguePalsMatchId, ref)
 
         docs.push({ _ref: ref, ...doc })
@@ -1243,7 +1297,7 @@ async function populateMatchups(seasonYear) {
 
     for (const m of fallbackDocs) {
       const leaguePalsMatchId = String(m.id)
-      const ref = db.collection('matchups').doc()
+      const ref = db.collection('matchups').doc(leaguePalsMatchId)
       refMap.set(leaguePalsMatchId, ref)
 
       docs.push({
@@ -2158,8 +2212,9 @@ async function populateBowlerScores(seasonYear) {
 
   console.log(`[populateBowlerScores] Calculated rolling averages for ${byBowler.size} bowlers`)
 
-  // Auto-generated Firestore IDs — no custom doc ID needed for scores
-  await batchWrite('bowlerScores', bowlerScoreDocs)
+  // Deterministic doc ID: bowlerId_w<week> — ensures restoreAdminOverrides writes at the
+  // same path as the pipeline (overwriting rather than creating an additional document).
+  await batchWrite('bowlerScores', bowlerScoreDocs, doc => `${doc.bowlerId}_w${String(doc.week).padStart(2, '0')}`)
 }
 
 // ─── Admin Override Preservation ─────────────────────────────────────────────
@@ -2207,17 +2262,56 @@ async function preserveAdminOverrides(collectionName) {
  *   Objects produced by `preserveAdminOverrides` — each has a `_ref` plus data fields.
  * @returns {Promise<void>}
  */
-async function restoreAdminOverrides(docs) {
+async function restoreAdminOverrides(docs, collectionName = null) {
   if (!db || docs.length === 0) return
+
+  // LP ObjectIds from MongoDB are 24 lowercase hex characters.
+  // Old auto-generated Firestore IDs are 20 alphanumeric chars — a different shape.
+  // We use this to distinguish pipeline-era docs (written at LP ObjectId paths) from
+  // stale docs written before the pipeline switched to deterministic IDs.
+  const isLpObjectId = id => /^[0-9a-f]{24}$/i.test(id)
+
   const CHUNK_SIZE = 500
+  let skipped = 0
+
   for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
     const batch = db.batch()
     docs.slice(i, i + CHUNK_SIZE).forEach(({ _ref, ...data }) => {
-      batch.set(_ref, data)
+      let ref = _ref
+
+      if (collectionName === 'bowlerScores' && data.bowlerId && data.week != null) {
+        if (isLpObjectId(data.bowlerId) && data.blinded) {
+          // Auto-fix blind scores for LP bowlers should not override the pipeline's
+          // now-correct rolling-average blind score calculation. Skip the restore;
+          // the pipeline doc already has the accurate value.
+          skipped++
+          return
+        }
+        // Genuine admin corrections (non-blind scores, or admin-added bowlers) land
+        // at the deterministic path so they overwrite rather than stack alongside the
+        // pipeline doc.
+        ref = db.collection('bowlerScores').doc(`${data.bowlerId}_w${String(data.week).padStart(2, '0')}`)
+
+      } else if (collectionName === 'matchupDetails' && data.matchupId) {
+        if (!isLpObjectId(data.matchupId)) {
+          // This doc was written before the pipeline switched to LP ObjectId doc IDs.
+          // Its matchupId is a stale auto-generated Firestore ID that no longer maps
+          // to any matchup — restoring it would recreate a ghost duplicate.
+          skipped++
+          return
+        }
+        // Current-format admin corrections: redirect to the deterministic path so
+        // the admin correction overwrites the pipeline doc at the same path.
+        ref = db.collection('matchupDetails').doc(data.matchupId)
+      }
+
+      batch.set(ref, data)
     })
     await batch.commit()
   }
-  console.log(`[restoreAdminOverrides] Restored ${docs.length} admin-override doc(s)`)
+
+  const restored = docs.length - skipped
+  console.log(`[restoreAdminOverrides] Restored ${restored} admin-override doc(s) into ${collectionName ?? 'collection'} (${skipped} stale docs skipped)`)
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -2345,7 +2439,7 @@ async function main() {
   const matchupDetailOverrides = await preserveAdminOverrides('matchupDetails')
   await clearCollection('matchupDetails')
   await populateMatchupDetails(SEASON, matchupIdMap)
-  await restoreAdminOverrides(matchupDetailOverrides)
+  await restoreAdminOverrides(matchupDetailOverrides, 'matchupDetails')
 
   // 8. Bowler scores — one doc per bowler per week; uses matchupIdMap for FK
   // Preserve admin-entered bowler score docs (e.g. manually backfilled weekly
@@ -2356,7 +2450,7 @@ async function main() {
   const bowlerScoreOverrides = await preserveAdminOverrides('bowlerScores')
   await clearCollection('bowlerScores')
   await populateBowlerScores(SEASON)
-  await restoreAdminOverrides(bowlerScoreOverrides)
+  await restoreAdminOverrides(bowlerScoreOverrides, 'bowlerScores')
 
   // 9. Announcements — admin-managed; empty array is a valid initial state
   console.log('\n[9/11] announcements...')

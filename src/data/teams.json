@@ -3,117 +3,117 @@
     "id": 1,
     "name": "Night Shift",
     "captain": "Gary Bromke",
-    "wins": 10,
-    "losses": 2,
+    "wins": 11,
+    "losses": 3,
     "ties": 2,
-    "points": 44
+    "points": 48
   },
   {
     "id": 2,
     "name": "Regulators",
     "captain": "",
-    "wins": 10,
+    "wins": 11,
     "losses": 1,
-    "ties": 3,
-    "points": 41
+    "ties": 4,
+    "points": 46
   },
   {
     "id": 3,
     "name": "Fugazi",
     "captain": "",
-    "wins": 8,
-    "losses": 3,
+    "wins": 9,
+    "losses": 4,
     "ties": 3,
-    "points": 38
+    "points": 42
   },
   {
     "id": 4,
     "name": "Three Fingers Deep",
     "captain": "",
-    "wins": 8,
+    "wins": 10,
     "losses": 4,
     "ties": 2,
-    "points": 33.5
+    "points": 41.5
   },
   {
     "id": 5,
-    "name": "Spare Me the Spills",
+    "name": "Deuce Bags",
     "captain": "",
-    "wins": 5,
-    "losses": 7,
+    "wins": 9,
+    "losses": 5,
     "ties": 2,
-    "points": 28.5
+    "points": 35
   },
   {
     "id": 6,
-    "name": "Deuce Bags",
+    "name": "Spare Me the Spills",
     "captain": "",
-    "wins": 7,
-    "losses": 5,
-    "ties": 2,
-    "points": 28
+    "wins": 6,
+    "losses": 7,
+    "ties": 3,
+    "points": 33.5
   },
   {
     "id": 7,
-    "name": "K-Towne Ballers",
-    "captain": "",
-    "wins": 7,
-    "losses": 6,
-    "ties": 1,
-    "points": 27
+    "name": "Gremlins",
+    "captain": "Jacob Bagwell",
+    "wins": 5,
+    "losses": 7,
+    "ties": 4,
+    "points": 31
   },
   {
     "id": 8,
-    "name": "Gremlins",
-    "captain": "Jacob Bagwell",
+    "name": "Split Headz",
+    "captain": "",
     "wins": 4,
     "losses": 6,
-    "ties": 4,
-    "points": 27
+    "ties": 6,
+    "points": 31
   },
   {
     "id": 9,
-    "name": "Split Headz",
+    "name": "K-Towne Ballers",
     "captain": "",
-    "wins": 3,
-    "losses": 5,
-    "ties": 6,
-    "points": 27
+    "wins": 7,
+    "losses": 8,
+    "ties": 1,
+    "points": 29
   },
   {
     "id": 10,
     "name": "Nothing to Lew's",
     "captain": "",
+    "wins": 7,
+    "losses": 7,
+    "ties": 2,
+    "points": 29
+  },
+  {
+    "id": 11,
+    "name": "Crown Royal",
+    "captain": "",
     "wins": 6,
-    "losses": 6,
+    "losses": 9,
+    "ties": 1,
+    "points": 28
+  },
+  {
+    "id": 12,
+    "name": "Surprise Knuckle-Heads",
+    "captain": "",
+    "wins": 5,
+    "losses": 9,
     "ties": 2,
     "points": 26
   },
   {
-    "id": 11,
+    "id": 13,
     "name": "Maga-Crats",
     "captain": "",
     "wins": 6,
-    "losses": 8,
+    "losses": 10,
     "ties": 0,
-    "points": 24
-  },
-  {
-    "id": 12,
-    "name": "Crown Royal",
-    "captain": "",
-    "wins": 5,
-    "losses": 8,
-    "ties": 1,
-    "points": 24
-  },
-  {
-    "id": 13,
-    "name": "Surprise Knuckle-Heads",
-    "captain": "",
-    "wins": 4,
-    "losses": 8,
-    "ties": 2,
-    "points": 21
+    "points": 25
   }
 ]

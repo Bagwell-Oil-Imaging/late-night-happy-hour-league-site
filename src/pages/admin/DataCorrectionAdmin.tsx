@@ -10,7 +10,7 @@
  *                WITHOUT re-fetching data.
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Fragment } from 'react'
 import {
   collection, query, where, getDocs, getDoc,
   addDoc, updateDoc, deleteDoc, doc, setDoc,
@@ -182,6 +182,9 @@ function DataCorrectionAdmin() {
   const [rightScoreInputs, setRightScoreInputs] = useState<ScoreInputs>({})
   const [leftExistingDocs, setLeftExistingDocs] = useState<Record<string, string>>({})
   const [rightExistingDocs, setRightExistingDocs] = useState<Record<string, string>>({})
+  /** Bowler IDs explicitly marked as "not bowling this week" — excluded from liveTotals and save. */
+  const [leftExcluded, setLeftExcluded] = useState<Set<string>>(new Set())
+  const [rightExcluded, setRightExcluded] = useState<Set<string>>(new Set())
 
   // Lane pair for the current matchup — shared by both teams, edited once
   const [laneInput, setLaneInput] = useState('')
@@ -231,6 +234,7 @@ function DataCorrectionAdmin() {
   const activeBowlers = editingSide === 'left' ? leftBowlers : rightBowlers
   const activeScoreInputs = editingSide === 'left' ? leftScoreInputs : rightScoreInputs
   const activeExistingDocs = editingSide === 'left' ? leftExistingDocs : rightExistingDocs
+  const activeExcluded = editingSide === 'left' ? leftExcluded : rightExcluded
   const activeTeamId = editingSide === 'left' ? leftTeamId : rightTeamId
   const activeTeam = teams.find(t => t.id === activeTeamId)
   const activeSideKey: 'team1' | 'team2' = editingSide === 'left' ? 'team1' : 'team2'
@@ -522,6 +526,8 @@ function DataCorrectionAdmin() {
     setRightScoreInputs({})
     setLeftExistingDocs({})
     setRightExistingDocs({})
+    setLeftExcluded(new Set())
+    setRightExcluded(new Set())
     setSaveMsg('')
     setSaveError('')
     setShowSummary(false)
@@ -568,6 +574,9 @@ function DataCorrectionAdmin() {
         }
         setLeftScoreInputs(inputs)
         setLeftExistingDocs(eDocs)
+        // Roster bowlers without a score doc start excluded.
+        const leftWithDocs = new Set(Object.keys(inputs))
+        setLeftExcluded(new Set(bowlerSnap.docs.map(d => d.id).filter(id => !leftWithDocs.has(id))))
         return
       }
 
@@ -611,6 +620,14 @@ function DataCorrectionAdmin() {
       setLeftExistingDocs(ld)
       setRightScoreInputs(ri)
       setRightExistingDocs(rd)
+
+      // Bowlers on the roster who have no score doc for this week start excluded.
+      // This prevents empty roster slots from appearing as active and means the admin
+      // only needs to act when something is wrong, not to re-select the obvious 4.
+      const t1WithDocs = new Set(Object.keys(li))
+      const t2WithDocs = new Set(Object.keys(ri))
+      setLeftExcluded(new Set(t1Bowlers.docs.map(d => d.id).filter(id => !t1WithDocs.has(id))))
+      setRightExcluded(new Set(t2Bowlers.docs.map(d => d.id).filter(id => !t2WithDocs.has(id))))
 
       // If left side has only team totals, switch to that mode and pre-fill
       if (d.team1?.individualScoresUnavailable) {
@@ -686,6 +703,9 @@ function DataCorrectionAdmin() {
       }
       setRightScoreInputs(inputs)
       setRightExistingDocs(eDocs)
+      // Roster bowlers without a score doc start excluded.
+      const rightWithDocs = new Set(Object.keys(inputs))
+      setRightExcluded(new Set(bSnap.docs.map(d => d.id).filter(id => !rightWithDocs.has(id))))
     } catch {
       setSaveError('Failed to load opponent data.')
     } finally {
@@ -698,8 +718,10 @@ function DataCorrectionAdmin() {
   /** Recalculates scratch/handicap/total as the admin types in individual mode. */
   const liveTotals = useMemo(() => {
     if (scoreEntryMode !== 'individual') return null
-    let g1 = 0, g2 = 0, g3 = 0, teamAvg = 0, any = false
+    let g1 = 0, g2 = 0, g3 = 0, teamAvg = 0, count = 0
     for (const b of activeBowlers) {
+      // Skip bowlers explicitly marked as not bowling this week.
+      if (activeExcluded.has(b.id!)) continue
       const s = activeScoreInputs[b.id!]
       const avg = b.enteringAvg ?? 0
       const bv  = avg > 0 ? avg - Math.floor(avg * BLIND_PENALTY_PCT) : 0
@@ -707,18 +729,18 @@ function DataCorrectionAdmin() {
       const v2 = s?.blind2 ? bv : (parseInt(s?.g2 ?? '') || 0)
       const v3 = s?.blind3 ? bv : (parseInt(s?.g3 ?? '') || 0)
       if (v1 === 0 && v2 === 0 && v3 === 0) continue
-      any = true
+      count++
       g1 += v1; g2 += v2; g3 += v3
       teamAvg += avg
     }
-    if (!any) return null
+    if (count === 0) return null
     const oppAvg = expandedDetail?.[oppSideKey]?.teamAvg ?? 0
     // Guard: if teamAvg is 0 (bowlers have no entering average), skip handicap
     // to avoid computing a wildly inflated hdcp against the opponent's avg.
     const hdcp = teamAvg === 0 ? 0 : Math.max(0, Math.floor((oppAvg - teamAvg) * HDCP_PCT))
     const scratch = g1 + g2 + g3
-    return { g1, g2, g3, scratch, teamAvg, hdcp, hdcpSeries: hdcp * 3, total: scratch + hdcp * 3 }
-  }, [activeBowlers, activeScoreInputs, expandedDetail, oppSideKey, scoreEntryMode])
+    return { g1, g2, g3, scratch, teamAvg, hdcp, hdcpSeries: hdcp * 3, total: scratch + hdcp * 3, count }
+  }, [activeBowlers, activeScoreInputs, expandedDetail, oppSideKey, scoreEntryMode, activeExcluded])
 
   /**
    * Recalculates totals as the admin types in team totals mode.
@@ -828,6 +850,7 @@ function DataCorrectionAdmin() {
       // Pre-validation: count bowlers that would be written (have any score or blind).
       // A team may have at most 4 bowlers per game; reject before touching Firestore.
       const activeCount = activeBowlers.filter(b => {
+        if (activeExcluded.has(b.id!)) return false
         const s = activeScoreInputs[b.id!]
         if (!s) return false
         const avg = b.enteringAvg ?? 0
@@ -849,6 +872,19 @@ function DataCorrectionAdmin() {
       const active: AB[] = []
 
       for (const b of activeBowlers) {
+        if (activeExcluded.has(b.id!)) {
+          // Marked as not bowling — delete any existing Firestore doc so it doesn't linger.
+          const existingId = activeExistingDocs[b.id!]
+          if (existingId) {
+            await deleteDoc(doc(db, 'bowlerScores', existingId))
+            if (editingSide === 'left') {
+              setLeftExistingDocs(prev => { const n = { ...prev }; delete n[b.id!]; return n })
+            } else {
+              setRightExistingDocs(prev => { const n = { ...prev }; delete n[b.id!]; return n })
+            }
+          }
+          continue
+        }
         const s = activeScoreInputs[b.id!]
         const isB1 = s?.blind1 ?? false
         const isB2 = s?.blind2 ?? false
@@ -885,15 +921,18 @@ function DataCorrectionAdmin() {
           isSubstitute: false, substituteFor: null,
           rollingAvg: null, rollingGames: 0, adminOverride: true,
         }
-        const existingId = activeExistingDocs[b.id!]
-        if (existingId) {
+        // Deterministic doc ID matches the pipeline format (bowlerId_wNN) so admin
+        // saves overwrite the pipeline doc rather than creating a parallel document.
+        const scoreDocId = `${b.id}_w${String(selectedWeek as number).padStart(2, '0')}`
+        const existingId = activeExistingDocs[b.id!] ?? scoreDocId
+        if (activeExistingDocs[b.id!]) {
           await updateDoc(doc(db, 'bowlerScores', existingId), scoreData)
         } else {
-          const ref = await addDoc(collection(db, 'bowlerScores'), scoreData)
+          await setDoc(doc(db, 'bowlerScores', scoreDocId), scoreData)
           if (editingSide === 'left') {
-            setLeftExistingDocs(prev => ({ ...prev, [b.id!]: ref.id }))
+            setLeftExistingDocs(prev => ({ ...prev, [b.id!]: scoreDocId }))
           } else {
-            setRightExistingDocs(prev => ({ ...prev, [b.id!]: ref.id }))
+            setRightExistingDocs(prev => ({ ...prev, [b.id!]: scoreDocId }))
           }
         }
       }
@@ -913,9 +952,10 @@ function DataCorrectionAdmin() {
         // always more reliable.
         const oppBowlersList = editingSide === 'left' ? rightBowlers : leftBowlers
         const oppScoreInputsMap = editingSide === 'left' ? rightScoreInputs : leftScoreInputs
+        const oppExcludedSet = editingSide === 'left' ? rightExcluded : leftExcluded
         const oppComputedTeamAvg = oppBowlersList.reduce((sum, b) => {
-          // Only count bowlers who have any score data for this week
-          return oppScoreInputsMap[b.id!] ? sum + (b.enteringAvg ?? 0) : sum
+          // Only count bowlers who have score data AND are not excluded from the opponent's lineup.
+          return (oppScoreInputsMap[b.id!] && !oppExcludedSet.has(b.id!)) ? sum + (b.enteringAvg ?? 0) : sum
         }, 0)
         const oppAvg = oppComputedTeamAvg > 0
           ? oppComputedTeamAvg
@@ -1349,7 +1389,10 @@ function DataCorrectionAdmin() {
                   rollingGames: b.gamesPlayed ?? 0,
                   adminOverride: true,
                 }
-                await addDoc(collection(db, 'bowlerScores'), scoreData)
+                // Use the same deterministic ID as the pipeline so the restore doesn't
+                // create a second document alongside the pipeline-written one.
+                const autoFixDocId = `${b.id}_w${String(result.week).padStart(2, '0')}`
+                await setDoc(doc(db, 'bowlerScores', autoFixDocId), scoreData)
                 newScores.push({ bowlerId: b.id!, game1: blindScore, game2: blindScore, game3: blindScore })
               }
               // Combine existing docs with newly synthesized scores
@@ -1444,6 +1487,8 @@ function DataCorrectionAdmin() {
       }
 
       await runValidation()
+      // Reload the week entries so the compact header dots reflect corrected points.
+      if (selectedWeek) await loadWeekMatchups(selectedWeek as number)
       setAutoFixMsg(
         `Auto-fix complete: ${fixed} matchup(s) corrected` +
         (failed > 0 ? `, ${failed} failed — see console.` : '.')
@@ -1541,6 +1586,7 @@ function DataCorrectionAdmin() {
             <table className="dc-scores-table">
               <thead><tr>
                 <th className="dc-name-col">Bowler</th>
+                <th className="dc-avg-col">Avg</th>
                 <th className="dc-score-col">G1</th>
                 <th className="dc-score-col">G2</th>
                 <th className="dc-score-col">G3</th>
@@ -1560,6 +1606,7 @@ function DataCorrectionAdmin() {
                     return (
                       <tr key={b.id} className="dc-na-row">
                         <td className="dc-bowler-name">{b.name}</td>
+                        <td className="dc-avg-cell">{b.enteringAvg || '—'}</td>
                         <td className="dc-na-cell">N/A</td>
                         <td className="dc-na-cell">N/A</td>
                         <td className="dc-na-cell">N/A</td>
@@ -1581,6 +1628,7 @@ function DataCorrectionAdmin() {
                   return (
                     <tr key={b.id} className={anyBlind ? 'dc-blinded-row' : ''}>
                       <td className="dc-bowler-name">{b.name}</td>
+                      <td className="dc-avg-cell">{b.enteringAvg || '—'}</td>
                       <td>{cell(g1, !!inp?.blind1)}</td>
                       <td>{cell(g2, !!inp?.blind2)}</td>
                       <td>{cell(g3, !!inp?.blind3)}</td>
@@ -1594,15 +1642,22 @@ function DataCorrectionAdmin() {
           <table className="dc-scores-table dc-team-totals-preview">
             <thead><tr>
               <th className="dc-name-col"></th>
+              <th className="dc-avg-col">Avg</th>
               <th className="dc-score-col">G1</th>
               <th className="dc-score-col">G2</th>
               <th className="dc-score-col">G3</th>
               <th className="dc-series-col">Series</th>
             </tr></thead>
             <tfoot>
+              <tr className="dc-totals-avg">
+                <td>Team Avg</td>
+                <td className="dc-avg-cell dc-team-avg-value">{s.teamAvg || '—'}</td>
+                <td></td><td></td><td></td><td></td>
+              </tr>
               {s.individualScoresUnavailable ? (
                 <tr className="dc-totals-final">
                   <td>Total w/ Hdcp</td>
+                  <td></td>
                   <td className={wl(myG1, oppG1)}>{s.game1Total}</td>
                   <td className={wl(myG2, oppG2)}>{s.game2Total}</td>
                   <td className={wl(myG3, oppG3)}>{s.game3Total}</td>
@@ -1612,16 +1667,19 @@ function DataCorrectionAdmin() {
                 <>
                   <tr className="dc-totals-scratch">
                     <td>Scratch</td>
+                    <td></td>
                     <td>{s.game1Total}</td><td>{s.game2Total}</td><td>{s.game3Total}</td>
                     <td>{s.scratchSeries}</td>
                   </tr>
                   <tr className="dc-totals-handicap">
                     <td>Handicap</td>
+                    <td></td>
                     <td>{s.handicapPerGame}</td><td>{s.handicapPerGame}</td><td>{s.handicapPerGame}</td>
                     <td>{s.handicapSeries}</td>
                   </tr>
                   <tr className="dc-totals-final">
                     <td>Total</td>
+                    <td></td>
                     <td className={wl(myG1, oppG1)}>{s.game1Total + s.handicapPerGame}</td>
                     <td className={wl(myG2, oppG2)}>{s.game2Total + s.handicapPerGame}</td>
                     <td className={wl(myG3, oppG3)}>{s.game3Total + s.handicapPerGame}</td>
@@ -1670,6 +1728,8 @@ function DataCorrectionAdmin() {
     const bowlers = side === 'left' ? leftBowlers : rightBowlers
     const scoreInputs = side === 'left' ? leftScoreInputs : rightScoreInputs
     const setScoreInputs = side === 'left' ? setLeftScoreInputs : setRightScoreInputs
+    const excluded = side === 'left' ? leftExcluded : rightExcluded
+    const setExcluded = side === 'left' ? setLeftExcluded : setRightExcluded
     const sideKey = side === 'left' ? 'team1' : 'team2'
     const hasMatchupDetail = !!expandedDetail
 
@@ -1723,9 +1783,9 @@ function DataCorrectionAdmin() {
             {bowlers.length === 0 ? (
               <p className="admin-form-hint">No bowlers on roster. Add them in Edit Teams.</p>
             ) : (
-              <table className="dc-scores-table">
+              <table className="dc-scores-table dc-scores-table--edit">
                 <thead><tr>
-                  <th className="dc-name-col">Bowler</th>
+                  <th className="dc-avg-col">Avg</th>
                   <th className="dc-score-col">G1</th>
                   <th className="dc-score-col">G2</th>
                   <th className="dc-score-col">G3</th>
@@ -1744,6 +1804,7 @@ function DataCorrectionAdmin() {
                     const g2 = s.blind2 ? bv : (parseInt(s.g2) || 0)
                     const g3 = s.blind3 ? bv : (parseInt(s.g3) || 0)
                     const anyBlind = s.blind1 || s.blind2 || s.blind3
+                    const isExcluded = excluded.has(b.id!)
 
                     const toggleBlind = (flag: 'blind1' | 'blind2' | 'blind3') =>
                       (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -1755,62 +1816,100 @@ function DataCorrectionAdmin() {
                        game === 2 && s.g2 !== '' && !s.blind2 ? ' (clear G2 first)' :
                        game === 3 && s.g3 !== '' && !s.blind3 ? ' (clear G3 first)' : '')
 
+                    const toggleExcluded = () => setExcluded(prev => {
+                      const next = new Set(prev)
+                      if (next.has(b.id!)) next.delete(b.id!)
+                      else next.add(b.id!)
+                      return next
+                    })
+
                     return (
-                      <tr key={b.id} className={anyBlind ? 'dc-blinded-row' : ''}>
-                        <td className="dc-bowler-name">{b.name}</td>
-                        <td>
-                          {s.blind1
-                            ? <span className="dc-blind-score-display">{bv || '—'}</span>
-                            : <input className="admin-input dc-score-input" type="number" min={0} max={300}
-                                value={s.g1} placeholder="—"
-                                onChange={e => setScoreInputs(prev => ({ ...prev, [b.id!]: { ...(prev[b.id!] ?? empty), g1: e.target.value } }))} />}
-                        </td>
-                        <td>
-                          {s.blind2
-                            ? <span className="dc-blind-score-display">{bv || '—'}</span>
-                            : <input className="admin-input dc-score-input" type="number" min={0} max={300}
-                                value={s.g2} placeholder="—"
-                                onChange={e => setScoreInputs(prev => ({ ...prev, [b.id!]: { ...(prev[b.id!] ?? empty), g2: e.target.value } }))} />}
-                        </td>
-                        <td>
-                          {s.blind3
-                            ? <span className="dc-blind-score-display">{bv || '—'}</span>
-                            : <input className="admin-input dc-score-input" type="number" min={0} max={300}
-                                value={s.g3} placeholder="—"
-                                onChange={e => setScoreInputs(prev => ({ ...prev, [b.id!]: { ...(prev[b.id!] ?? empty), g3: e.target.value } }))} />}
-                        </td>
-                        <td className="dc-series-cell">
-                          {g1 + g2 + g3 > 0 ? g1 + g2 + g3 : <span className="dc-empty">—</span>}
-                        </td>
-                        <td className="dc-blind-cell">
-                          <input type="checkbox" className="dc-blind-checkbox"
-                            checked={s.blind1}
-                            disabled={!s.blind1 && s.g1 !== ''}
-                            title={blindTitle(1)}
-                            onChange={toggleBlind('blind1')} />
-                        </td>
-                        <td className="dc-blind-cell">
-                          <input type="checkbox" className="dc-blind-checkbox"
-                            checked={s.blind2}
-                            disabled={!s.blind2 && s.g2 !== ''}
-                            title={blindTitle(2)}
-                            onChange={toggleBlind('blind2')} />
-                        </td>
-                        <td className="dc-blind-cell">
-                          <input type="checkbox" className="dc-blind-checkbox"
-                            checked={s.blind3}
-                            disabled={!s.blind3 && s.g3 !== ''}
-                            title={blindTitle(3)}
-                            onChange={toggleBlind('blind3')} />
-                        </td>
-                      </tr>
+                      <Fragment key={b.id}>
+                        <tr className={`dc-bowler-name-row${anyBlind && !isExcluded ? ' dc-blinded-name-row' : ''}${isExcluded ? ' dc-excluded-name-row' : ''}`}>
+                          <td colSpan={8}>
+                            <div className="dc-bowler-name-flex">
+                              <span className="dc-bowler-name-inner">
+                                {b.name}
+                                {isExcluded
+                                  ? <span className="dc-excluded-badge">not in lineup</span>
+                                  : anyBlind && <span className="dc-blind-name-badge">blind</span>}
+                              </span>
+                              <button
+                                type="button"
+                                className={`dc-exclude-btn${isExcluded ? ' dc-exclude-btn--restore' : ''}`}
+                                onClick={toggleExcluded}
+                                title={isExcluded ? 'Add to this week\'s lineup' : 'Remove from this week\'s lineup (won\'t count toward scratch)'}
+                              >
+                                {isExcluded ? '+ Add to Lineup' : '✗ Remove'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        <tr className={`dc-bowler-data-row${anyBlind && !isExcluded ? ' dc-blinded-row' : ''}${isExcluded ? ' dc-excluded-row' : ''}`}>
+                          <td className="dc-avg-cell">{avg || '—'}</td>
+                          <td>
+                            {s.blind1
+                              ? <span className="dc-blind-score-display">{bv || '—'}</span>
+                              : <input className="admin-input dc-score-input" type="number" min={0} max={300}
+                                  value={s.g1} placeholder="—"
+                                  onChange={e => setScoreInputs(prev => ({ ...prev, [b.id!]: { ...(prev[b.id!] ?? empty), g1: e.target.value } }))} />}
+                          </td>
+                          <td>
+                            {s.blind2
+                              ? <span className="dc-blind-score-display">{bv || '—'}</span>
+                              : <input className="admin-input dc-score-input" type="number" min={0} max={300}
+                                  value={s.g2} placeholder="—"
+                                  onChange={e => setScoreInputs(prev => ({ ...prev, [b.id!]: { ...(prev[b.id!] ?? empty), g2: e.target.value } }))} />}
+                          </td>
+                          <td>
+                            {s.blind3
+                              ? <span className="dc-blind-score-display">{bv || '—'}</span>
+                              : <input className="admin-input dc-score-input" type="number" min={0} max={300}
+                                  value={s.g3} placeholder="—"
+                                  onChange={e => setScoreInputs(prev => ({ ...prev, [b.id!]: { ...(prev[b.id!] ?? empty), g3: e.target.value } }))} />}
+                          </td>
+                          <td className="dc-series-cell">
+                            {g1 + g2 + g3 > 0 ? g1 + g2 + g3 : <span className="dc-empty">—</span>}
+                          </td>
+                          <td className="dc-blind-cell">
+                            <input type="checkbox" className="dc-blind-checkbox"
+                              checked={s.blind1}
+                              disabled={!s.blind1 && s.g1 !== ''}
+                              title={blindTitle(1)}
+                              onChange={toggleBlind('blind1')} />
+                          </td>
+                          <td className="dc-blind-cell">
+                            <input type="checkbox" className="dc-blind-checkbox"
+                              checked={s.blind2}
+                              disabled={!s.blind2 && s.g2 !== ''}
+                              title={blindTitle(2)}
+                              onChange={toggleBlind('blind2')} />
+                          </td>
+                          <td className="dc-blind-cell">
+                            <input type="checkbox" className="dc-blind-checkbox"
+                              checked={s.blind3}
+                              disabled={!s.blind3 && s.g3 !== ''}
+                              title={blindTitle(3)}
+                              onChange={toggleBlind('blind3')} />
+                          </td>
+                        </tr>
+                      </Fragment>
                     )
                   })}
                 </tbody>
                 {liveTotals && (
                   <tfoot>
+                    <tr className="dc-totals-avg">
+                      <td className="dc-totals-avg-label">Team Avg</td>
+                      <td colSpan={7} className="dc-team-avg-value">{liveTotals.teamAvg || '—'}</td>
+                    </tr>
                     <tr className="dc-totals-scratch">
-                      <td>Scratch</td>
+                      <td>
+                        Scratch
+                        <span className={`dc-bowler-count${liveTotals.count === 4 ? ' dc-bowler-count--ok' : ' dc-bowler-count--warn'}`}>
+                          {liveTotals.count}/4
+                        </span>
+                      </td>
                       <td>{liveTotals.g1}</td><td>{liveTotals.g2}</td><td>{liveTotals.g3}</td>
                       <td colSpan={4}>{liveTotals.scratch}</td>
                     </tr>
@@ -2117,13 +2216,21 @@ function DataCorrectionAdmin() {
                   const rawLane = Number(d?.team1?.lane ?? 0)
                   const oddLane = rawLane % 2 === 1 ? rawLane : rawLane - 1
 
-                  // G1/G2/G3/series win-loss from team1's perspective; null when no data
-                  const gameResults: Array<'win' | 'loss' | 'tie'> | null = d ? [
-                    d.team1.game1Total > d.team2.game1Total ? 'win' : d.team1.game1Total < d.team2.game1Total ? 'loss' : 'tie',
-                    d.team1.game2Total > d.team2.game2Total ? 'win' : d.team1.game2Total < d.team2.game2Total ? 'loss' : 'tie',
-                    d.team1.game3Total > d.team2.game3Total ? 'win' : d.team1.game3Total < d.team2.game3Total ? 'loss' : 'tie',
-                    d.team1.totalSeries > d.team2.totalSeries ? 'win' : d.team1.totalSeries < d.team2.totalSeries ? 'loss' : 'tie',
-                  ] : null
+                  // G1/G2/G3/series win-loss from team1's perspective.
+                  // Per-game comparison must add handicapPerGame so that teams
+                  // with a positive handicap are compared on equal footing.
+                  // Series comparison uses totalSeries which already includes handicap.
+                  const gameResults: Array<'win' | 'loss' | 'tie'> | null = d ? (() => {
+                    const t1H = d.team1.handicapPerGame ?? 0
+                    const t2H = d.team2.handicapPerGame ?? 0
+                    const cmp = (a: number, b: number): 'win' | 'loss' | 'tie' => a > b ? 'win' : a < b ? 'loss' : 'tie'
+                    return [
+                      cmp(d.team1.game1Total + t1H, d.team2.game1Total + t2H),
+                      cmp(d.team1.game2Total + t1H, d.team2.game2Total + t2H),
+                      cmp(d.team1.game3Total + t1H, d.team2.game3Total + t2H),
+                      cmp(d.team1.totalSeries,       d.team2.totalSeries),
+                    ]
+                  })() : null
 
                   return (
                     <div key={entry.id}
@@ -2332,12 +2439,17 @@ function DataCorrectionAdmin() {
       {/* ═══════════ VALIDATE MATCHUPS ═══════════ */}
       {mode === 'validate' && (
         <div className="dc-validate-mode">
-          <p className="dc-intro admin-form-hint">
-            Checks every matchupDetails record against bowlerScores.
-            A matchup is invalid if either team has a doc count ≠ 4,
-            or if the stored game totals don't match the actual scores (stale totals —
-            e.g. a blind doc was added after the pipeline wrote the matchupDetail).
-          </p>
+          <ol className="dc-intro admin-form-hint">
+            <li>Bulk-fetch all matchupDetails and bowlerScores for the season in parallel.</li>
+            <li>Index bowlerScores by team + week — count docs per slot, sum g1/g2/g3.</li>
+            <li>For each matchupDetail, check both teams:
+              <ul>
+                <li>Doc count ≠ 4 → <strong>invalid</strong></li>
+                <li>Count = 4 but stored game totals don't match score sums → <strong>invalid</strong> (stale — e.g. blind doc added after pipeline wrote the record)</li>
+              </ul>
+            </li>
+            <li>Sort results by week.</li>
+          </ol>
 
           <div className="dc-validate-top-actions">
             <button
