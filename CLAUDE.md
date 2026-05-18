@@ -54,7 +54,8 @@ late-night-happy-hour-league-site/
 ├── docs/
 │   ├── adr/                  # Architecture Decision Records — see docs/adr/index.md
 │   └── known-issues.md       # Active unresolved problems
-├── .claude/                  # Claude Code config (rules, commands, agents)
+├── AGENTS.md               # auto-managed by GitNexus — do not edit manually
+├── .claude/                  # Claude Code config (rules, commands, hooks — skills at ~/.claude/skills/gitnexus/)
 ├── firestore.rules
 ├── firestore.indexes.json
 ├── firebase.json
@@ -135,44 +136,50 @@ Accessible at `/admin/login`. Firebase Auth (email/password). Route guard: `src/
 | New operational procedure | `docs/runbooks/` |
 | Admin panel added/removed | `CLAUDE.md` (Admin UI section) |
 | Firestore collection added/removed | `CLAUDE.md` (Architecture), `src/types/index.ts` |
+| `npx gitnexus analyze` run | `AGENTS.md` and CLAUDE.md GitNexus section auto-updated by tool — no manual action |
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **late-night-happy-hour-league-site** (1960 symbols, 2948 relationships, 89 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **late-night-happy-hour-league-site**. Current index stats (symbols, relationships, execution flows) are in `AGENTS.md` — authoritative and auto-updated on every `npx gitnexus analyze` run. Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
 ## Always Do
 
-- **MUST run impact analysis before editing any symbol.** Run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius before making changes.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify changes only affect expected symbols.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk.
-- Use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping.
-- Use `gitnexus_context({name: "symbolName"})` for full caller/callee context on a symbol.
+- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
+- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
+- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
 
 ## Never Do
 
-- NEVER edit a symbol without first running `gitnexus_impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename`.
-- NEVER commit without running `gitnexus_detect_changes()`.
+- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
+- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
+- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
 
 ## Resources
 
 | Resource | Use for |
 |----------|---------|
-| `gitnexus://repo/late-night-happy-hour-league-site/context` | Codebase overview, index freshness |
+| `gitnexus://repo/late-night-happy-hour-league-site/context` | Codebase overview, check index freshness |
 | `gitnexus://repo/late-night-happy-hour-league-site/clusters` | All functional areas |
 | `gitnexus://repo/late-night-happy-hour-league-site/processes` | All execution flows |
+| `gitnexus://repo/late-night-happy-hour-league-site/process/{name}` | Step-by-step execution trace |
 
 ## CLI
 
 | Task | Skill |
 |------|-------|
-| How does X work? | `gitnexus-exploring` |
-| What breaks if I change X? | `gitnexus-impact-analysis` |
-| Why is X failing? | `gitnexus-debugging` |
-| Rename / refactor safely | `gitnexus-refactoring` |
+| Understand architecture / "How does X work?" | `gitnexus-exploring` |
+| Blast radius / "What breaks if I change X?" | `gitnexus-impact-analysis` |
+| Trace bugs / "Why is X failing?" | `gitnexus-debugging` |
+| Rename / extract / split / refactor | `gitnexus-refactoring` |
+| Tools, resources, schema reference | `gitnexus-guide` |
+| Index, status, clean, wiki CLI commands | `gitnexus-cli` |
 
 <!-- gitnexus:end -->
+
+> **Note:** GitNexus skills are installed at machine level (`~/.claude/skills/gitnexus/`) and apply to all repos. The CLI table above may revert to repo-relative paths after `npx gitnexus analyze` regenerates this section — invoke skills by name regardless.
