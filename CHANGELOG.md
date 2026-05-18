@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- `MatchupDetailModal` — Add per-bowler **Avg** column and **Team Avg** summary row to the weekly matchup score breakdown; team average is computed as the sum of entering averages for all active and blind-counted bowlers that week
+- `DataCorrectionAdmin` — Add per-bowler **Avg** column and **Team Avg** tfoot row to both the read-only summary panel and the edit-form score table; edit form places Avg between Bowler and G1 as a reference when marking blinds
 - `scripts/get-drive-oauth-token.cjs` — one-time CLI script to obtain a Google OAuth2 refresh token for the league Google account; required for Drive uploads from the serverless function
 - `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` env vars — OAuth2 credentials for Drive uploads (replaces service-account-based Drive auth in `api/upload-to-drive.js`)
 

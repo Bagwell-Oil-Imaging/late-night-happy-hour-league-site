@@ -130,6 +130,7 @@
 
 .col-game   { width: 46px; }
 .col-series { position: relative; width: 62px; font-weight: 700; }
+.col-avg    { width: 44px; color: var(--text-muted); font-style: italic; padding-right: 18px !important; }
 
 .bowler-row:hover { background: rgba(240, 180, 41, 0.04); }
 
@@ -159,6 +160,21 @@
   color: var(--text-muted);
   letter-spacing: 0.3px;
   margin-top: 1px;
+}
+
+/* Team Avg row — summary line above Scratch showing the sum of active bowler averages */
+.team-avg-row td {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-style: italic;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.team-avg-row .col-avg {
+  color: var(--text-secondary);
+  font-style: normal;
+  font-weight: 600;
+  font-size: var(--text-sm);
 }
 
 /* scores-table-wrapper fills remaining panel height so the totals table
@@ -311,6 +327,7 @@
   .matchup-scores-table td { padding: 7px 6px; }
   .col-game { width: 36px; }
   .col-series { width: 48px; }
+  .col-avg { width: 36px; }
 }
 
 @media (max-width: 480px) {

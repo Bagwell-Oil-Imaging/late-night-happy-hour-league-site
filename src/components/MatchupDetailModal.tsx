@@ -56,6 +56,17 @@ function computeBlindScore(enteringAvg: number): number | null {
 }
 
 /**
+ * Sums the entering averages of bowlers who contributed to the team score this week
+ * (bowled or counted as a blind). Absent roster members are excluded.
+ * This sum is the team average used for handicap calculation.
+ */
+function computeTeamAvgFromRows(rows: MatchupBowlerRow[]): number {
+  return rows
+    .filter(r => r.game1 !== null || r.blinded)
+    .reduce((sum, r) => sum + (r.avgBeforeThisWeek ?? 0), 0)
+}
+
+/**
  * Merges a team's roster against its BowlerScore records for the week.
  *
  * - Bowlers WITH a score record: returned as-is. If the record is `blinded: true`
@@ -300,6 +311,10 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
               const isWinner = idx === 0 ? team1Won : team2Won
               const rows = idx === 0 ? team1Rows : team2Rows
               const roster = idx === 0 ? team1Roster : team2Roster
+              // Fall back to stored teamAvg when individual scores were not recorded
+              const teamAvg = team.individualScoresUnavailable
+                ? team.teamAvg
+                : computeTeamAvgFromRows(rows)
 
               // Use pre-computed corrected totals (blind contributions included)
               const [scratchGame1, scratchGame2, scratchGame3] = idx === 0 ? t1Scratches : t2Scratches
@@ -334,6 +349,7 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
                       <thead>
                         <tr>
                           <th className="col-name"></th>
+                          <th className="col-avg">Avg</th>
                           <th className="col-game">G1</th>
                           <th className="col-game">G2</th>
                           <th className="col-game">G3</th>
@@ -349,6 +365,7 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
                           roster.length > 0 ? roster.map(b => (
                             <tr key={b.id} className="scores-unavailable-row">
                               <td className="col-name">{b.name}</td>
+                              <td className="col-avg scores-unavailable-cell">—</td>
                               <td className="col-game scores-unavailable-cell">—</td>
                               <td className="col-game scores-unavailable-cell">—</td>
                               <td className="col-game scores-unavailable-cell">—</td>
@@ -357,6 +374,7 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
                           )) : (
                             <tr className="scores-unavailable-row">
                               <td className="col-name scores-unavailable-label">* Individual scores not available</td>
+                              <td className="col-avg scores-unavailable-cell">—</td>
                               <td className="col-game scores-unavailable-cell">—</td>
                               <td className="col-game scores-unavailable-cell">—</td>
                               <td className="col-game scores-unavailable-cell">—</td>
@@ -379,19 +397,8 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
                                     title="Blind score — bowler was absent; score computed from their average"
                                   >B</span>
                                 )}
-                                {(row.rollingGames !== null || row.avgBeforeThisWeek !== null) && (() => {
-                                  const gamesBeforeThisWeek = row.rollingGames === null ? null
-                                    : row.blinded ? row.rollingGames
-                                    : Math.max(0, row.rollingGames - 3)
-                                  return (
-                                    <span className="bowler-games-count" title="Games bowled and average entering this week">
-                                      {gamesBeforeThisWeek !== null && `${gamesBeforeThisWeek} Games Played`}
-                                      {gamesBeforeThisWeek !== null && row.avgBeforeThisWeek !== null && ' · '}
-                                      {row.avgBeforeThisWeek !== null && `Avg ${row.avgBeforeThisWeek}`}
-                                    </span>
-                                  )
-                                })()}
                               </td>
+                              <td className="col-avg">{row.avgBeforeThisWeek ?? '—'}</td>
                               <td className="col-game">
                                 {row.blinded && <span className="blind-cell-label">Blind</span>}
                                 {row.game1 ?? '—'}
@@ -424,8 +431,17 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
                     {/* Totals — pinned to the bottom of the panel */}
                     <table className="matchup-scores-table totals-table">
                       <tbody>
+                        <tr className="totals-row team-avg-row">
+                          <td className="col-name">Team Avg</td>
+                          <td className="col-avg">{teamAvg || '—'}</td>
+                          <td className="col-game"></td>
+                          <td className="col-game"></td>
+                          <td className="col-game"></td>
+                          <td className="col-series"></td>
+                        </tr>
                         <tr className="totals-row scratch-row">
                           <td className="col-name">Scratch</td>
+                          <td className="col-avg"></td>
                           {team.individualScoresUnavailable ? (
                             <><td className="col-game scores-unavailable-cell">—</td>
                               <td className="col-game scores-unavailable-cell">—</td>
@@ -440,6 +456,7 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
                         </tr>
                         <tr className="totals-row handicap-row">
                           <td className="col-name">Handicap</td>
+                          <td className="col-avg"></td>
                           {team.individualScoresUnavailable ? (
                             <><td className="col-game scores-unavailable-cell">—</td>
                               <td className="col-game scores-unavailable-cell">—</td>
@@ -454,6 +471,7 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
                         </tr>
                         <tr className={`totals-row grand-total-row ${isWinner ? 'winner' : ''}`}>
                           <td className="col-name">Total</td>
+                          <td className="col-avg"></td>
                           <td className={`col-game ${gameClass(0)}`}>{scratchGame1 + team.handicapPerGame}</td>
                           <td className={`col-game ${gameClass(1)}`}>{scratchGame2 + team.handicapPerGame}</td>
                           <td className={`col-game ${gameClass(2)}`}>{scratchGame3 + team.handicapPerGame}</td>
