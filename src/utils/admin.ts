@@ -18,12 +18,3 @@
  * @returns ISO-8601 datetime string, e.g. `"2026-04-18T22:30:00.000Z"`
  */
 export const nowIso = (): string => new Date().toISOString()
-
-/**
- * Returns the current calendar date as a plain YYYY-MM-DD string.
- *
- * Useful when pre-filling date input fields that expect the HTML date format.
- *
- * @returns ISO date-only string, e.g. `"2026-04-18"`
- */
-export const todayIso = (): string => new Date().toISOString().split('T')[0]
