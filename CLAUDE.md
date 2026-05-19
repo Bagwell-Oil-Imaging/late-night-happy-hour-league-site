@@ -6,121 +6,163 @@
 late-night-happy-hour-league-site/
 ├── src/
 │   ├── components/           # Reusable UI components
-│   │   ├── admin/            # Admin auth guard and layout wrapper
-│   │   ├── Calendar.tsx
+│   │   ├── admin/            # AdminLayout + RequireAuth
+│   │   ├── AnnouncementsModal.tsx
+│   │   ├── AwardLeaders.tsx
+│   │   ├── BowlerProfileModal.tsx
+│   │   ├── BylawsModal.tsx
 │   │   ├── Carousel.tsx
-│   │   ├── FutureMatchups.tsx
+│   │   ├── HamburgerMenu.tsx
 │   │   ├── Header.tsx
-│   │   ├── HistoricalScores.tsx
 │   │   ├── LeagueStandings.tsx
-│   │   ├── StandingsPdfModal.tsx  # Google Drive PDF viewer modal (weekly standings)
-│   │   └── UpcomingEvents.tsx
-│   ├── hooks/                # Firestore React hooks
-│   │   ├── useFirestore.ts   # Generic useCollection<T> and useDocument<T>
-│   │   └── index.ts          # Domain-specific hooks (useTeams, useMatchups, etc.)
-│   ├── pages/                # Route-level page components
-│   │   └── admin/            # Admin CRUD panel pages
-│   ├── types/
-│   │   └── index.ts          # All TypeScript interfaces (Firestore schema)
+│   │   ├── MatchupDetailModal.tsx
+│   │   ├── NavCard.tsx
+│   │   ├── StandingsPdfModal.tsx
+│   │   ├── WeekMatchupsModal.tsx
+│   │   └── WeekSelector.tsx
+│   ├── context/
+│   │   └── SeasonContext.tsx  # SeasonProvider + useSeasonYear
+│   ├── hooks/
+│   │   ├── useFirestore.ts   # Generic useCollection<T> + useDocument<T>
+│   │   └── index.ts          # Domain hooks (useTeams, useMatchups, etc.)
+│   ├── pages/
+│   │   ├── admin/            # AnnouncementsAdmin, EventsAdmin, CarouselAdmin,
+│   │   │                     # DocumentsAdmin, SettingsAdmin, DataCorrectionAdmin
+│   │   ├── BowlersPage.tsx
+│   │   ├── ContactPage.tsx
+│   │   ├── HistoryPage.tsx
+│   │   ├── HomePage.tsx
+│   │   ├── LanesPage.tsx
+│   │   ├── MatchupsPage.tsx
+│   │   ├── SchedulePage.tsx
+│   │   ├── StandingsPage.tsx
+│   │   └── TeamsPage.tsx
+│   ├── types/index.ts        # All TypeScript interfaces (Firestore schema)
 │   ├── utils/
-│   │   ├── admin.ts              # Admin utility helpers
-│   │   └── weeklyStandingsPdf.ts # Drive file ID lookup for weekly standings PDFs
-│   ├── firebase.ts           # Firebase app initialization (db, auth only — no Storage)
+│   │   ├── admin.ts          # nowIso() timestamp helper
+│   │   ├── drive.ts          # driveFileUrl, driveEmbedUrl, driveDownloadUrl
+│   │   └── weeklyStandingsPdf.ts
+│   ├── firebase.ts           # Firebase init (db, auth — no Storage)
 │   ├── App.tsx
-│   ├── App.css
-│   ├── main.tsx
-│   └── index.css
-├── scripts/                  # Node.js data pipeline scripts
+│   └── main.tsx
+├── api/
+│   └── upload-to-drive.js    # Vercel serverless — POST /api/upload-to-drive
+├── scripts/
 │   ├── fetch-league-data.js  # Fetches raw data from LeaguePals API
 │   ├── transform-data.js     # Transforms and writes all 12 Firestore collections
-│   ├── seed-firestore.js     # One-time seeder from existing src/data JSON files
-│   └── verify-seed.js        # Validates Firestore collection document counts
-├── leaguepals-data/          # Raw API response data (gitignored)
-├── bylaws/                   # League bylaws PDF files
-├── public/                   # Static assets
-├── firestore.rules           # Firestore security rules (public read, auth write)
-├── firestore.indexes.json    # Composite index definitions
-├── firebase.json             # Firebase project deployment config (Firestore only)
-├── .env.example              # Required environment variables
+│   └── download-weekly-standings.js
+├── docs/
+│   ├── adr/                  # Architecture Decision Records — see docs/adr/index.md
+│   ├── features.md           # Feature registry index — links to spec files and diagrams
+│   ├── features/             # One spec file per feature (intent, behaviors, conditional paths)
+│   ├── diagrams/             # Generated Mermaid diagrams; features/{name}/{type}.md, flows/{name}.md
+│   └── known-issues.md       # Active unresolved problems
+├── AGENTS.md               # auto-managed by GitNexus — do not edit manually
+├── .claude/                  # Claude Code config (rules, commands, hooks — skills at ~/.claude/skills/gitnexus/)
+├── firestore.rules
+├── firestore.indexes.json
+├── firebase.json
+├── vercel.json
+├── .env.example
 ├── index.html
 ├── package.json
 ├── tsconfig.json
-├── vite.config.ts
-└── vercel.json               # Vercel deployment config
+└── vite.config.ts
 ```
 
 ## Architecture
 
-Data flows from LeaguePals API → `fetch-league-data.js` → `leaguepals-data/` → `transform-data.js` → Firestore.
+Data flows: LeaguePals API → `fetch-league-data.js` → `leaguepals-data/` → `transform-data.js` → Firestore.
 
-React components read from Firestore via domain hooks in `src/hooks/index.ts`, which wrap the generic `useCollection<T>` and `useDocument<T>` hooks defined in `src/hooks/useFirestore.ts`.
+React components read from Firestore via domain hooks in `src/hooks/index.ts`, wrapping the generic `useCollection<T>` and `useDocument<T>` hooks in `src/hooks/useFirestore.ts`.
 
-All 12 Firestore collections:
+**All 13 Firestore collections:**
 - `teams` — Team records and standings
 - `bowlers` — Bowler profiles and averages
 - `bowlerScores` — Individual game scores per week
 - `matchups` — Weekly team matchups (schedule)
-- `weeklyMatchupDetails` — Detailed per-team, per-week score breakdowns
+- `matchupDetails` — Detailed per-team, per-week score breakdowns
 - `scheduleWeeks` — Week metadata and dates
-- `seasons` — Season configuration
-- `leagueConfig` — League-wide settings
+- `seasons` — Historical season records
+- `leagueConfig` — Per-season league configuration (document ID = seasonYear)
 - `announcements` — Admin-managed announcements
 - `events` — Admin-managed league events
 - `carouselImages` — Admin-managed homepage carousel images
-- `documents` — Bylaws/documents with PDF storage references
+- `documents` — Bylaws/documents with Drive file ID references (admin-only; not written by pipeline)
+- `settings` — App-level settings; single `global` document storing `currentSeasonYear`
 
 ## Environment Setup
 
-Copy `.env.example` to `.env` and fill in all `VITE_FIREBASE_*` values from the Firebase Console (Project Settings → Your Apps → SDK setup and configuration).
+Copy `.env.example` to `.env` and fill in all `VITE_FIREBASE_*` values from Firebase Console → Project Settings → Your Apps.
 
-For running the transform pipeline (`npm run update-data`), also set `FIREBASE_SERVICE_ACCOUNT_PATH` to a local service account JSON file path (Firebase Console → Project Settings → Service accounts → Generate new private key).
+For the transform pipeline, set `FIREBASE_SERVICE_ACCOUNT_PATH` to a local service account JSON path. File is gitignored (`service-account.json`).
+
+For Drive upload, set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` in both `.env.local` and Vercel project settings.
 
 ## npm Scripts
 
-- `npm run dev` — Start Vite dev server (http://localhost:5173)
+- `npm run dev` — Vite dev server (http://localhost:5173). Does NOT serve `api/`
 - `npm run build` — TypeScript compile + Vite production build
-- `npm run fetch` — Fetch raw data from LeaguePals API into `leaguepals-data/`
+- `npm run fetch` — Fetch raw data from LeaguePals API
 - `npm run transform` — Transform fetched data and write to Firestore
-- `npm run update-data` — `fetch` + `transform` in sequence (full pipeline)
-- `npm run seed` — One-time seed from JSON files (bootstrap only, now obsolete)
-- `npm run verify-seed` — Validate Firestore collection document counts
+- `npm run update-data` — `fetch` + `transform` in sequence (run after each league night)
+- `npm run standings` — Puppeteer script to download weekly standings PDFs
+- `npm run deploy:rules` — Deploy Firestore rules and indexes
+
+To test `api/upload-to-drive.js` locally, use `npx vercel dev` instead of `npm run dev`.
 
 ## Admin UI
 
-The admin panel is accessible at `/admin/login`. Authentication uses Firebase Auth (email/password). The admin route guard (`src/components/admin/`) redirects unauthenticated users to the login page.
+Accessible at `/admin/login`. Firebase Auth (passwordless email-link via `sendSignInLinkToEmail`/`signInWithEmailLink`; allowlist gated on `VITE_ADMIN_EMAILS`). Route guard: `src/components/admin/RequireAuth.tsx`.
 
-Admin panels available:
 - `/admin/announcements` — Create, edit, delete announcements
 - `/admin/events` — Create, edit, delete league events
 - `/admin/carousel` — Manage homepage carousel images
-- `/admin/documents` — Upload and version PDF bylaws/documents (PDFs stored in Google Drive)
+- `/admin/documents` — Upload and version PDF bylaws (stored in Google Drive)
+- `/admin/settings` — League configuration
+- `/admin/data-correction` — Two-panel matchup score editor
 
-## AI-Assisted Changes
+## Documentation
 
-- **Phase 1** (Firebase Foundation): Deployed Firestore/Storage security rules, seeded 12 collections from static JSON, validated counts.
-- **Phase 2** (Transform Script Rework): Rewired `scripts/transform-data.js` to write directly to Firestore using `firebase-admin` batch writes.
-- **Phase 3** (React Foundation): Updated all TypeScript interfaces to match Firestore schema; created generic and domain-specific Firestore hooks.
-- **Phase 4** (Component Migration): Migrated all React components from static JSON imports to Firestore hooks.
-- **Phase 5** (Admin CRUD UI): Built Firebase Auth–gated admin panels for announcements, events, carousel images, and documents.
-- **Phase 6** (Cleanup): Removed all static `src/data/*.json` files; resolved TypeScript errors; updated documentation.
-- **Google Drive Migration** (feature/google-drive-storage): Replaced Firebase Storage with Google Drive for bylaws PDF storage. Added Vercel serverless upload endpoint (`api/upload-to-drive.js`), `DocumentSource.driveFileId` type field, Drive URL utilities, and updated `DocumentsAdmin` + `BylawsModal`. Removed Firebase Storage SDK, `storage.rules`, `VITE_FIREBASE_STORAGE_BUCKET`, and the deprecated `fileUrl` field.
-- **Weekly Standings PDFs** (feature/admin-updates): Added Puppeteer script (`scripts/download-weekly-standings.js`) to scrape LeaguePals and upload weekly standings PDFs to Google Drive. GitHub Actions workflow runs each Saturday 4am UTC. Drive file IDs cached in `weekly-standings-pdfs/drive-uploads.json`. Front-end surfaces PDFs via `StandingsPdfModal` + `.standings-pdf-btn` button wired into MatchupsPage, WeekMatchupsModal, HomePage (Recap tab), SchedulePage, and TeamsPage week cards.
+- Architecture decisions (and rejected alternatives): `docs/adr/index.md`
+- Feature registry (features → source paths → diagrams): `docs/features.md`
+- Active known issues: `docs/known-issues.md`
 
-## Known Issues / Limitations
+## Diagram Configuration
 
-- The JS bundle is large (~778 KB minified). Code-splitting with dynamic imports would reduce initial load time.
-- `scripts/seed-firestore.js` requires the original JSON files in `src/data/` which have been deleted — this script is no longer usable and exists only for historical reference.
+Tier and automation flags for `/generate-diagrams` and the staleness hook.
 
-## Future Considerations
+- [x] Tier: **2** (repo default — per-feature overrides allowed in `docs/features.md` Tier col)
+- [x] Auto-stale on source edit (`flag-feature-stale.sh` PostToolUse hook)
+- [ ] Auto-regenerate on stale (manual `/generate-diagrams` preferred)
+- [x] GitNexus-assisted generation (index must be fresh — run `npx gitnexus analyze` if stale)
 
-- Add real-time Firestore listeners (`onSnapshot`) for live score updates during league night.
-- Implement composite Firestore indexes for complex queries (e.g., `bowlerScores` ordered by `weekId` + `teamId`).
-- Consider lazy-loading admin route chunks to reduce initial bundle size.
+Tier definitions (enforced by `/generate-diagrams`):
+- **Tier 1** — `Flow` only
+- **Tier 2** — `Flow` + `Component`
+- **Tier 3** — `Flow` + `Component` + `Sequence` + `Class`
+
+## Docs Map
+
+| Change type | Update |
+|-------------|--------|
+| Any code change | `CHANGELOG.md` |
+| New/removed file or directory | `CLAUDE.md` (structure), `README.md` |
+| Architecture decision made or rejected | `docs/adr/NNN-*.md` + `docs/adr/index.md` |
+| New unresolved problem | `docs/known-issues.md` |
+| Problem resolved | `docs/known-issues.md` (remove entry), `CHANGELOG.md` |
+| New env variable | `.env.example` |
+| New operational procedure | `docs/runbooks/` |
+| Feature added, changed, or removed | `docs/features.md` (add/edit/delete row) |
+| Diagram generated or regenerated | `docs/features.md` (link + status per diagram type column: Flow, Seq, Component, Class) |
+| Admin panel added/removed | `CLAUDE.md` (Admin UI section) |
+| Firestore collection added/removed | `CLAUDE.md` (Architecture), `src/types/index.ts` |
+| `npx gitnexus analyze` run | `AGENTS.md` and CLAUDE.md GitNexus section auto-updated by tool — no manual action |
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **late-night-happy-hour-league-site** (1934 symbols, 2915 relationships, 90 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **late-night-happy-hour-league-site** (1822 symbols, 2634 relationships, 58 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -160,3 +202,5 @@ This project is indexed by GitNexus as **late-night-happy-hour-league-site** (19
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+> **Note:** GitNexus skills are installed at machine level (`~/.claude/skills/gitnexus/`) and apply to all repos. The CLI table above may revert to repo-relative paths after `npx gitnexus analyze` regenerates this section — invoke skills by name regardless.
