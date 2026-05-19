@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 - `MatchupDetailModal` — Add per-bowler **Avg** column and **Team Avg** summary row to the weekly matchup score breakdown; team average is computed as the sum of entering averages for all active and blind-counted bowlers that week
 - `DataCorrectionAdmin` — Add per-bowler **Avg** column and **Team Avg** tfoot row to both the read-only summary panel and the edit-form score table; edit form places Avg between Bowler and G1 as a reference when marking blinds
-- `scripts/get-drive-oauth-token.cjs` — one-time CLI script to obtain a Google OAuth2 refresh token for the league Google account; required for Drive uploads from the serverless function
+- `scripts/get-google-refresh-token.js` — one-time CLI script (`npm run oauth-token`) to obtain a Google OAuth2 refresh token for the league Google account; required for Drive uploads from the serverless function; see `docs/runbooks/google-drive-oauth.md`
 - `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` env vars — OAuth2 credentials for Drive uploads (replaces service-account-based Drive auth in `api/upload-to-drive.js`)
 
 ### Fixed
@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Drag-and-drop PDF upload zone in `DocumentsAdmin` — uploads immediately to Google Drive on file select or drop (no waiting for form submit); shows spinner while uploading, green checkmark + Drive link on success, error message on failure
 
 ### Changed
+- Contact page: replaced Formspree form with Google Forms iframe embed; removed `VITE_FORMSPREE_ID` env var dependency (ADR-007)
 - **Admin panel UI overhaul** — comprehensive redesign across all admin routes:
   - `AnnouncementsAdmin.css` — added missing `.admin-field`, `.admin-label`, `.admin-input`, `.admin-select`, `.admin-textarea`, `.admin-field-check`, `.admin-check-label` shared classes; polished buttons (hover lift + gold glow), form cards (gold left-border accent, section divider), inputs (gold focus ring), table (accent-colored headers, pill badges), and checkbox rows
   - `DocumentsAdmin.css` — added all missing form class definitions, replaced raw upload input with drag-drop zone styles (idle / dragging / uploading / done states), active-row left-border indicator, improved badge and action-button styles; removed source-toggle and markdown-textarea styles (text source no longer supported)

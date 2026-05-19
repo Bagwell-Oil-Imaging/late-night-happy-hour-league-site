@@ -5,6 +5,8 @@ generated: 2026-05-19
 spec: ../../../features/contact.md
 ---
 
+> **STALE** — This diagram reflects the old Formspree form flow. Regenerate with `/generate-diagrams` after the refactor is complete.
+
 ```mermaid
 %%{init: {'theme': 'dark', 'themeVariables': {'edgeLabelBackground': '#1e1e2e', 'clusterBkg': '#252535', 'clusterBorder': '#4a4a6a'}}}%%
 flowchart TD

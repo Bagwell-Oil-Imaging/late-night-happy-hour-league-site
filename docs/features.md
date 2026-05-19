@@ -38,7 +38,7 @@ Authoritative list of user-facing features and data flows in this repo. Each row
 | 8 | [Lane Analytics](features/lane-assignments.md) | Lane pair assignments display for the current week | `src/pages/LanesPage.tsx` | 1 | [flowchart](diagrams/features/lane-assignments/flowchart.md) | — | — | — |
 | 9 | [Announcements](features/announcements.md) | Live announcement modal with header badge count; pinned + priority sort | `src/components/AnnouncementsModal.tsx`, `src/components/Header.tsx` | 2 | [flowchart](diagrams/features/announcements/flowchart.md) | — | [component](diagrams/features/announcements/component.md) | — |
 | 10 | [League Documents](features/league-documents.md) | Bylaws PDF viewer via Google Drive embed | `src/components/BylawsModal.tsx` | 1 | [flowchart](diagrams/features/league-documents/flowchart.md) | — | — | — |
-| 11 | [Contact](features/contact.md) | Static contact information page | `src/pages/ContactPage.tsx` | 1 | [flowchart](diagrams/features/contact/flowchart.md) | — | — | — |
+| 11 | [Contact](features/contact.md) | Google Forms iframe embed for prospective member interest and league contact info | `src/pages/ContactPage.tsx` | 1 | stale | — | — | — |
 
 ## Admin Panel
 
@@ -58,6 +58,12 @@ Authoritative list of user-facing features and data flows in this repo. Each row
 |---|---------|-------------|-----------------|------|------|-----|-----------|-------|
 | 19 | [Weekly Data Sync](features/weekly-data-sync.md) | Fetch raw data from LeaguePals API, transform, write all 12 Firestore collections | `scripts/fetch-league-data.js`, `scripts/transform-data.js` | 3 | [flowchart](diagrams/features/weekly-data-sync/flowchart.md) | [sequence](diagrams/features/weekly-data-sync/sequence.md) | [component](diagrams/features/weekly-data-sync/component.md) | [class](diagrams/features/weekly-data-sync/class.md) |
 | 20 | [Standings PDF Download](features/standings-pdf-download.md) | Puppeteer-based PDF scraper for weekly standings (currently blocked — see `docs/known-issues.md`) | `scripts/download-weekly-standings.js` | 1 | blocked | — | — | — |
+
+## Setup & Operations
+
+| # | Feature | Description | Key Source Paths | Tier | Flow | Seq | Component | Class |
+|---|---------|-------------|-----------------|------|------|-----|-----------|-------|
+| 23 | [Google OAuth2 Setup](features/google-oauth-setup.md) | One-time script to generate a Google OAuth2 refresh token for Drive access | `scripts/get-google-refresh-token.js` | 1 | needed | — | — | — |
 
 ## Shared Infrastructure
 
