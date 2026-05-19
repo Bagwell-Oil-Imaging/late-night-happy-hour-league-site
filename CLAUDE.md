@@ -55,7 +55,7 @@ late-night-happy-hour-league-site/
 │   ├── adr/                  # Architecture Decision Records — see docs/adr/index.md
 │   ├── features.md           # Feature registry index — links to spec files and diagrams
 │   ├── features/             # One spec file per feature (intent, behaviors, conditional paths)
-│   ├── diagrams/             # Generated Mermaid diagrams (features/ and flows/ subdirs)
+│   ├── diagrams/             # Generated Mermaid diagrams; features/{name}/{type}.md, flows/{name}.md
 │   └── known-issues.md       # Active unresolved problems
 ├── AGENTS.md               # auto-managed by GitNexus — do not edit manually
 ├── .claude/                  # Claude Code config (rules, commands, hooks — skills at ~/.claude/skills/gitnexus/)
@@ -128,6 +128,20 @@ Accessible at `/admin/login`. Firebase Auth (email/password). Route guard: `src/
 - Feature registry (features → source paths → diagrams): `docs/features.md`
 - Active known issues: `docs/known-issues.md`
 
+## Diagram Configuration
+
+Tier and automation flags for `/generate-diagrams` and the staleness hook.
+
+- [x] Tier: **2** (repo default — per-feature overrides allowed in `docs/features.md` Tier col)
+- [x] Auto-stale on source edit (`flag-feature-stale.sh` PostToolUse hook)
+- [ ] Auto-regenerate on stale (manual `/generate-diagrams` preferred)
+- [x] GitNexus-assisted generation (index must be fresh — run `npx gitnexus analyze` if stale)
+
+Tier definitions (enforced by `/generate-diagrams`):
+- **Tier 1** — `Flow` only
+- **Tier 2** — `Flow` + `Component`
+- **Tier 3** — `Flow` + `Component` + `Sequence` + `Class`
+
 ## Docs Map
 
 | Change type | Update |
@@ -140,7 +154,7 @@ Accessible at `/admin/login`. Firebase Auth (email/password). Route guard: `src/
 | New env variable | `.env.example` |
 | New operational procedure | `docs/runbooks/` |
 | Feature added, changed, or removed | `docs/features.md` (add/edit/delete row) |
-| Diagram generated or regenerated | `docs/features.md` (Diagram link + Status column) |
+| Diagram generated or regenerated | `docs/features.md` (link + status per diagram type column: Flow, Seq, Component, Class) |
 | Admin panel added/removed | `CLAUDE.md` (Admin UI section) |
 | Firestore collection added/removed | `CLAUDE.md` (Architecture), `src/types/index.ts` |
 | `npx gitnexus analyze` run | `AGENTS.md` and CLAUDE.md GitNexus section auto-updated by tool — no manual action |

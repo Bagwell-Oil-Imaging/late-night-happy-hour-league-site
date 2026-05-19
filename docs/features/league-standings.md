@@ -64,13 +64,6 @@ Note: First half `hasData` is hardcoded `true` — it shows live leaders from we
 ## Conditional Paths
 - AwardLeaders loading gate: if any of the 3 hook fetches is loading, render placeholder instead of award panels
 
-## Component Hierarchy
-- `StandingsPage` — thin wrapper, no state, no data fetching
-  - `LeagueStandings` — owns `useTeams` fetch; sorts client-side by points then wins
-  - `AwardLeaders` — owns `useBowlers`, `useMatchupDetails`, `useScheduleWeeks` fetches; drives `computeAwards`
-    - `HalfAwards` (×2, one per half) — receives computed awards + badge state; renders championship board panel
-      - `AwardRow` (×7 per half) — pure display; renders one award category row (label + prize + winner + score + detail)
-
 ## External Dependencies
 - Firestore `teams` — ordered by points desc; consumed by `LeagueStandings` with hardcoded season year
 - Firestore `bowlers` — individual aggregate stats (average, highGame, highSeries); consumed by `AwardLeaders`
