@@ -53,6 +53,9 @@ late-night-happy-hour-league-site/
 │   └── download-weekly-standings.js
 ├── docs/
 │   ├── adr/                  # Architecture Decision Records — see docs/adr/index.md
+│   ├── features.md           # Feature registry index — links to spec files and diagrams
+│   ├── features/             # One spec file per feature (intent, behaviors, conditional paths)
+│   ├── diagrams/             # Generated Mermaid diagrams (features/ and flows/ subdirs)
 │   └── known-issues.md       # Active unresolved problems
 ├── AGENTS.md               # auto-managed by GitNexus — do not edit manually
 ├── .claude/                  # Claude Code config (rules, commands, hooks — skills at ~/.claude/skills/gitnexus/)
@@ -73,19 +76,20 @@ Data flows: LeaguePals API → `fetch-league-data.js` → `leaguepals-data/` →
 
 React components read from Firestore via domain hooks in `src/hooks/index.ts`, wrapping the generic `useCollection<T>` and `useDocument<T>` hooks in `src/hooks/useFirestore.ts`.
 
-**All 12 Firestore collections:**
+**All 13 Firestore collections:**
 - `teams` — Team records and standings
 - `bowlers` — Bowler profiles and averages
 - `bowlerScores` — Individual game scores per week
 - `matchups` — Weekly team matchups (schedule)
-- `weeklyMatchupDetails` — Detailed per-team, per-week score breakdowns
+- `matchupDetails` — Detailed per-team, per-week score breakdowns
 - `scheduleWeeks` — Week metadata and dates
-- `seasons` — Season configuration
-- `leagueConfig` — League-wide settings
+- `seasons` — Historical season records
+- `leagueConfig` — Per-season league configuration (document ID = seasonYear)
 - `announcements` — Admin-managed announcements
 - `events` — Admin-managed league events
 - `carouselImages` — Admin-managed homepage carousel images
-- `documents` — Bylaws/documents with Drive file ID references
+- `documents` — Bylaws/documents with Drive file ID references (admin-only; not written by pipeline)
+- `settings` — App-level settings; single `global` document storing `currentSeasonYear`
 
 ## Environment Setup
 
@@ -121,6 +125,7 @@ Accessible at `/admin/login`. Firebase Auth (email/password). Route guard: `src/
 ## Documentation
 
 - Architecture decisions (and rejected alternatives): `docs/adr/index.md`
+- Feature registry (features → source paths → diagrams): `docs/features.md`
 - Active known issues: `docs/known-issues.md`
 
 ## Docs Map
@@ -134,6 +139,8 @@ Accessible at `/admin/login`. Firebase Auth (email/password). Route guard: `src/
 | Problem resolved | `docs/known-issues.md` (remove entry), `CHANGELOG.md` |
 | New env variable | `.env.example` |
 | New operational procedure | `docs/runbooks/` |
+| Feature added, changed, or removed | `docs/features.md` (add/edit/delete row) |
+| Diagram generated or regenerated | `docs/features.md` (Diagram link + Status column) |
 | Admin panel added/removed | `CLAUDE.md` (Admin UI section) |
 | Firestore collection added/removed | `CLAUDE.md` (Architecture), `src/types/index.ts` |
 | `npx gitnexus analyze` run | `AGENTS.md` and CLAUDE.md GitNexus section auto-updated by tool — no manual action |
@@ -141,7 +148,7 @@ Accessible at `/admin/login`. Firebase Auth (email/password). Route guard: `src/
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **late-night-happy-hour-league-site**. Current index stats (symbols, relationships, execution flows) are in `AGENTS.md` — authoritative and auto-updated on every `npx gitnexus analyze` run. Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **late-night-happy-hour-league-site** (1809 symbols, 2617 relationships, 58 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -171,14 +178,14 @@ This project is indexed by GitNexus as **late-night-happy-hour-league-site**. Cu
 
 ## CLI
 
-| Task | Skill |
-|------|-------|
-| Understand architecture / "How does X work?" | `gitnexus-exploring` |
-| Blast radius / "What breaks if I change X?" | `gitnexus-impact-analysis` |
-| Trace bugs / "Why is X failing?" | `gitnexus-debugging` |
-| Rename / extract / split / refactor | `gitnexus-refactoring` |
-| Tools, resources, schema reference | `gitnexus-guide` |
-| Index, status, clean, wiki CLI commands | `gitnexus-cli` |
+| Task | Read this skill file |
+|------|---------------------|
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
 

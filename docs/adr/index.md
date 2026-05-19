@@ -9,3 +9,4 @@ All significant architecture decisions for this project are recorded here. The *
 | [ADR-003](003-vercel-serverless-for-drive-upload.md) | Vercel Serverless for Drive Upload | Accepted | 2026-04-22 | OAuth credentials cannot be exposed to browser; Vercel api/ handles server-side auth |
 | [ADR-004](004-leaguepals-api-as-data-source.md) | LeaguePals API as Data Source | Accepted | 2026-04-18 | Official league data source via fetch/transform pipeline eliminates manual entry |
 | [ADR-005](005-vite-spa-over-nextjs.md) | Vite SPA Over Next.js | Accepted | 2026-04-17 | No SSR or SEO requirements; SPA is simpler and sufficient |
+| [ADR-006](006-feature-registry-pattern.md) | Feature Registry as Documentation and Diagram Index | Accepted | 2026-05-18 | `docs/features.md` maps features to source paths; drives automated staleness detection and anchors Mermaid diagrams |
