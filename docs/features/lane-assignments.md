@@ -24,10 +24,9 @@ Shows per-lane-pair performance analytics for the season — average scratch ser
 
 ## External Dependencies
 - Firestore: matchupDetails (lane pair data derived client-side by aggregateLaneData helper), bowlers, bowlerScores
-- LanesPage uses hardcoded season year '2025-2026' (not SeasonContext)
 
 ## Known Issues
-None
+**Hardcoded season year:** `LanesPage` passes `'2025-2026'` as a literal string to `useMatchupDetails`, `useBowlers`, and `useBowlerScores` (`LanesPage.tsx:315-317`) instead of reading from `useSeasonYear()`. Lane analytics will silently show the wrong season after rollover. Fix: `const seasonYear = useSeasonYear()` and thread it into all three hook calls.
 
 ## Notes
 LanesPage does NOT show current-week lane assignments. Lane data is aggregated from historical matchupDetails — the `lane` field on TeamSummary identifies which lane each team bowled on each week. No scheduleWeeks or leagueConfig collections are read.

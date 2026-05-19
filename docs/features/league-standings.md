@@ -15,7 +15,6 @@ Displays the current season standings table and half-season award leaders side b
 ## Non-Goals
 - No per-week standings drill-down (WeekSelector is on MatchupsPage, not here)
 - No PDF download on this page (StandingsPdfModal lives on MatchupsPage)
-- LeagueStandings does not use SeasonContext — season year is hardcoded `'2025-2026'`
 
 ## Key Behaviors
 - View standings table sorted by points desc, wins as tiebreaker
@@ -72,7 +71,7 @@ Note: First half `hasData` is hardcoded `true` — it shows live leaders from we
 - `SeasonContext` — `AwardLeaders` reads `seasonYear` via `useSeasonYear()`; `LeagueStandings` bypasses this
 
 ## Known Issues
-None
+**Hardcoded season year:** `LeagueStandings` passes `'2025-2026'` as a literal string to `useTeams` (`LeagueStandings.tsx:21`) instead of reading from `useSeasonYear()`. Standings will silently show the wrong season after rollover. Fix: accept `seasonYear` as a prop (or call `useSeasonYear()` directly) and pass it to `useTeams`.
 
 ## Notes
 - `HALF_BOUNDARY = 16` is a module constant in `AwardLeaders.tsx`; first half = wks 1–16, second half = wks 17–32

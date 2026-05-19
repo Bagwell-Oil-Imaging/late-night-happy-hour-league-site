@@ -27,7 +27,7 @@ Lets members read or download the official league bylaws without leaving the sit
 - Google Drive embed URL constructed by driveEmbedUrl; download URL by driveDownloadUrl — both from src/utils/drive.ts
 
 ## Known Issues
-None
+**Hardcoded season year:** `BylawsModal` calls `useActiveDocument('bylaws', '2025-2026')` (`BylawsModal.tsx:46`) with a literal season string instead of reading from `useSeasonYear()`. The bylaws document for future seasons will not display after rollover. Fix: call `useSeasonYear()` and pass the result as the second argument.
 
 ## Notes
-BylawsModal is hardcoded to season year '2025-2026'. Document file IDs are stored in Firestore; actual PDFs live in Google Drive. The modal supports both PDF (Drive iframe) and plain HTML text render modes.
+Document file IDs are stored in Firestore; actual PDFs live in Google Drive. The modal supports both PDF (Drive iframe) and plain HTML text render modes.
