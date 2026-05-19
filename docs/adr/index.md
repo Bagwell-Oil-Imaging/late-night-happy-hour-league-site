@@ -10,3 +10,4 @@ All significant architecture decisions for this project are recorded here. The *
 | [ADR-004](004-leaguepals-api-as-data-source.md) | LeaguePals API as Data Source | Accepted | 2026-04-18 | Official league data source via fetch/transform pipeline eliminates manual entry |
 | [ADR-005](005-vite-spa-over-nextjs.md) | Vite SPA Over Next.js | Accepted | 2026-04-17 | No SSR or SEO requirements; SPA is simpler and sufficient |
 | [ADR-006](006-feature-registry-pattern.md) | Feature Registry as Documentation and Diagram Index | Accepted | 2026-05-18 | `docs/features.md` maps features to source paths; drives automated staleness detection and anchors Mermaid diagrams |
+| [ADR-007](007-google-forms-over-formspree.md) | Google Forms Over Formspree for Contact Form | Accepted | 2026-05-19 | Removed Formspree dependency; contact form is now a Google Forms iframe embed |
