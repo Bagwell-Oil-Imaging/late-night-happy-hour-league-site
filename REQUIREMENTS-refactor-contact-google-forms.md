@@ -35,8 +35,14 @@ Before running decompose/execute, the Google Form must exist:
 5. Click **Send** → embed icon (`< >`) → copy the full `<iframe>` src URL
 6. Paste that URL into this doc under **Google Form Embed URL** below before running decompose
 
-**Google Form Embed URL:** _(paste here before decompose)_
-`https://docs.google.com/forms/d/e/YOUR_FORM_ID/viewform?embedded=true`
+**Google Form Embed URL:**
+`https://docs.google.com/forms/d/e/1FAIpQLSexNSK5RYx5bN1GbwLcjFwQidHfNz8KguspWBHX6ZT8eJo0YA/viewform?embedded=true`
+
+**Google Form iframe attributes (from Google's embed code):**
+- `width="640"` — override to `100%` in implementation
+- `height="1357"` — use this as the fixed height
+- `frameborder="0"` — set via CSS (`border: none`)
+- `marginheight="0" marginwidth="0"` — deprecated attrs, omit in implementation
 
 ---
 
@@ -96,6 +102,28 @@ Before running decompose/execute, the Google Form must exist:
 | `docs/diagrams/features/contact/flowchart.md` | Mark stale — diagram reflects old Formspree flow |
 | `docs/features.md` | Set contact row diagram status → `stale` |
 | `CHANGELOG.md` | Add entry: replaced Formspree with Google Forms iframe embed |
+| `docs/adr/007-google-forms-over-formspree.md` | New ADR — document the decision and rejected alternatives |
+| `docs/adr/index.md` | Add ADR-007 row |
+
+### ADR-007 Content Requirements
+
+The ADR must document:
+
+**Decision:** Replace Formspree with a Google Forms iframe embed for the contact form.
+
+**Rejected Alternatives** (all must be in the ADR so they are never re-evaluated):
+- **Keep Formspree** — third-party dependency with a free tier submission limit; adds an env var and an external service to maintain
+- **Custom serverless endpoint** — overkill for a low-volume contact form; adds backend complexity with no benefit over Google Forms
+- **EmailJS** — same class of dependency as Formspree; trades one third-party for another
+- **Redirect to Google Form URL** — user leaves the site; worse UX than an iframe
+- **Mailto link only** — no structured data capture; submissions are unstructured email threads
+
+**Consequences:**
+- Zero external service dependencies for the contact form
+- No env var required (`VITE_FORMSPREE_ID` removed)
+- Form styling is controlled by Google, not the site theme
+- Form fields are managed in Google Forms UI, not in code
+- Submissions land directly in Google Forms responses + email notification
 
 ---
 
@@ -107,4 +135,6 @@ Before running decompose/execute, the Google Form must exist:
 - [ ] `VITE_FORMSPREE_ID` is gone from `.env.example` and is not referenced anywhere in the codebase
 - [ ] No Formspree URLs remain in the codebase
 - [ ] `ContactPage.tsx` has no form state, submit handler, or async logic
+- [ ] `docs/adr/007-google-forms-over-formspree.md` exists with all required sections including Rejected Alternatives
+- [ ] `docs/adr/index.md` has the ADR-007 row
 - [ ] Docs updated per the table above

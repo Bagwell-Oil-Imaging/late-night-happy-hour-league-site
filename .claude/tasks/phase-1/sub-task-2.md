@@ -1,86 +1,76 @@
 ---
 id: "phase-1/sub-task-2"
-title: "Create Vercel serverless upload endpoint (api/upload-to-drive.js)"
+title: "Clean up ContactPage.css — remove form CSS, add iframe styles"
 phase: 1
 task: 2
 status: pending
 depends_on: ["phase-1/sub-task-1"]
-blocks: ["phase-3/sub-task-1"]
-branch: "feature/google-drive-storage"
-commit_prefix: "feat(phase-1/task-2)"
-estimated_files: 2
+blocks: ["phase-2/sub-task-2"]
+branch: "refactor/contact-google-forms"
+commit_prefix: "refactor(phase-1/task-2)"
+estimated_files: 1
 ---
 
-# Phase 1 / Sub-Task 2: Create Vercel serverless upload endpoint
+# Phase 1 / Sub-Task 2: Clean up ContactPage.css — remove form CSS, add iframe styles
 
 ## Summary
 
-Creates a Vercel serverless function at `api/upload-to-drive.js` that accepts
-multipart PDF uploads from the browser admin UI, verifies the caller is an
-authenticated Firebase admin, uploads the file to Google Drive, sets it public,
-and returns the Drive file ID. This is necessary because the service account
-credentials cannot be exposed to the browser — they must live in Vercel
-environment variables server-side. Also updates `vercel.json` so the SPA
-catch-all rewrite does not swallow `/api/*` routes.
+Remove all CSS blocks that styled the now-deleted custom form elements and add a single `.contact-iframe` rule for the Google Forms embed. The page layout, info sidebar, and form panel wrapper styles are kept intact.
 
 ## Implementation Plan
 
-1. **Update `vercel.json`** — Change the catch-all rewrite to exclude `/api/`
-   paths so Vercel routes them to serverless functions:
-   ```json
-   {
-     "rewrites": [{ "source": "/((?!api/).*)", "destination": "/" }]
+1. **Delete form-specific CSS blocks** — Remove the following sections entirely:
+   - `/* ── Form elements ── */` section: `.contact-form`, `.form-row`, `.form-group`, `.form-label`, `.required`, `.form-input`, `.form-select`, `.form-textarea`, focus states, placeholder states, select option styles
+   - `/* ── Submit button ── */` section: `.btn-submit` and its hover/disabled variants
+   - `/* ── Secondary button ── */` section: `.btn-secondary` and its hover variant
+   - `/* ── Status states ── */` section: `.form-error`, `.form-hint`, `.form-hint code`
+   - `/* ── Success state ── */` section: `.form-success`, `.success-icon`, `.success-heading`, `.success-body`
+
+2. **Keep all sidebar and layout CSS** — The following blocks survive unchanged:
+   - `.contact-page`, `.contact-intro`
+   - `.contact-layout` (grid layout)
+   - `.contact-info` and all `.info-card*` variants
+   - `.info-card-title`, `.email-link`, `.email-icon`
+   - `.info-list`, `.info-list li`, `.info-bullet`
+   - `.info-card-dues`, `.dues-disclaimer`
+   - `.info-card-bylaws`, `.bylaws-note`, `.inline-link`
+   - `.contact-form-panel`, `.form-panel-title`
+   - All `@media` responsive blocks (update any responsive rules that referenced removed classes)
+
+3. **Add iframe rule** — After `.form-panel-title`, add:
+   ```css
+   /* ── Google Forms embed ──────────────────────────────────────────────────── */
+   .contact-iframe {
+     width: 100%;
+     height: 1357px;
+     border: none;
+     display: block;
    }
    ```
 
-2. **Create `api/upload-to-drive.js`** — Vercel serverless function:
-   - Parse `multipart/form-data` using the `formidable` package (install it)
-   - Extract fields: `folderId` (string), `fileName` (string); and the uploaded file
-   - Verify Firebase Auth ID token from `Authorization: Bearer <token>` header
-     using the Firebase Admin SDK initialized with credentials from
-     `process.env.GOOGLE_SERVICE_ACCOUNT_JSON` (full JSON string) — NOT a file path
-   - Upload the file buffer to Drive using `googleapis` with credentials parsed
-     from `process.env.GOOGLE_SERVICE_ACCOUNT_JSON`
-   - Call `setPublic` on the new file ID
-   - Return `{ fileId }` as JSON with status 200
-   - Return `{ error }` with appropriate 4xx/5xx on failure
-
-3. **Install `formidable`** — `npm install formidable` (for multipart parsing in
-   the serverless context; Vercel does not parse bodies automatically)
-
-4. **Add env var docs** — Add `GOOGLE_SERVICE_ACCOUNT_JSON` to `.env.example`
-   with instructions to paste the full contents of `service-account.json`
-
-5. **Auth verification** — Use `firebase-admin`'s `auth().verifyIdToken(token)`.
-   Initialize firebase-admin from `GOOGLE_SERVICE_ACCOUNT_JSON` env var, not
-   a file path (file paths don't exist in Vercel's serverless environment).
+4. **Clean up responsive blocks** — In the `@media (max-width: 560px)` block, remove the `.form-row` and `.btn-submit` rules since those classes no longer exist. Keep `.contact-form-panel` padding override.
 
 ## File Operations
 
-### Add
-- `api/upload-to-drive.js` — Vercel serverless function for Drive uploads
-
 ### Edit
-- `vercel.json` — Exclude `/api/*` from SPA catch-all rewrite
-- `.env.example` — Document `GOOGLE_SERVICE_ACCOUNT_JSON` env var
+- `src/pages/ContactPage.css` — Remove ~160 lines of form/button/status CSS; add 6-line `.contact-iframe` rule
 
 ## Dependencies
 
 ### Depends On
-- `phase-1/sub-task-1` — Mirrors drive-client.cjs logic using env-var credentials
+- `phase-1/sub-task-1` — Must know which CSS classes remain in the JSX before pruning
 
 ### Blocks
-- `phase-3/sub-task-1` — DocumentsAdmin calls this endpoint to upload PDFs
+- `phase-2/sub-task-2` — Feature doc should reflect final CSS state
 
 ## Acceptance Criteria
 
-- [ ] `api/upload-to-drive.js` exists and exports a default handler function
-- [ ] `vercel.json` rewrite excludes `/api/` prefix
-- [ ] `formidable` is in `package.json` dependencies
-- [ ] `GOOGLE_SERVICE_ACCOUNT_JSON` is documented in `.env.example`
-- [ ] Function returns 401 when Authorization header is missing or invalid
-- [ ] Function returns `{ fileId: "..." }` on successful upload
+- [ ] `.contact-iframe` rule exists with `width: 100%`, `height: 1357px`, `border: none`, `display: block`
+- [ ] No `.form-input`, `.form-select`, `.form-textarea`, `.btn-submit`, `.btn-secondary`, `.form-success`, `.form-error` rules remain
+- [ ] `.contact-form-panel` and `.form-panel-title` rules are retained
+- [ ] All `@media` breakpoints still compile without referencing removed classes
+- [ ] No unused CSS rules remain for classes that no longer exist in the JSX
 
 ## Commit Convention
 
-`feat(phase-1/task-2): add Vercel serverless Drive upload endpoint`
+`refactor(phase-1/task-2): remove form CSS and add contact-iframe styles`

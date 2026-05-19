@@ -12,7 +12,8 @@
     "transform": "node scripts/transform-data.js",
     "update-data": "node scripts/fetch-league-data.js && node scripts/transform-data.js",
 "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage",
-    "standings": "node scripts/download-weekly-standings.js"
+    "standings": "node scripts/download-weekly-standings.js",
+    "oauth-token": "node scripts/get-google-refresh-token.js"
   },
   "dependencies": {
     "@types/react-router-dom": "^5.3.3",
