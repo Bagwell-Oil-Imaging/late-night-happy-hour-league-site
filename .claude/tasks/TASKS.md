@@ -35,9 +35,9 @@ graph TD
     classDef blocked fill:#ef4444,stroke:#dc2626,color:#fff
 
     class P1T1 completed
-    class P1T2 pending
+    class P1T2 inprogress
     class P1T3 completed
-    class P2T1 pending
+    class P2T1 completed
     class P2T2 pending
 ```
 
@@ -57,7 +57,7 @@ graph TD
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
 | 1 | [Rewrite ContactPage.tsx](phase-1/sub-task-1.md) | completed | — | 845b2f7 |
-| 2 | [Clean up ContactPage.css](phase-1/sub-task-2.md) | pending | sub-task-1 | — |
+| 2 | [Clean up ContactPage.css](phase-1/sub-task-2.md) | in_progress | sub-task-1 | — |
 | 3 | [Verify VITE_FORMSPREE_ID removed](phase-1/sub-task-3.md) | completed | — | 5b1920b |
 
 ### Phase 2: Documentation
@@ -65,7 +65,7 @@ graph TD
 
 | # | Sub-Task | Status | Depends On | Commit |
 |---|----------|--------|------------|--------|
-| 1 | [Create ADR-007](phase-2/sub-task-1.md) | pending | phase-1/sub-task-1 | — |
+| 1 | [Create ADR-007](phase-2/sub-task-1.md) | completed | phase-1/sub-task-1 | 7115587 |
 | 2 | [Update feature docs + CHANGELOG](phase-2/sub-task-2.md) | pending | phase-1/sub-task-1, phase-1/sub-task-2 | — |
 
 ## Progress
@@ -73,5 +73,5 @@ graph TD
 | Phase | Tasks | Completed | Status |
 |-------|-------|-----------|--------|
 | Phase 1: Code Changes | 3 | 2 | In progress |
-| Phase 2: Documentation | 2 | 0 | Not started |
-| **Total** | **5** | **2** | **40%** |
+| Phase 2: Documentation | 2 | 1 | In progress |
+| **Total** | **5** | **3** | **60%** |
