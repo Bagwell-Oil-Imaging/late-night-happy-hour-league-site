@@ -3,30 +3,29 @@ feature: Contact
 number: 11
 source-paths:
   - src/pages/ContactPage.tsx
-diagram: ../diagrams/features/contact.md
-status: no diagram
 ---
 
 ## Intent
-Provides league contact information and lets prospective members express interest in joining via a contact form.
+Provides league contact information and lets prospective members express interest in joining via an embedded Google Form.
 
 ## Key Behaviors
 - View league info (team format, obligations, dues summary) in a sidebar
-- Fill out and submit an interest form (name, email, phone, experience level, group size, message)
-- On submit: POSTs to Formspree when VITE_FORMSPREE_ID is configured, or falls back to opening mailto:
-- Success state shown after submission; form resets
+- Submit an interest form via an embedded Google Forms iframe
+- Form submissions are delivered to the league Gmail account via Google's email notifications
+- Mailto link displayed in the sidebar as a direct contact fallback
 
 ## Conditional Paths
-- If VITE_FORMSPREE_ID is not set, submit button opens the user's default mail client instead
-- If submission fails (network error or non-OK response), error message shown with email fallback
-- "Submitting…" disabled state while request is in flight
+- No conditional rendering — the page is static layout with an iframe; no loading or error states
 
 ## External Dependencies
-- Formspree (VITE_FORMSPREE_ID env var) — external form submission service
-- mailto: bowllatenighthappyhour@gmail.com as fallback
+- Google Forms (hardcoded embed URL in ContactPage.tsx) — hosts and processes form submissions
+- No Firestore reads; no env vars required
 
 ## Known Issues
 None
 
 ## Notes
-No Firestore reads. Page is not fully static — it contains an interactive form with async submission logic and multiple UI states (idle, submitting, success, error).
+The Google Form embed URL is hardcoded as the `GOOGLE_FORM_URL` constant in ContactPage.tsx.
+Form fields and notifications are managed in the Google Forms UI, not in code.
+The iframe height is fixed at 1357px (matching the height Google provided in the embed code).
+See ADR-007 for the decision record on why Formspree was replaced.

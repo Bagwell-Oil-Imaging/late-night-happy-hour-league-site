@@ -1,86 +1,100 @@
 ---
 id: "phase-2/sub-task-1"
-title: "Update DocumentSource type and add driveFileUrl utility"
+title: "Create ADR-007 and update ADR index"
 phase: 2
 task: 1
-status: completed
-depends_on: []
-blocks: ["phase-3/sub-task-1", "phase-4/sub-task-1"]
-branch: "feature/google-drive-storage"
-commit_prefix: "feat(phase-2/task-1)"
+status: pending
+depends_on: ["phase-1/sub-task-1"]
+blocks: []
+branch: "refactor/contact-google-forms"
+commit_prefix: "docs(phase-2/task-1)"
 estimated_files: 2
 ---
 
-# Phase 2 / Sub-Task 1: Update DocumentSource type and add driveFileUrl utility
+# Phase 2 / Sub-Task 1: Create ADR-007 and update ADR index
 
 ## Summary
 
-Updates the `DocumentSource` TypeScript interface in `src/types/index.ts` to
-replace the Firebase Storage `fileUrl` field with a `driveFileId` field. Also
-creates `src/utils/drive.ts` with a `driveFileUrl(fileId)` helper that converts
-a Drive file ID to a public-facing URL. Both the admin UI update (phase 3) and
-the frontend display update (phase 4) depend on these shared definitions.
+Record the architectural decision to replace Formspree with Google Forms as ADR-007. This permanently documents the decision and all rejected alternatives so they are never re-evaluated in future sessions. The ADR index gets a new row.
 
 ## Implementation Plan
 
-1. **Edit `src/types/index.ts`** — In the `DocumentSource` interface, replace:
-   ```ts
-   /** Firebase Storage URL when type == 'pdf', null otherwise */
-   fileUrl: string | null;
-   ```
-   with:
-   ```ts
-   /** Google Drive file ID when type == 'pdf', null otherwise */
-   driveFileId: string | null;
+1. **Create `docs/adr/007-google-forms-over-formspree.md`** with the following content:
+
+   ```markdown
+   # ADR-007: Google Forms Over Formspree for Contact Form
+   **Status:** Accepted
+   **Date:** 2026-05-19
+
+   ## Context
+   The Contact page used a custom React form (~200 lines of state, handlers, and JSX) that
+   POSTed submissions to Formspree, a third-party form backend service. Formspree forwarded
+   submissions to the league email address. This introduced an external service dependency,
+   a required env var (VITE_FORMSPREE_ID), and a free-tier submission limit (50/month).
+   For a bowling league contact form receiving a handful of submissions per season, this
+   complexity was not justified.
+
+   ## Decision
+   Replace the custom Formspree-backed form with a Google Forms iframe embed. The form is
+   hosted on Google Forms, embedded via `<iframe>` in the existing contact panel, and
+   delivers submissions directly to the league Gmail account via Google's built-in email
+   notification. The Google Form embed URL is hardcoded as a constant — it is not a secret
+   and requires no env var.
+
+   ## Rejected Alternatives
+   - **Keep Formspree** — Third-party dependency with a 50 submission/month free tier limit;
+     requires an env var and an external account to maintain; adds operational surface area
+     for a feature that is used a few times per season.
+   - **Custom serverless endpoint** — Overkill for a low-volume contact form; adds backend
+     complexity, credential management, and maintenance burden with no benefit over Google
+     Forms.
+   - **EmailJS** — Same class of dependency as Formspree; trades one third-party service for
+     another without reducing complexity or the env var requirement.
+   - **Redirect to Google Form URL** — Opens a new tab and takes the user off the site;
+     worse UX than an inline iframe embed.
+   - **Mailto link only** — No structured data capture; submissions arrive as unstructured
+     email threads with no consistent field layout.
+
+   ## Consequences
+   - Zero external service dependencies for the contact form
+   - No env var required (`VITE_FORMSPREE_ID` removed from the project entirely)
+   - Form field layout and styling are controlled by Google, not the site theme
+   - Form fields are managed in the Google Forms UI, not in code
+   - Submissions land in Google Forms responses with email notification to the league Gmail
+   - ContactPage.tsx is simplified from ~280 lines to ~60 lines (no React state or async logic)
+
+   ## Revisit When
+   - The league needs custom styling that must match the site theme precisely
+   - Submission volume requires server-side processing or CRM integration
    ```
 
-2. **Create `src/utils/drive.ts`** — Export two functions:
-   - `driveFileUrl(fileId: string): string` — returns
-     `https://drive.google.com/file/d/${fileId}/view`
-   - `driveDownloadUrl(fileId: string): string` — returns
-     `https://drive.google.com/uc?export=download&id=${fileId}`
-     (used for the download button in BylawsModal)
-
-3. **Fix TypeScript errors** — After changing the type, the compiler will flag
-   any references to `source.fileUrl` in `DocumentsAdmin.tsx` and
-   `BylawsModal.tsx`. Leave those as `// TODO: phase-3` and `// TODO: phase-4`
-   comments for now — they will be fixed in their respective sub-tasks. The goal
-   of this sub-task is only the type and utility, not the consumers.
-
-   Actually: since the TypeScript errors will break `npm run build`, instead
-   add a temporary type alias:
-   ```ts
-   /** @deprecated use driveFileId — remove after phase-3/phase-4 */
-   fileUrl?: string | null;
+2. **Update `docs/adr/index.md`** — Add a new row to the table:
    ```
-   keeping both fields temporarily so the build stays green until consumers
-   are updated.
+   | [ADR-007](007-google-forms-over-formspree.md) | Google Forms Over Formspree for Contact Form | Accepted | 2026-05-19 | Removed Formspree dependency; contact form is now a Google Forms iframe embed |
+   ```
 
 ## File Operations
 
 ### Add
-- `src/utils/drive.ts` — Drive URL helper functions
+- `docs/adr/007-google-forms-over-formspree.md` — New ADR with full content as specified above
 
 ### Edit
-- `src/types/index.ts` — Add `driveFileId` to `DocumentSource`; keep deprecated `fileUrl` temporarily
+- `docs/adr/index.md` — Add ADR-007 row to the table
 
 ## Dependencies
 
 ### Depends On
-- *(none — pure type and utility work)*
+- `phase-1/sub-task-1` — ADR should document what was actually implemented
 
 ### Blocks
-- `phase-3/sub-task-1` — DocumentsAdmin needs `driveFileId` type and `driveFileUrl` util
-- `phase-4/sub-task-1` — BylawsModal needs `driveFileId` type and `driveFileUrl` util
+— (none)
 
 ## Acceptance Criteria
 
-- [ ] `src/utils/drive.ts` exports `driveFileUrl` and `driveDownloadUrl`
-- [ ] `driveFileUrl('abc')` returns `https://drive.google.com/file/d/abc/view`
-- [ ] `driveDownloadUrl('abc')` returns `https://drive.google.com/uc?export=download&id=abc`
-- [ ] `DocumentSource` has `driveFileId: string | null` field
-- [ ] `npm run build` passes with no new TypeScript errors
+- [ ] `docs/adr/007-google-forms-over-formspree.md` exists with Status, Date, Context, Decision, Rejected Alternatives (all 5), Consequences, and Revisit When sections
+- [ ] All 5 rejected alternatives are documented with specific rejection reasons
+- [ ] `docs/adr/index.md` has a row for ADR-007 with correct title, status, date, and summary
 
 ## Commit Convention
 
-`feat(phase-2/task-1): add driveFileId type and driveFileUrl utility`
+`docs(phase-2/task-1): add ADR-007 for Google Forms over Formspree decision`
