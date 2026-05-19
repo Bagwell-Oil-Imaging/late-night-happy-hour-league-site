@@ -26,7 +26,7 @@ Shows which teams faced each other each week and lets users drill into the detai
 - SeasonContext
 
 ## Known Issues
-None
+**Hardcoded season year:** `MatchupsPage` passes `'2025-2026'` as a literal string to `useMatchups` and `useMatchupDetails` instead of reading from `useSeasonYear()`. Matchup data will silently show the wrong season after rollover. Fix: `const seasonYear = useSeasonYear()` and thread it into both hooks.
 
 ## Notes
 The Firestore collection for team-aggregate per-week records is `matchupDetails` (not `weeklyMatchupDetails`). MatchupDetailModal uses useMatchupDetail (matchupDetails), useBowlerScoresByTeamWeek (bowlerScores filtered by teamId + week + seasonYear via composite index), and useBowlers (bowlers) to show per-bowler rows including absent/blind roster members.

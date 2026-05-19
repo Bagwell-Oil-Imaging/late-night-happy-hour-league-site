@@ -24,10 +24,9 @@ Lets users browse all teams in the league, see their season stats and week-by-we
 
 ## External Dependencies
 - Firestore: teams, matchupDetails, matchups, bowlerScores, bowlers
-- TeamsPage uses hardcoded season year '2025-2026' (not SeasonContext)
 
 ## Known Issues
-None
+**Hardcoded season year:** `TeamsPage` passes `'2025-2026'` as a literal string to all hooks instead of reading from `useSeasonYear()`. Team and matchup data will silently show the wrong season after rollover. Fix: `const seasonYear = useSeasonYear()` and thread it into all hook calls.
 
 ## Notes
 TeamsPage does not show a per-team bowler roster list or open a BowlerProfileModal. Bowler data (useBowlers, useBowlerScoresByTeamWeek) is fetched inside the WeekCardDetail sub-component, which is only mounted when a week card is expanded. Lane Analytics are derived from matchupDetails via the aggregateLaneData helper exported from LanesPage.

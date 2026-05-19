@@ -29,6 +29,24 @@ The script cannot currently determine the correct snapshot ID for each week. The
 
 ---
 
+## Hardcoded Season Year in MatchupsPage and TeamsPage
+
+**Status:** Known, not urgent  
+**Affected:** `src/pages/MatchupsPage.tsx`, `src/pages/TeamsPage.tsx`
+
+Both pages pass `'2025-2026'` as a literal string to their Firestore hooks instead of reading from `useSeasonYear()`. Matchup and team data will silently display the wrong season after rollover without any error. Fix: add `const seasonYear = useSeasonYear()` in each page and thread it into all hook calls. See [Weekly Matchups](features/weekly-matchups.md) and [Team Roster](features/team-roster.md) for details.
+
+---
+
+## Duplicate ScoresTable in Bowler Profiles
+
+**Status:** Known, not urgent  
+**Affected:** `src/pages/BowlersPage.tsx`, `src/components/BowlerProfileModal.tsx`
+
+Two separate inline score-history table implementations exist instead of a shared component — one inside the inline `BowlerDetailPanel` on `BowlersPage` and one inside `BowlerProfileModal`. Fixes to score display logic must be applied in both places. See [Bowler Profiles](features/bowler-profiles.md) for details.
+
+---
+
 ## Bundle Size
 
 **Status:** Known, not urgent  

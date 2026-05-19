@@ -26,7 +26,7 @@ Provides a directory of all bowlers and lets users view any bowler's game-by-gam
 - SeasonContext
 
 ## Known Issues
-None
+**Duplicate ScoresTable:** `BowlersPage` has an inline score-history table and `BowlerProfileModal` has a separate, nearly identical implementation — no shared component exists. Fixes to score display logic must be applied in both places.
 
 ## Notes
 BowlersPage renders an inline BowlerDetailPanel (not BowlerProfileModal). BowlerProfileModal is a separate component used by MatchupDetailModal and HomePage for drill-through from matchup rows. useBowlerScores is filtered by bowlerId and seasonYear; scores ordered by week asc.
