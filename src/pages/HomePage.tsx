@@ -121,11 +121,16 @@ function HomePage() {
   const { data: bowlers } = useBowlers(SEASON_YEAR)
   const { data: seasons } = useSeasons()
 
-  // Derive the latest week number from available matchup details
+  // Derive the latest week number from completed matchup records.
+  // Using matchupDetails max-week is wrong: the transform writes zero-score
+  // matchupDetail records for any past week, even when scores aren't in
+  // LeaguePals yet, causing an unplayed week to appear as the latest recap.
+  // The `matchups` collection's `completed` flag is the authoritative signal.
   const latestWeek = useMemo(() => {
-    if (!matchupDetails.length) return 1
-    return Math.max(...matchupDetails.map((m) => m.week))
-  }, [matchupDetails])
+    const completed = allMatchups.filter((m) => m.completed)
+    if (!completed.length) return 1
+    return Math.max(...completed.map((m) => m.week))
+  }, [allMatchups])
 
   // Filter to only the matchups from the most recently completed week
   const latestWeekDetails = useMemo(

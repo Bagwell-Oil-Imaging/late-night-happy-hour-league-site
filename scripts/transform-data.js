@@ -670,6 +670,11 @@ function buildWeeklyMatchupDetails() {
       team1.points = t1Points
       team2.points = 4 - t1Points
 
+      // Skip if neither team has any bowler data — scores haven't been entered
+      // in LeaguePals yet. Without this guard, zero-score records land in
+      // Firestore and the HomePage recap shows a fake "latest week" with 0-0 ties.
+      if (team1.scratchSeries === 0 && team2.scratchSeries === 0) continue
+
       results.push({ id: currentMatchId, week: weekNum, date: dateStr, team1, team2 })
     }
   })

@@ -15,6 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` env vars — OAuth2 credentials for Drive uploads (replaces service-account-based Drive auth in `api/upload-to-drive.js`)
 
 ### Fixed
+- `scripts/transform-data.js` `buildWeeklyMatchupDetails`: skip writing matchupDetail records when both teams have zero scratchSeries — prevents zero-score Firestore records when `npm run fetch` is run before LeaguePals scores are entered
+- `src/pages/HomePage.tsx` `latestWeek`: derive from `matchups.filter(m => m.completed)` instead of `Math.max(...matchupDetails.map(m => m.week))` — prevents an unplayed week's zero-score matchupDetail records from being shown as the current "recap" week
 - `api/upload-to-drive.js` Drive auth: switched from service account to OAuth2 refresh token — service accounts have no Drive storage quota and cannot create files in personal Google Drives
 - `api/upload-to-drive.js` formidable import: destructure `{ formidable }` from the module — formidable v3 no longer exports a callable as its default export
 - `vercel.json` SPA rewrite: exclude `/@*` paths so Vite virtual modules (`/@vite/client`, `/@react-refresh`) are no longer intercepted by the rewrite rule, fixing `vercel dev`
