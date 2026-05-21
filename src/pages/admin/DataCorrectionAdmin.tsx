@@ -198,6 +198,7 @@ function DataCorrectionAdmin() {
   const [savingScores, setSavingScores] = useState(false)
   const [savingTeamTotals, setSavingTeamTotals] = useState(false)
   const [deletingData, setDeletingData] = useState(false)
+  const [swappingLanes, setSwappingLanes] = useState(false)
   /** When true, shows a read-only summary of both panels after a successful save. */
   const [showSummary, setShowSummary] = useState(false)
 
@@ -671,6 +672,60 @@ function DataCorrectionAdmin() {
           points: String(side.points),
         })
       }
+    }
+  }
+
+  /**
+   * Swaps which team occupies the odd (left) vs even (right) lane within the pair.
+   * Physically writes team1←team2 and team2←team1 to the matchupDetail document,
+   * then mirrors the swap in the editor panels so left/right remain coherent.
+   * Only valid for saved matchupDetails — not applicable to orphan/missing entries.
+   */
+  async function handleSwapLanes() {
+    if (!expandedEntry?.matchupDetailDocId || !expandedDetail) return
+    setSwappingLanes(true)
+    setSaveError('')
+    setSaveMsg('')
+    try {
+      await updateDoc(doc(db, 'matchupDetails', expandedEntry.matchupDetailDocId), {
+        team1: expandedDetail.team2,
+        team2: expandedDetail.team1,
+        adminOverride: true,
+      })
+      const swapped: MatchupDetail = {
+        ...expandedDetail,
+        team1: expandedDetail.team2,
+        team2: expandedDetail.team1,
+      }
+      setWeekEntries(prev => prev.map(e =>
+        e.id !== expandedEntryId ? e : { ...e, matchupDetail: swapped }
+      ))
+      // Capture current panel state before overwriting
+      const prevLeftBowlers     = leftBowlers
+      const prevLeftInputs      = leftScoreInputs
+      const prevLeftDocs        = leftExistingDocs
+      const prevLeftExcluded    = leftExcluded
+      const prevRightBowlers    = rightBowlers
+      const prevRightInputs     = rightScoreInputs
+      const prevRightDocs       = rightExistingDocs
+      const prevRightExcluded   = rightExcluded
+      setLeftBowlers(prevRightBowlers)
+      setRightBowlers(prevLeftBowlers)
+      setLeftScoreInputs(prevRightInputs)
+      setRightScoreInputs(prevLeftInputs)
+      setLeftExistingDocs(prevRightDocs)
+      setRightExistingDocs(prevLeftDocs)
+      setLeftExcluded(prevRightExcluded)
+      setRightExcluded(prevLeftExcluded)
+      setEditingSide('left')
+      setScoreEntryMode('individual')
+      setTeamTotalsInputs({ g1: '', g2: '', g3: '', points: '' })
+      setSaveMsg('Lane assignment swapped.')
+    } catch (err) {
+      console.error('[DataCorrectionAdmin] handleSwapLanes:', err)
+      setSaveError('Failed to swap lanes.')
+    } finally {
+      setSwappingLanes(false)
     }
   }
 
@@ -2373,6 +2428,12 @@ function DataCorrectionAdmin() {
                                   onClick={handleSwitchSide}>
                                   ⇄ Switch to {editingSide === 'left' ? rightTeamName : leftTeamName}
                                 </button>
+                                {entry.matchupDetailDocId && (
+                                  <button type="button" className="admin-btn-secondary dc-swap-lanes-btn"
+                                    onClick={handleSwapLanes} disabled={swappingLanes}>
+                                    {swappingLanes ? 'Swapping…' : '⇅ Swap Lanes'}
+                                  </button>
+                                )}
                               </div>
                               )}
 
