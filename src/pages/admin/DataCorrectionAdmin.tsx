@@ -800,7 +800,13 @@ function DataCorrectionAdmin() {
       if (v1 === 0 && v2 === 0 && v3 === 0) continue
       count++
       g1 += v1; g2 += v2; g3 += v3
-      teamAvg += avg
+      // New bowlers (enteringAvg = 0): derive their average from actual games this week.
+      // If any game is blinded the avg is indeterminate — contribute 0 so Vacant formula
+      // doesn't double-count a blind score as a real bowling performance.
+      const effectiveAvg = avg > 0 ? avg
+        : (s?.blind1 || s?.blind2 || s?.blind3) ? 0
+        : Math.floor((v1 + v2 + v3) / 3)
+      teamAvg += effectiveAvg
     }
     if (count === 0) return null
     const oppAvg = expandedDetail?.[oppSideKey]?.teamAvg ?? 0
@@ -835,11 +841,18 @@ function DataCorrectionAdmin() {
     if (!isOpponentVacant) return null
     const avgSum = scoreEntryMode === 'individual' && liveTotals
       ? liveTotals.teamAvg
-      : activeBowlers
-          .filter(b => !activeExcluded.has(b.id!))
-          .reduce((sum, b) => sum + (b.enteringAvg ?? 0), 0)
+      : (() => {
+          const eSum = activeBowlers
+            .filter(b => !activeExcluded.has(b.id!))
+            .reduce((sum, b) => sum + (b.enteringAvg ?? 0), 0)
+          if (eSum > 0) return eSum
+          // No entering avgs (all new bowlers): team scratch total / 3 games = avg sum
+          return liveTeamTotals
+            ? Math.floor((liveTeamTotals.g1 + liveTeamTotals.g2 + liveTeamTotals.g3) / 3)
+            : 0
+        })()
     return avgSum > 0 ? Math.floor(avgSum * 0.90) : null
-  }, [isOpponentVacant, scoreEntryMode, liveTotals, activeBowlers, activeExcluded])
+  }, [isOpponentVacant, scoreEntryMode, liveTotals, liveTeamTotals, activeBowlers, activeExcluded])
 
   /**
    * Opponent's with-handicap game totals. Used as the baseline for auto-point
@@ -1062,7 +1075,12 @@ function DataCorrectionAdmin() {
         const myHdcp = skipHdcp ? 0 : Math.max(0, Math.floor((oppAvg - myTeamAvg) * HDCP_PCT))
         const oppHdcp = skipHdcp ? 0 : Math.max(0, Math.floor((myTeamAvg - oppAvg) * HDCP_PCT))
         // Vacant opponent — fixed score formula, no handicap, points computed from formula.
-        const vacantScore = isOpponentVacant ? Math.floor(myTeamAvg * 0.90) : 0
+        // For new bowlers (enteringAvg = 0), fall back to their actual week avg (games / 3).
+        const vacantMyAvg = active.reduce((s, b) => {
+          const ea = b.bowler.enteringAvg ?? 0
+          return s + (ea > 0 ? ea : Math.floor((b.g1 + b.g2 + b.g3) / 3))
+        }, 0)
+        const vacantScore = isOpponentVacant ? Math.floor(vacantMyAvg * 0.90) : 0
         const myPoints = isOpponentVacant ? (
           gPoint(game1Total + myHdcp, vacantScore) +
           gPoint(game2Total + myHdcp, vacantScore) +
@@ -1117,7 +1135,10 @@ function DataCorrectionAdmin() {
         const g2 = active.reduce((s, b) => s + b.g2, 0)
         const g3 = active.reduce((s, b) => s + b.g3, 0)
         const scratch = g1 + g2 + g3
-        const teamAvgSum = active.reduce((s, b) => s + (b.bowler.enteringAvg ?? 0), 0)
+        const enteringAvgSum = active.reduce((s, b) => s + (b.bowler.enteringAvg ?? 0), 0)
+        // Fall back to week avg for new bowlers with no entering average.
+        const teamAvgSum = enteringAvgSum > 0 ? enteringAvgSum
+          : active.reduce((s, b) => s + Math.floor((b.g1 + b.g2 + b.g3) / 3), 0)
         const vs = Math.floor(teamAvgSum * 0.90)
         const lanePair = parseInt(laneInput) || 0
         const oppTeamId = editingSide === 'left' ? rightTeamId : leftTeamId
@@ -1182,11 +1203,14 @@ function DataCorrectionAdmin() {
         const lanePair = parseInt(laneInput) || (expandedDetail[activeSideKey]?.lane ?? 0)
         // When opponent is Vacant, recompute their score from the active roster avgs
         // (team-totals mode gives no per-bowler data, so use roster + excluded set).
-        const vacantAvgSum = isOpponentVacant
-          ? activeBowlers
-              .filter(b => !activeExcluded.has(b.id!))
-              .reduce((sum, b) => sum + (b.enteringAvg ?? 0), 0)
-          : 0
+        const vacantAvgSum = (() => {
+          if (!isOpponentVacant) return 0
+          const eSum = activeBowlers
+            .filter(b => !activeExcluded.has(b.id!))
+            .reduce((sum, b) => sum + (b.enteringAvg ?? 0), 0)
+          // No entering avgs (new bowlers): team scratch / 3 games = avg sum
+          return eSum > 0 ? eSum : Math.floor((g1 + g2 + g3) / 3)
+        })()
         const vacantScore = isOpponentVacant ? Math.floor(vacantAvgSum * 0.90) : 0
         const finalPoints = isOpponentVacant ? (
           gPoint(g1, vacantScore) + gPoint(g2, vacantScore) +
@@ -1231,10 +1255,11 @@ function DataCorrectionAdmin() {
         let oppData: TeamSummary
 
         if (isOpponentVacant) {
-          // Compute Vacant score from the active roster's entering avgs.
-          const avgSum = activeBowlers
+          // Compute Vacant score from entering avgs; fall back to team scratch / 3 for new bowlers.
+          const eSum = activeBowlers
             .filter(b => !activeExcluded.has(b.id!))
             .reduce((sum, b) => sum + (b.enteringAvg ?? 0), 0)
+          const avgSum = eSum > 0 ? eSum : Math.floor((g1 + g2 + g3) / 3)
           const vs = Math.floor(avgSum * 0.90)
           finalPoints = (
             gPoint(g1, vs) + gPoint(g2, vs) + gPoint(g3, vs) + gPoint(total, vs * 3)
