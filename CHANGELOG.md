@@ -9,10 +9,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- `SettingsAdmin` + `SeasonScheduleBuilder` — Add **Season Details** section with inline schedule builder: admin enters start date, total bowling weeks, and marks holiday/skip dates inline; skip weeks extend the season rather than consuming a week slot (week 1 → holiday → week 2, not week 3); completed weeks are locked; schedule batch-written to `scheduleWeeks` on save; read-only status table shown when not editing
 - `MatchupDetailModal` — Add per-bowler **Avg** column and **Team Avg** summary row to the weekly matchup score breakdown; team average is computed as the sum of entering averages for all active and blind-counted bowlers that week
 - `DataCorrectionAdmin` — Add per-bowler **Avg** column and **Team Avg** tfoot row to both the read-only summary panel and the edit-form score table; edit form places Avg between Bowler and G1 as a reference when marking blinds
 - `scripts/get-google-refresh-token.js` — one-time CLI script (`npm run oauth-token`) to obtain a Google OAuth2 refresh token for the league Google account; required for Drive uploads from the serverless function; see `docs/runbooks/google-drive-oauth.md`
 - `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` env vars — OAuth2 credentials for Drive uploads (replaces service-account-based Drive auth in `api/upload-to-drive.js`)
+
+### Added
+- `DataCorrectionAdmin` — Add **Vacant team** support: when a team name contains "vacant" (case-insensitive), the matchup editor auto-assigns a flat score equal to `floor(opponent avg sum × 0.90)` for all three games, sets handicap to 0 for both sides, writes no individual bowler score docs (`individualScoresUnavailable: true`), and shows a VACANT badge with a live score preview on the inactive panel; editing the real team's scores auto-recalculates the Vacant score in real time; Vacant teams appear in the opponent dropdown for orphan/missing entries; if Vacant is assigned to the left (team1) position the editor auto-flips to editing the right (real) side
 
 ### Fixed
 - `scripts/transform-data.js` `buildWeeklyMatchupDetails`: skip writing matchupDetail records when both teams have zero scratchSeries — prevents zero-score Firestore records when `npm run fetch` is run before LeaguePals scores are entered

@@ -41,6 +41,11 @@ function normalizeTeamName(name?: string): string {
   return (name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
 }
 
+/** Returns true when a team name (case-insensitive) indicates a Vacant slot. */
+function isVacantTeam(name?: string): boolean {
+  return (name ?? '').toLowerCase().includes('vacant')
+}
+
 /** Returns 1 for a win, 0 for a loss, 0.5 for a tie. */
 function gPoint(a: number, b: number): number {
   return a > b ? 1 : a < b ? 0 : 0.5
@@ -241,6 +246,11 @@ function DataCorrectionAdmin() {
   const activeSideKey: 'team1' | 'team2' = editingSide === 'left' ? 'team1' : 'team2'
   const oppSideKey: 'team1' | 'team2' = editingSide === 'left' ? 'team2' : 'team1'
 
+  const isLeftVacant = isVacantTeam(leftTeamName)
+  const isRightVacant = isVacantTeam(rightTeamName)
+  /** True when the non-editing panel is a Vacant team. Drives score auto-calculation. */
+  const isOpponentVacant = editingSide === 'left' ? isRightVacant : isLeftVacant
+
   /** Week entries sorted by lane pair (asc), orphans after matchups, missing last. Re-sorts on every save. */
   const sortedWeekEntries = useMemo(() => {
     const typeOrder = { matchup: 0, orphan: 1, missing: 2 }
@@ -277,7 +287,6 @@ function DataCorrectionAdmin() {
     }
     return teams.filter(t => {
       if (t.id === expandedEntry.orphanTeam?.id) return false
-      if ((t.name ?? '').toLowerCase().includes('vacant')) return false
       return !coveredIds.has(t.id!) && !coveredNorms.has(normalizeTeamName(t.name))
     })
   }, [expandedEntry, weekEntries, teams])
@@ -639,6 +648,8 @@ function DataCorrectionAdmin() {
           points: String(d.team1.points),
         })
       }
+      // Vacant is always the non-editing side — if it's on the left (team1), flip right.
+      if (isVacantTeam(d.team1?.teamName)) setEditingSide('right')
     } catch (err) {
       console.error('[DataCorrectionAdmin] handleExpandEntry:', err)
       setSaveError('Failed to load matchup data.')
@@ -734,6 +745,9 @@ function DataCorrectionAdmin() {
   async function handleOrphanOpponentSelect(opponentId: string) {
     setOrphanOpponentId(opponentId)
     if (!opponentId || !selectedWeek) return
+    // Vacant teams have no roster or scores — skip the Firestore fetch entirely.
+    const oppTeamName = teams.find(t => t.id === opponentId)?.name
+    if (isVacantTeam(oppTeamName)) return
     setLoadingOrphanOpp(true)
     try {
       const [bSnap, sSnap] = await Promise.all([
@@ -812,6 +826,22 @@ function DataCorrectionAdmin() {
   }, [scoreEntryMode, teamTotalsInputs])
 
   /**
+   * Vacant team score = floor(sum of active opposing bowlers' entering avgs × 0.90).
+   * Same value for G1, G2, G3. Null when Vacant is not the opponent or no avgs available.
+   * Uses liveTotals.teamAvg in individual mode (most accurate: only bowlers with scores),
+   * falls back to non-excluded roster sum in team-totals mode.
+   */
+  const liveVacantScore = useMemo((): number | null => {
+    if (!isOpponentVacant) return null
+    const avgSum = scoreEntryMode === 'individual' && liveTotals
+      ? liveTotals.teamAvg
+      : activeBowlers
+          .filter(b => !activeExcluded.has(b.id!))
+          .reduce((sum, b) => sum + (b.enteringAvg ?? 0), 0)
+    return avgSum > 0 ? Math.floor(avgSum * 0.90) : null
+  }, [isOpponentVacant, scoreEntryMode, liveTotals, activeBowlers, activeExcluded])
+
+  /**
    * Opponent's with-handicap game totals. Used as the baseline for auto-point
    * calculation. Returns null when opponent data is not yet available.
    */
@@ -826,6 +856,15 @@ function DataCorrectionAdmin() {
         g2: s.game2Total + s.handicapPerGame,
         g3: s.game3Total + s.handicapPerGame,
         total: s.totalSeries,
+      }
+    }
+
+    // Vacant opponent without a stored matchupDetail yet — use the live formula score
+    // so autoPoints can be shown before the first save.
+    if (isOpponentVacant && liveVacantScore != null) {
+      return {
+        g1: liveVacantScore, g2: liveVacantScore, g3: liveVacantScore,
+        total: liveVacantScore * 3,
       }
     }
 
@@ -855,6 +894,7 @@ function DataCorrectionAdmin() {
     }
   }, [
     expandedEntry, expandedDetail, oppSideKey, editingSide,
+    isOpponentVacant, liveVacantScore,
     rightBowlers, leftBowlers, rightScoreInputs, leftScoreInputs,
     activeBowlers, teams, rightTeamId, leftTeamId,
   ])
@@ -1021,8 +1061,15 @@ function DataCorrectionAdmin() {
         const skipHdcp = myTeamAvg === 0 || oppAvg === 0
         const myHdcp = skipHdcp ? 0 : Math.max(0, Math.floor((oppAvg - myTeamAvg) * HDCP_PCT))
         const oppHdcp = skipHdcp ? 0 : Math.max(0, Math.floor((myTeamAvg - oppAvg) * HDCP_PCT))
-        const myPoints  = autoPoints ?? expandedDetail[activeSideKey]?.points ?? 0
-        const oppPoints = autoPoints != null ? 4 - autoPoints : expandedDetail[oppSideKey]?.points ?? 0
+        // Vacant opponent — fixed score formula, no handicap, points computed from formula.
+        const vacantScore = isOpponentVacant ? Math.floor(myTeamAvg * 0.90) : 0
+        const myPoints = isOpponentVacant ? (
+          gPoint(game1Total + myHdcp, vacantScore) +
+          gPoint(game2Total + myHdcp, vacantScore) +
+          gPoint(game3Total + myHdcp, vacantScore) +
+          gPoint(scratchSeries + myHdcp * 3, vacantScore * 3)
+        ) : (autoPoints ?? expandedDetail[activeSideKey]?.points ?? 0)
+        const oppPoints = 4 - myPoints
         const lanePair = parseInt(laneInput) || (expandedDetail[activeSideKey]?.lane ?? 0)
         const updatedMy: TeamSummary = {
           ...expandedDetail[activeSideKey],
@@ -1034,11 +1081,17 @@ function DataCorrectionAdmin() {
           // so the readonly panel uses the correct scratch+hdcp display branch.
           individualScoresUnavailable: false,
         }
-        // If opponent entered via team-totals mode their game totals already
-        // include handicap (handicapPerGame = 0).  Adding oppHdcp on top would
-        // double-count it, so only update lane and points in that case.
+        // Vacant side — fixed formula, no handicap.
+        // Normal side — preserve team-totals flag or recalculate handicap.
         const isOppTeamTotals = !!expandedDetail[oppSideKey]?.individualScoresUnavailable
-        const updatedOpp: TeamSummary = isOppTeamTotals ? {
+        const updatedOpp: TeamSummary = isOpponentVacant ? {
+          teamId: expandedDetail[oppSideKey]?.teamId ?? '',
+          teamName: expandedDetail[oppSideKey]?.teamName ?? 'Vacant',
+          lane: lanePair, teamAvg: 0,
+          game1Total: vacantScore, game2Total: vacantScore, game3Total: vacantScore,
+          scratchSeries: vacantScore * 3, handicapPerGame: 0, handicapSeries: 0,
+          totalSeries: vacantScore * 3, points: oppPoints, individualScoresUnavailable: true,
+        } : isOppTeamTotals ? {
           ...expandedDetail[oppSideKey],
           lane: lanePair,
           points: oppPoints,
@@ -1056,6 +1109,45 @@ function DataCorrectionAdmin() {
         setWeekEntries(prev => prev.map(e =>
           e.id !== expandedEntryId ? e
             : { ...e, matchupDetail: { ...expandedDetail, [activeSideKey]: updatedMy, [oppSideKey]: updatedOpp } }
+        ))
+      } else if (isOpponentVacant && active.length > 0) {
+        // First save against a Vacant opponent — create the matchupDetail now so the
+        // scorecard shows immediately without requiring a separate Team Totals save.
+        const g1 = active.reduce((s, b) => s + b.g1, 0)
+        const g2 = active.reduce((s, b) => s + b.g2, 0)
+        const g3 = active.reduce((s, b) => s + b.g3, 0)
+        const scratch = g1 + g2 + g3
+        const teamAvgSum = active.reduce((s, b) => s + (b.bowler.enteringAvg ?? 0), 0)
+        const vs = Math.floor(teamAvgSum * 0.90)
+        const lanePair = parseInt(laneInput) || 0
+        const oppTeamId = editingSide === 'left' ? rightTeamId : leftTeamId
+        const oppTeamName = editingSide === 'left' ? rightTeamName : leftTeamName
+        const myPts = (
+          gPoint(g1, vs) + gPoint(g2, vs) + gPoint(g3, vs) + gPoint(scratch, vs * 3)
+        )
+        const myData: TeamSummary = {
+          teamId: activeTeamId, teamName: activeTeam.name, lane: lanePair,
+          teamAvg: teamAvgSum, game1Total: g1, game2Total: g2, game3Total: g3,
+          scratchSeries: scratch, handicapPerGame: 0, handicapSeries: 0,
+          totalSeries: scratch, points: myPts, individualScoresUnavailable: false,
+        }
+        const vacantData: TeamSummary = {
+          teamId: oppTeamId, teamName: oppTeamName, lane: lanePair,
+          teamAvg: 0, game1Total: vs, game2Total: vs, game3Total: vs,
+          scratchSeries: vs * 3, handicapPerGame: 0, handicapSeries: 0,
+          totalSeries: vs * 3, points: 4 - myPts, individualScoresUnavailable: true,
+        }
+        const newDetail: Omit<MatchupDetail, 'id'> = {
+          matchupId: '', seasonYear, week: selectedWeek as number, date: weekDate,
+          team1: activeSideKey === 'team1' ? myData : vacantData,
+          team2: activeSideKey === 'team2' ? myData : vacantData,
+          adminOverride: true,
+        }
+        const ref = await addDoc(collection(db, 'matchupDetails'), newDetail)
+        const created = { ...newDetail, id: ref.id } as MatchupDetail
+        setWeekEntries(prev => prev.map(e =>
+          e.id !== expandedEntryId ? e
+            : { ...e, type: 'matchup', matchupDetail: created, matchupDetailDocId: ref.id }
         ))
       }
 
@@ -1088,14 +1180,33 @@ function DataCorrectionAdmin() {
     try {
       if (expandedEntry?.matchupDetailDocId && expandedDetail) {
         const lanePair = parseInt(laneInput) || (expandedDetail[activeSideKey]?.lane ?? 0)
+        // When opponent is Vacant, recompute their score from the active roster avgs
+        // (team-totals mode gives no per-bowler data, so use roster + excluded set).
+        const vacantAvgSum = isOpponentVacant
+          ? activeBowlers
+              .filter(b => !activeExcluded.has(b.id!))
+              .reduce((sum, b) => sum + (b.enteringAvg ?? 0), 0)
+          : 0
+        const vacantScore = isOpponentVacant ? Math.floor(vacantAvgSum * 0.90) : 0
+        const finalPoints = isOpponentVacant ? (
+          gPoint(g1, vacantScore) + gPoint(g2, vacantScore) +
+          gPoint(g3, vacantScore) + gPoint(total, vacantScore * 3)
+        ) : safePoints
         const updatedMy: TeamSummary = {
           ...expandedDetail[activeSideKey],
           lane: lanePair,
           game1Total: g1, game2Total: g2, game3Total: g3,
           scratchSeries: total, handicapPerGame: 0, handicapSeries: 0,
-          totalSeries: total, points: safePoints, individualScoresUnavailable: true,
+          totalSeries: total, points: finalPoints, individualScoresUnavailable: true,
         }
-        const updatedOpp: TeamSummary = { ...expandedDetail[oppSideKey], lane: lanePair, points: 4 - safePoints }
+        const updatedOpp: TeamSummary = isOpponentVacant ? {
+          teamId: expandedDetail[oppSideKey]?.teamId ?? '',
+          teamName: expandedDetail[oppSideKey]?.teamName ?? 'Vacant',
+          lane: lanePair, teamAvg: 0,
+          game1Total: vacantScore, game2Total: vacantScore, game3Total: vacantScore,
+          scratchSeries: vacantScore * 3, handicapPerGame: 0, handicapSeries: 0,
+          totalSeries: vacantScore * 3, points: 4 - finalPoints, individualScoresUnavailable: true,
+        } : { ...expandedDetail[oppSideKey], lane: lanePair, points: 4 - finalPoints }
         await updateDoc(doc(db, 'matchupDetails', expandedEntry.matchupDetailDocId), {
           [activeSideKey]: updatedMy, [oppSideKey]: updatedOpp, adminOverride: true,
         })
@@ -1106,7 +1217,7 @@ function DataCorrectionAdmin() {
         setSaveMsg(`Team totals saved for ${activeTeam.name}.`)
         setShowSummary(true)
       } else {
-        // No matchupDetails — create one. Fetch opponent scratch game totals.
+        // No matchupDetails — create one.
         const oppTeamId = orphanOpponentId || (editingSide === 'left' ? rightTeamId : leftTeamId)
         if (!oppTeamId) {
           setSaveError('Select an opponent team before saving.')
@@ -1114,30 +1225,53 @@ function DataCorrectionAdmin() {
           return
         }
         const oppTeam = teams.find(t => t.id === oppTeamId)
-        const oppAvg = oppTeam?.average ?? 0
-        let oppG1 = 0, oppG2 = 0, oppG3 = 0
-        if (oppTeamId) {
-          const oppSnap = await getDocs(
-            query(collection(db, 'bowlerScores'), where('teamId', '==', oppTeamId), where('seasonYear', '==', seasonYear), where('week', '==', selectedWeek))
+        const lanePair = parseInt(laneInput) || 0
+
+        let finalPoints = safePoints
+        let oppData: TeamSummary
+
+        if (isOpponentVacant) {
+          // Compute Vacant score from the active roster's entering avgs.
+          const avgSum = activeBowlers
+            .filter(b => !activeExcluded.has(b.id!))
+            .reduce((sum, b) => sum + (b.enteringAvg ?? 0), 0)
+          const vs = Math.floor(avgSum * 0.90)
+          finalPoints = (
+            gPoint(g1, vs) + gPoint(g2, vs) + gPoint(g3, vs) + gPoint(total, vs * 3)
           )
-          for (const d of oppSnap.docs) {
-            const bs = d.data() as BowlerScore
-            oppG1 += bs.game1 ?? 0; oppG2 += bs.game2 ?? 0; oppG3 += bs.game3 ?? 0
+          oppData = {
+            teamId: oppTeamId, teamName: oppTeam?.name ?? 'Vacant', lane: lanePair,
+            teamAvg: 0, game1Total: vs, game2Total: vs, game3Total: vs,
+            scratchSeries: vs * 3, handicapPerGame: 0, handicapSeries: 0,
+            totalSeries: vs * 3, points: 4 - finalPoints, individualScoresUnavailable: true,
+          }
+        } else {
+          // Normal path — fetch opponent's existing bowlerScores.
+          const oppAvg = oppTeam?.average ?? 0
+          let oppG1 = 0, oppG2 = 0, oppG3 = 0
+          if (oppTeamId) {
+            const oppSnap = await getDocs(
+              query(collection(db, 'bowlerScores'), where('teamId', '==', oppTeamId), where('seasonYear', '==', seasonYear), where('week', '==', selectedWeek))
+            )
+            for (const d of oppSnap.docs) {
+              const bs = d.data() as BowlerScore
+              oppG1 += bs.game1 ?? 0; oppG2 += bs.game2 ?? 0; oppG3 += bs.game3 ?? 0
+            }
+          }
+          const oppScratch = oppG1 + oppG2 + oppG3
+          oppData = {
+            teamId: oppTeamId, teamName: oppTeam?.name ?? 'Opponent', lane: lanePair,
+            teamAvg: oppAvg, game1Total: oppG1, game2Total: oppG2, game3Total: oppG3,
+            scratchSeries: oppScratch, handicapPerGame: 0, handicapSeries: 0,
+            totalSeries: oppScratch, points: 4 - finalPoints,
           }
         }
-        const oppScratch = oppG1 + oppG2 + oppG3
-        const lanePair = parseInt(laneInput) || 0
+
         const myData: TeamSummary = {
           teamId: activeTeamId, teamName: activeTeam.name, lane: lanePair,
           teamAvg: 0, game1Total: g1, game2Total: g2, game3Total: g3,
           scratchSeries: total, handicapPerGame: 0, handicapSeries: 0,
-          totalSeries: total, points: safePoints, individualScoresUnavailable: true,
-        }
-        const oppData: TeamSummary = {
-          teamId: oppTeamId, teamName: oppTeam?.name ?? 'Opponent', lane: lanePair,
-          teamAvg: oppAvg, game1Total: oppG1, game2Total: oppG2, game3Total: oppG3,
-          scratchSeries: oppScratch, handicapPerGame: 0, handicapSeries: 0,
-          totalSeries: oppScratch, points: 4 - safePoints,
+          totalSeries: total, points: finalPoints, individualScoresUnavailable: true,
         }
         const newDetail: Omit<MatchupDetail, 'id'> = {
           matchupId: '', seasonYear, week: selectedWeek as number, date: weekDate,
@@ -1775,6 +1909,27 @@ function DataCorrectionAdmin() {
           </tr>
         </tfoot>
       </table>
+    )
+  }
+
+  /**
+   * Renders a placeholder panel for a Vacant opponent that has no stored matchupDetail yet.
+   * Shows the live formula score so the admin can see what will be written on save.
+   */
+  function renderVacantPanel() {
+    return (
+      <div className="dc-vacant-panel">
+        <p className="dc-vacant-label">Vacant Team</p>
+        {liveVacantScore != null ? (
+          <p className="dc-vacant-score-preview">
+            Auto score (90% of opponent avg): <strong>{liveVacantScore}</strong> per game
+            <br />
+            <span className="admin-form-hint">Will be calculated and saved when you save the active team&apos;s scores.</span>
+          </p>
+        ) : (
+          <p className="admin-form-hint">Enter the opposing team&apos;s scores to preview the Vacant score.</p>
+        )}
+      </div>
     )
   }
 
@@ -2443,14 +2598,18 @@ function DataCorrectionAdmin() {
                                 <div className={`dc-panel${editingSide === 'left' ? ' dc-primary-panel' : ' dc-opponent-panel'}`}>
                                   <div className="dc-panel-header">
                                     <span className="dc-panel-team-name">{leftTeamName}</span>
-                                    {editingSide === 'left'
-                                      ? <span className="dc-editing-badge">EDITING</span>
-                                      : <span className="dc-readonly-badge">READ-ONLY</span>}
+                                    {isLeftVacant
+                                      ? <span className="dc-vacant-badge">VACANT</span>
+                                      : editingSide === 'left'
+                                        ? <span className="dc-editing-badge">EDITING</span>
+                                        : <span className="dc-readonly-badge">READ-ONLY</span>}
                                   </div>
                                   <div className="dc-panel-body">
-                                    {editingSide === 'left'
-                                      ? renderEditForm('left')
-                                      : renderReadOnlyPanel('left')}
+                                    {isLeftVacant && !expandedDetail
+                                      ? renderVacantPanel()
+                                      : editingSide === 'left'
+                                        ? renderEditForm('left')
+                                        : renderReadOnlyPanel('left')}
                                   </div>
                                 </div>
 
@@ -2459,16 +2618,20 @@ function DataCorrectionAdmin() {
                                   <div className={`dc-panel${editingSide === 'right' ? ' dc-primary-panel' : ' dc-opponent-panel'}`}>
                                     <div className="dc-panel-header">
                                       <span className="dc-panel-team-name">{rightTeamName}</span>
-                                      {editingSide === 'right'
-                                        ? <span className="dc-editing-badge">EDITING</span>
-                                        : <span className="dc-readonly-badge">READ-ONLY</span>}
+                                      {isRightVacant
+                                        ? <span className="dc-vacant-badge">VACANT</span>
+                                        : editingSide === 'right'
+                                          ? <span className="dc-editing-badge">EDITING</span>
+                                          : <span className="dc-readonly-badge">READ-ONLY</span>}
                                     </div>
                                     <div className="dc-panel-body">
                                       {loadingOrphanOpp
                                         ? <p className="admin-loading">Loading opponent…</p>
-                                        : editingSide === 'right'
-                                          ? renderEditForm('right')
-                                          : renderReadOnlyPanel('right')}
+                                        : isRightVacant && !expandedDetail
+                                          ? renderVacantPanel()
+                                          : editingSide === 'right'
+                                            ? renderEditForm('right')
+                                            : renderReadOnlyPanel('right')}
                                     </div>
                                   </div>
                                 )}
