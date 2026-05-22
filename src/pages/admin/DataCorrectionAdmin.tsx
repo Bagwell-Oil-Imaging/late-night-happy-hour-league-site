@@ -1835,6 +1835,10 @@ function DataCorrectionAdmin() {
                   const g2 = inp?.blind2 ? bv : (parseInt(inp?.g2 ?? '') || 0)
                   const g3 = inp?.blind3 ? bv : (parseInt(inp?.g3 ?? '') || 0)
                   const anyBlind = inp?.blind1 || inp?.blind2 || inp?.blind3
+                  // No entering avg → derive from actual week games (new bowler rule)
+                  const displayAvg = avg > 0 ? avg
+                    : anyBlind ? 0
+                    : Math.floor((g1 + g2 + g3) / 3)
                   const cell = (v: number, blind: boolean) =>
                     v > 0
                       ? <span className={blind ? 'dc-blind-score-display dc-blind-score-inline' : ''}>{v}</span>
@@ -1842,7 +1846,7 @@ function DataCorrectionAdmin() {
                   return (
                     <tr key={b.id} className={anyBlind ? 'dc-blinded-row' : ''}>
                       <td className="dc-bowler-name">{b.name}</td>
-                      <td className="dc-avg-cell">{b.enteringAvg || '—'}</td>
+                      <td className="dc-avg-cell">{displayAvg || '—'}</td>
                       <td>{cell(g1, !!inp?.blind1)}</td>
                       <td>{cell(g2, !!inp?.blind2)}</td>
                       <td>{cell(g3, !!inp?.blind3)}</td>
@@ -2039,6 +2043,10 @@ function DataCorrectionAdmin() {
                     const g2 = s.blind2 ? bv : (parseInt(s.g2) || 0)
                     const g3 = s.blind3 ? bv : (parseInt(s.g3) || 0)
                     const anyBlind = s.blind1 || s.blind2 || s.blind3
+                    // No entering avg → show week avg derived from actual games (new bowler rule)
+                    const displayAvg = avg > 0 ? avg
+                      : anyBlind ? 0
+                      : Math.floor((g1 + g2 + g3) / 3)
                     const isExcluded = excluded.has(b.id!)
 
                     const toggleBlind = (flag: 'blind1' | 'blind2' | 'blind3') =>
@@ -2081,7 +2089,7 @@ function DataCorrectionAdmin() {
                           </td>
                         </tr>
                         <tr className={`dc-bowler-data-row${anyBlind && !isExcluded ? ' dc-blinded-row' : ''}${isExcluded ? ' dc-excluded-row' : ''}`}>
-                          <td className="dc-avg-cell">{avg || '—'}</td>
+                          <td className="dc-avg-cell">{displayAvg || '—'}</td>
                           <td>
                             {s.blind1
                               ? <span className="dc-blind-score-display">{bv || '—'}</span>
