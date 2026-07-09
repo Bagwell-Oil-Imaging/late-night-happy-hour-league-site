@@ -162,7 +162,7 @@ Tier definitions (enforced by `/generate-diagrams`):
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **late-night-happy-hour-league-site** (1822 symbols, 2634 relationships, 58 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **late-night-happy-hour-league-site** (1793 symbols, 2686 relationships, 53 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

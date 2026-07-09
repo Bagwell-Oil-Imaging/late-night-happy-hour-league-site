@@ -160,6 +160,8 @@ export interface TeamSummary {
   teamId: string;
   teamName: string;
   lane: number;
+  isVacantTeam?: boolean;
+  vacantTeamNumber?: number | null;
   teamAvg: number;
   game1Total: number;
   game2Total: number;

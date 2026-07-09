@@ -168,6 +168,98 @@ function write(filename, data) {
 
 const standings = loadJSON(join(RAW_DIR, 'standings.json'))
 const schedule = loadJSON(join(RAW_DIR, 'lane-schedule.json'))
+const leaguePublicPath = join(RAW_DIR, 'league-public.json')
+const leaguePublic = existsSync(leaguePublicPath) ? loadJSON(leaguePublicPath) : null
+
+/**
+ * Walks raw LeaguePals payloads and collects known team names and user-facing
+ * team numbers. Some vacant teams are omitted from the active standings list
+ * but still appear in nested league/split standings data.
+ *
+ * @returns {Map<string, { name: string, teamNumber: number | null }>}
+ */
+function buildTeamMetadataMap() {
+  const metadata = new Map()
+
+  function ensure(id) {
+    if (!id) return null
+    if (!metadata.has(id)) metadata.set(id, { name: '', teamNumber: null })
+    return metadata.get(id)
+  }
+
+  function visit(value) {
+    if (!value || typeof value !== 'object') return
+    if (Array.isArray(value)) {
+      value.forEach(visit)
+      return
+    }
+
+    if (value.team && typeof value.team === 'object' && value.team._id) {
+      const entry = ensure(value.team._id)
+      if (entry && value.team.name && !entry.name) entry.name = value.team.name
+    }
+
+    if (value.team && typeof value.team === 'string') {
+      const entry = ensure(value.team)
+      if (entry && value.teamName && !entry.name) entry.name = value.teamName
+    }
+
+    const teamNumbers = value.user_team_ids
+    if (teamNumbers && typeof teamNumbers === 'object' && !Array.isArray(teamNumbers)) {
+      for (const [teamId, teamNumber] of Object.entries(teamNumbers)) {
+        const entry = ensure(teamId)
+        if (entry && typeof teamNumber === 'number') entry.teamNumber = teamNumber
+      }
+    }
+
+    for (const child of Object.values(value)) visit(child)
+  }
+
+  visit(standings)
+  visit(leaguePublic)
+
+  return metadata
+}
+
+const teamMetadataMap = buildTeamMetadataMap()
+
+/**
+ * Identifies roster files that exist but contain no bowlers. These teams can
+ * still appear in the schedule and should be represented as vacant opponents.
+ *
+ * @returns {Set<string>}
+ */
+function buildEmptyRosterTeamIds() {
+  const ids = new Set()
+  if (!existsSync(TEAMS_RAW_DIR)) return ids
+
+  for (const file of readdirSync(TEAMS_RAW_DIR)) {
+    if (!file.endsWith('.json')) continue
+    const raw = loadJSON(join(TEAMS_RAW_DIR, file))
+    if ((raw.data ?? []).length === 0) ids.add(file.replace(/\.json$/, ''))
+  }
+
+  return ids
+}
+
+const emptyRosterTeamIds = buildEmptyRosterTeamIds()
+
+/**
+ * Returns display metadata for a LeaguePals team, including vacant markers for
+ * scheduled teams that have empty rosters.
+ *
+ * @param {string} teamLpId - LeaguePals ObjectId for the team
+ * @returns {{ name: string, teamNumber: number | null, isVacantTeam: boolean }}
+ */
+function getTeamMetadata(teamLpId) {
+  const metadata = teamMetadataMap.get(teamLpId) ?? { name: '', teamNumber: null }
+  const isVacantTeam = emptyRosterTeamIds.has(teamLpId) || /vacant/i.test(metadata.name)
+  return {
+    name: metadata.name || (isVacantTeam ? 'Vacant' : ''),
+    teamNumber: metadata.teamNumber ?? null,
+    isVacantTeam,
+  }
+}
 
 /**
  * Loads all team roster files from leaguepals-data/teams/.
@@ -515,6 +607,7 @@ function buildWeeklyMatchupDetails() {
   const results = []
   let matchId = 1
   const HDCP_PCT = 0.85
+  const BOWLERS_PER_TEAM = 4
 
   // ── Blind score penalty (mirrors populateBowlerScores logic) ───────────────
   // blindPenaltyPct is the fraction deducted from average to get the blind score
@@ -548,8 +641,27 @@ function buildWeeklyMatchupDetails() {
    * @returns {object}
    */
   function buildTeamDetail(teamLpId, siteId, lane, dateStr) {
+    const meta = getTeamMetadata(teamLpId)
     const bowlers = rosterMap.get(teamLpId) ?? []
     const activeBowlers = []
+    const blindCandidates = []
+
+    if (meta.isVacantTeam) {
+      return {
+        id: siteId ?? meta.teamNumber ?? null,
+        lpId: teamLpId,
+        name: meta.name,
+        lane,
+        bowlers: activeBowlers,
+        gameTotals: { g1: 0, g2: 0, g3: 0 },
+        scratchSeries: 0,
+        teamAvg: 0,
+        isVacantTeam: true,
+        vacantTeamNumber: meta.teamNumber,
+        individualScoresUnavailable: true,
+        // handicap fields populated after both sides are built
+      }
+    }
 
     for (const b of bowlers) {
       const entry = b.weekGames?.[dateStr]?.[0]
@@ -569,13 +681,15 @@ function buildWeeklyMatchupDetails() {
           : (b.enteringAvg ?? b.average ?? 0)
         const blindScore = avg > 0 ? avg - Math.floor(avg * blindPenaltyPct) : 0
         if (blindScore > 0) {
-          activeBowlers.push({
+          blindCandidates.push({
             name: b.name,
             g1: blindScore,
             g2: blindScore,
             g3: blindScore,
             series: blindScore * 3,
             average: b.average ?? 0,
+            gamesBeforeWeek: running?.games ?? 0,
+            averageBeforeWeek: avg,
           })
         }
       } else {
@@ -600,6 +714,13 @@ function buildWeeklyMatchupDetails() {
       }
     }
 
+    blindCandidates.sort((a, b) => {
+      if (b.gamesBeforeWeek !== a.gamesBeforeWeek) return b.gamesBeforeWeek - a.gamesBeforeWeek
+      return (b.averageBeforeWeek ?? 0) - (a.averageBeforeWeek ?? 0)
+    })
+    const blindSlots = Math.max(0, BOWLERS_PER_TEAM - activeBowlers.length)
+    activeBowlers.push(...blindCandidates.slice(0, blindSlots).map(({ gamesBeforeWeek, averageBeforeWeek, ...b }) => b))
+
     const toNum = v => (typeof v === 'number' ? v : 0)
     const g1Total = activeBowlers.reduce((s, b) => s + toNum(b.g1), 0)
     const g2Total = activeBowlers.reduce((s, b) => s + toNum(b.g2), 0)
@@ -609,12 +730,15 @@ function buildWeeklyMatchupDetails() {
 
     return {
       id: siteId,
-      name: nameLookup.get(teamLpId) ?? '',
+      lpId: teamLpId,
+      name: nameLookup.get(teamLpId) ?? meta.name,
       lane,
       bowlers: activeBowlers,
       gameTotals: { g1: g1Total, g2: g2Total, g3: g3Total },
       scratchSeries,
       teamAvg,
+      isVacantTeam: false,
+      vacantTeamNumber: null,
       // handicap fields populated after both sides are built
     }
   }
@@ -636,18 +760,33 @@ function buildWeeklyMatchupDetails() {
     for (const match of matchList) {
       const team1SiteId = teamIdMap.get(match.team1_id)
       const team2SiteId = teamIdMap.get(match.team2_id)
-      if (!team1SiteId || !team2SiteId) continue
+      const team1Meta = getTeamMetadata(match.team1_id)
+      const team2Meta = getTeamMetadata(match.team2_id)
 
-      // Increment in lockstep with populateMatchups so seqToFirestoreId maps correctly
+      // Increment for every scheduled row so detail IDs stay aligned with matchups.
       const currentMatchId = matchId++
+
+      if ((!team1SiteId && !team1Meta.isVacantTeam) || (!team2SiteId && !team2Meta.isVacantTeam)) continue
       if (!isPast) continue
 
       const team1 = buildTeamDetail(match.team1_id, team1SiteId, match.team1_lane, dateStr)
       const team2 = buildTeamDetail(match.team2_id, team2SiteId, match.team2_lane, dateStr)
+      const hasVacantTeam = team1.isVacantTeam || team2.isVacantTeam
 
-      // Lower-average team gets the handicap; the other team gets 0
-      const t1Hdcp = Math.max(0, Math.floor((team2.teamAvg - team1.teamAvg) * HDCP_PCT))
-      const t2Hdcp = Math.max(0, Math.floor((team1.teamAvg - team2.teamAvg) * HDCP_PCT))
+      if (team1.isVacantTeam && !team2.isVacantTeam) {
+        const vacantScore = Math.floor(team2.teamAvg * 0.90)
+        team1.gameTotals = { g1: vacantScore, g2: vacantScore, g3: vacantScore }
+        team1.scratchSeries = vacantScore * 3
+      } else if (team2.isVacantTeam && !team1.isVacantTeam) {
+        const vacantScore = Math.floor(team1.teamAvg * 0.90)
+        team2.gameTotals = { g1: vacantScore, g2: vacantScore, g3: vacantScore }
+        team2.scratchSeries = vacantScore * 3
+      }
+
+      // Lower-average team gets the handicap. Vacant matchups are scratch-only:
+      // the vacant side gets 90% of the active opponent's team average.
+      const t1Hdcp = hasVacantTeam ? 0 : Math.max(0, Math.floor((team2.teamAvg - team1.teamAvg) * HDCP_PCT))
+      const t2Hdcp = hasVacantTeam ? 0 : Math.max(0, Math.floor((team1.teamAvg - team2.teamAvg) * HDCP_PCT))
 
       team1.handicapPerGame = t1Hdcp
       team1.handicapSeries = t1Hdcp * 3
@@ -669,7 +808,6 @@ function buildWeeklyMatchupDetails() {
       const t1Points = gp(t1G1, t2G1) + gp(t1G2, t2G2) + gp(t1G3, t2G3) + gp(team1.totalSeries, team2.totalSeries)
       team1.points = t1Points
       team2.points = 4 - t1Points
-
       // Skip if neither team has any bowler data — scores haven't been entered
       // in LeaguePals yet. Without this guard, zero-score records land in
       // Firestore and the HomePage recap shows a fake "latest week" with 0-0 ties.
@@ -1436,6 +1574,8 @@ async function populateMatchupDetails(seasonYear, matchupIdMap = new Map()) {
         teamId: teamLpId,
         teamName: team.name ?? '',
         lane: team.lane ?? 0,
+        isVacantTeam: team.isVacantTeam ?? false,
+        vacantTeamNumber: team.vacantTeamNumber ?? null,
 
         // Renamed from g1Total/g2Total/g3Total to game1Total/game2Total/game3Total
         game1Total: gt.g1 ?? 0,
@@ -1448,6 +1588,7 @@ async function populateMatchupDetails(seasonYear, matchupIdMap = new Map()) {
         handicapSeries: team.handicapSeries ?? 0,
         totalSeries: team.totalSeries ?? 0,
         points: team.points ?? 0,
+        individualScoresUnavailable: team.individualScoresUnavailable ?? false,
 
         // Preserve bowler-level detail (g1/g2/g3 retained per existing schema)
         bowlers: (team.bowlers ?? []).map(b => ({
@@ -1461,11 +1602,8 @@ async function populateMatchupDetails(seasonYear, matchupIdMap = new Map()) {
       }
     }
 
-    // Resolve the LP ObjectId for each team by looking up via the sequential site ID
-    // (team.id from buildTeamDetail) → LP ObjectId via the reverse of teamIdMap.
-    // Build a reverse map on first access (lazy, cached in closure scope below).
-    const team1LpId = findLpIdBySiteId(detail.team1?.id)
-    const team2LpId = findLpIdBySiteId(detail.team2?.id)
+    const team1LpId = detail.team1?.lpId ?? findLpIdBySiteId(detail.team1?.id)
+    const team2LpId = detail.team2?.lpId ?? findLpIdBySiteId(detail.team2?.id)
 
     docs.push({
       // Document ID mirrors the matchups document for direct cross-collection lookup
@@ -2085,19 +2223,23 @@ async function populateBowlerScores(seasonYear) {
   // Pre-compute how many scratch games each bowler has bowled BEFORE each week.
   // Used for the selection-rule sort (most games → highest priority for blind slot).
   const scratchGamesBeforeWeek = new Map() // `${bowlerId}:${week}` → cumulative game count
+  const scratchAvgBeforeWeek = new Map() // `${bowlerId}:${week}` → average before this week
   {
     const bowlerWeekGames = new Map() // bowlerId → [{week, games}]
     for (const doc of bowlerScoreDocs) {
       if (doc.blinded || doc.series === null) continue
       const g = [doc.game1, doc.game2, doc.game3].filter(v => typeof v === 'number').length
       if (!bowlerWeekGames.has(doc.bowlerId)) bowlerWeekGames.set(doc.bowlerId, [])
-      bowlerWeekGames.get(doc.bowlerId).push({ week: doc.week, games: g })
+      bowlerWeekGames.get(doc.bowlerId).push({ week: doc.week, games: g, series: doc.series })
     }
     for (const [bowlerId, entries] of bowlerWeekGames) {
       entries.sort((a, b) => a.week - b.week)
       let cumulative = 0
+      let totalPins = 0
       for (const e of entries) {
         scratchGamesBeforeWeek.set(`${bowlerId}:${e.week}`, cumulative)
+        scratchAvgBeforeWeek.set(`${bowlerId}:${e.week}`, cumulative > 0 ? Math.floor(totalPins / cumulative) : (enteringAvgMap.get(bowlerId) ?? 0))
+        totalPins += e.series
         cumulative += e.games
       }
     }
@@ -2111,10 +2253,20 @@ async function populateBowlerScores(seasonYear) {
     teamWeekDocs.get(key).push(doc)
   }
 
+  const blindPriority = (a, b, week) => {
+    const aId = a.bowlerId ?? a._id
+    const bId = b.bowlerId ?? b._id
+    const gA = scratchGamesBeforeWeek.get(`${aId}:${week}`) ?? 0
+    const gB = scratchGamesBeforeWeek.get(`${bId}:${week}`) ?? 0
+    if (gB !== gA) return gB - gA
+    const avgA = scratchAvgBeforeWeek.get(`${aId}:${week}`) ?? a.enteringAvg ?? enteringAvgMap.get(aId) ?? 0
+    const avgB = scratchAvgBeforeWeek.get(`${bId}:${week}`) ?? b.enteringAvg ?? enteringAvgMap.get(bId) ?? 0
+    return avgB - avgA
+  }
+
+  let removedExcessBlindDocs = 0
   const syntheticBlindDocs = []
   for (const [key, docs] of teamWeekDocs) {
-    if (docs.length >= BOWLERS_PER_TEAM) continue
-
     const [teamId, weekStr] = key.split(':')
     const week = parseInt(weekStr)
     const roster = teamRosterMap.get(teamId) ?? []
@@ -2123,21 +2275,31 @@ async function populateBowlerScores(seasonYear) {
     const actualBowlerCount = docs.filter(d => !d.blinded).length
     if (actualBowlerCount === 0) continue // no actual bowlers — likely a bye/forfeit, skip
 
+    const allowedBlindCount = Math.max(0, Math.min(BOWLERS_PER_TEAM - actualBowlerCount, 3))
+    const blindDocs = docs.filter(d => d.blinded).sort((a, b) => blindPriority(a, b, week))
+    const excessBlindDocs = blindDocs.slice(allowedBlindCount)
+    if (excessBlindDocs.length > 0) {
+      const excess = new Set(excessBlindDocs)
+      for (let i = bowlerScoreDocs.length - 1; i >= 0; i--) {
+        if (excess.has(bowlerScoreDocs[i])) {
+          bowlerScoreDocs.splice(i, 1)
+          removedExcessBlindDocs++
+        }
+      }
+      docs.splice(0, docs.length, ...docs.filter(d => !excess.has(d)))
+    }
+
+    if (docs.length >= BOWLERS_PER_TEAM) continue
+
     const bowlerIdsPresent = new Set(docs.map(d => d.bowlerId))
     const absent = roster.filter(p => p._id && !bowlerIdsPresent.has(p._id))
     if (absent.length === 0) continue
 
-    // Sort absent bowlers by selection rule: most games this season → highest avg
-    absent.sort((a, b) => {
-      const gA = scratchGamesBeforeWeek.get(`${a._id}:${week}`) ?? 0
-      const gB = scratchGamesBeforeWeek.get(`${b._id}:${week}`) ?? 0
-      if (gB !== gA) return gB - gA
-      return (b.enteringAvg ?? 0) - (a.enteringAvg ?? 0)
-    })
+    absent.sort((a, b) => blindPriority(a, b, week))
 
     const maxNewBlinds = Math.min(
       BOWLERS_PER_TEAM - docs.length, // slots remaining
-      3 - docs.filter(d => d.blinded).length, // blind slots remaining (max 3 total)
+      allowedBlindCount - docs.filter(d => d.blinded).length, // blind slots remaining
       absent.length
     )
 
@@ -2170,11 +2332,14 @@ async function populateBowlerScores(seasonYear) {
     }
   }
 
+  if (removedExcessBlindDocs > 0) {
+    console.log(`[populateBowlerScores] Removed ${removedExcessBlindDocs} excess blind doc(s) from overfull team weeks`)
+  }
+
   if (syntheticBlindDocs.length > 0) {
     bowlerScoreDocs.push(...syntheticBlindDocs)
     console.log(`[populateBowlerScores] Synthesized ${syntheticBlindDocs.length} blind doc(s) to complete team rosters to ${BOWLERS_PER_TEAM} per week`)
   }
-
   // ── Rolling average calculation ────────────────────────────────────────────
   // Group all docs by bowlerId, sort each group by week ascending, then walk
   // forward accumulating non-blind scratch pins and game counts.
@@ -2253,6 +2418,53 @@ async function preserveAdminOverrides(collectionName) {
   }
 }
 
+
+function normalizeIdentityPart(value) {
+  return String(value ?? '').trim().toLowerCase()
+}
+
+function matchupDetailIdentityKeys(data) {
+  const season = normalizeIdentityPart(data.seasonYear)
+  const week = normalizeIdentityPart(data.week)
+  const date = normalizeIdentityPart(data.date)
+  const team1Id = normalizeIdentityPart(data.team1?.teamId)
+  const team2Id = normalizeIdentityPart(data.team2?.teamId)
+  const team1Name = normalizeIdentityPart(data.team1?.teamName)
+  const team2Name = normalizeIdentityPart(data.team2?.teamName)
+  const team1Lane = normalizeIdentityPart(data.team1?.lane)
+  const team2Lane = normalizeIdentityPart(data.team2?.lane)
+  const keys = []
+
+  if (season && week && date && team1Id && team2Id) {
+    keys.push(`teams:${season}:${week}:${date}:${team1Id}:${team2Id}`)
+    keys.push(`teams:${season}:${week}:${date}:${team2Id}:${team1Id}`)
+  }
+
+  if (season && week && date && team1Name && team2Name && team1Lane) {
+    keys.push(`names-lane:${season}:${week}:${date}:${team1Lane}:${team1Name}:${team2Name}`)
+  }
+
+  if (season && week && date && team1Name && team2Name && team1Lane && team2Lane) {
+    keys.push(`names-lanes:${season}:${week}:${date}:${team1Lane}:${team2Lane}:${team1Name}:${team2Name}`)
+    keys.push(`names-lanes:${season}:${week}:${date}:${team2Lane}:${team1Lane}:${team2Name}:${team1Name}`)
+  }
+
+  return [...new Set(keys)]
+}
+
+async function buildMatchupDetailRefByIdentity() {
+  const refsByIdentity = new Map()
+  const snap = await db.collection('matchupDetails').get()
+
+  snap.docs.forEach(doc => {
+    const data = doc.data()
+    matchupDetailIdentityKeys(data).forEach(key => {
+      if (!refsByIdentity.has(key)) refsByIdentity.set(key, doc.ref)
+    })
+  })
+
+  return refsByIdentity
+}
 /**
  * Re-inserts admin-overridden documents into their original Firestore paths after
  * the collection has been cleared and repopulated by the pipeline.
@@ -2278,6 +2490,11 @@ async function restoreAdminOverrides(docs, collectionName = null) {
 
   const CHUNK_SIZE = 500
   let skipped = 0
+  let remapped = 0
+  const matchupDetailRefsByIdentity =
+    collectionName === 'matchupDetails'
+      ? await buildMatchupDetailRefByIdentity()
+      : null
 
   for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
     const batch = db.batch()
@@ -2297,17 +2514,27 @@ async function restoreAdminOverrides(docs, collectionName = null) {
         // pipeline doc.
         ref = db.collection('bowlerScores').doc(`${data.bowlerId}_w${String(data.week).padStart(2, '0')}`)
 
-      } else if (collectionName === 'matchupDetails' && data.matchupId) {
-        if (!isLpObjectId(data.matchupId)) {
-          // This doc was written before the pipeline switched to LP ObjectId doc IDs.
-          // Its matchupId is a stale auto-generated Firestore ID that no longer maps
-          // to any matchup — restoring it would recreate a ghost duplicate.
+      } else if (collectionName === 'matchupDetails') {
+        const canonicalRef = matchupDetailIdentityKeys(data)
+          .map(key => matchupDetailRefsByIdentity.get(key))
+          .find(Boolean)
+
+        if (canonicalRef) {
+          // Prefer logical identity over the stored matchupId. Some historical admin
+          // overrides have LP-shaped matchupId values that point at the wrong week.
+          ref = canonicalRef
+          if (data.matchupId !== canonicalRef.id) {
+            data.matchupId = canonicalRef.id
+            remapped++
+          }
+        } else if (data.matchupId && isLpObjectId(data.matchupId)) {
+          // Fallback for current-format admin corrections that cannot be matched by
+          // identity but still have a deterministic LP ObjectId document path.
+          ref = db.collection('matchupDetails').doc(data.matchupId)
+        } else {
           skipped++
           return
         }
-        // Current-format admin corrections: redirect to the deterministic path so
-        // the admin correction overwrites the pipeline doc at the same path.
-        ref = db.collection('matchupDetails').doc(data.matchupId)
       }
 
       batch.set(ref, data)
@@ -2316,7 +2543,7 @@ async function restoreAdminOverrides(docs, collectionName = null) {
   }
 
   const restored = docs.length - skipped
-  console.log(`[restoreAdminOverrides] Restored ${restored} admin-override doc(s) into ${collectionName ?? 'collection'} (${skipped} stale docs skipped)`)
+  console.log(`[restoreAdminOverrides] Restored ${restored} admin-override doc(s) into ${collectionName ?? 'collection'} (${skipped} stale docs skipped, ${remapped} remapped)`)
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────

@@ -181,9 +181,10 @@ function MatchupsPage() {
             </thead>
             <tbody>
               {weekMatchups.map(match => {
-                const pts = getMatchPoints(match)
-                const t1Won = match.team1.totalSeries > match.team2.totalSeries
-                const t2Won = match.team2.totalSeries > match.team1.totalSeries
+                const hasVacantTeam = !!(match.team1.isVacantTeam || match.team2.isVacantTeam)
+                const pts = hasVacantTeam ? null : getMatchPoints(match)
+                const t1Won = !hasVacantTeam && match.team1.totalSeries > match.team2.totalSeries
+                const t2Won = !hasVacantTeam && match.team2.totalSeries > match.team1.totalSeries
 
                 return (
                   <tr
@@ -197,11 +198,11 @@ function MatchupsPage() {
                       {match.team1.teamName}
                     </td>
                     <td className={`col-pts center pts-cell ${t1Won ? 'pts-winner' : ''}`}>
-                      {pts.team1 % 1 === 0 ? pts.team1 : pts.team1.toFixed(1)}
+                      {pts ? (pts.team1 % 1 === 0 ? pts.team1 : pts.team1.toFixed(1)) : '-'}
                     </td>
                     <td className={`col-score center score-cell ${t1Won ? 'winner' : ''}`}>
                       <span title={`Scratch: ${match.team1.scratchSeries} + HDCP: ${match.team1.handicapSeries}`}>
-                        {match.team1.totalSeries}
+                        {match.team1.isVacantTeam ? '-' : match.team1.totalSeries}
                       </span>
                       {match.team1.handicapSeries > 0 && (
                         <span
@@ -217,7 +218,7 @@ function MatchupsPage() {
                     </td>
                     <td className={`col-score center score-cell ${t2Won ? 'winner' : ''}`}>
                       <span title={`Scratch: ${match.team2.scratchSeries} + HDCP: ${match.team2.handicapSeries}`}>
-                        {match.team2.totalSeries}
+                        {match.team2.isVacantTeam ? '-' : match.team2.totalSeries}
                       </span>
                       {match.team2.handicapSeries > 0 && (
                         <span
@@ -229,7 +230,7 @@ function MatchupsPage() {
                       )}
                     </td>
                     <td className={`col-pts center pts-cell ${t2Won ? 'pts-winner' : ''}`}>
-                      {pts.team2 % 1 === 0 ? pts.team2 : pts.team2.toFixed(1)}
+                      {pts ? (pts.team2 % 1 === 0 ? pts.team2 : pts.team2.toFixed(1)) : '-'}
                     </td>
                     <td className={`col-team-right team-cell ${t2Won ? 'winner' : ''}`}>
                       {match.team2.teamName}

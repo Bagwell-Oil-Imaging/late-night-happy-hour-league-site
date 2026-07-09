@@ -65,6 +65,18 @@
             "command": "bash .claude/hooks/flag-feature-stale.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git commit*)",
+            "command": "npx gitnexus analyze",
+            "async": true,
+            "statusMessage": "Updating GitNexus index..."
+          }
+        ]
       }
     ]
   }

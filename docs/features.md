@@ -51,6 +51,7 @@ Authoritative list of user-facing features and data flows in this repo. Each row
 | 16 | [Documents Management](features/documents-management.md) | Upload PDFs to Google Drive via serverless proxy, manage active version | `src/pages/admin/DocumentsAdmin.tsx`, `api/upload-to-drive.js` | 2 | [flowchart](diagrams/features/documents-management/flowchart.md) | — | [component](diagrams/features/documents-management/component.md) | — |
 | 17 | [League Settings](features/league-settings.md) | Admin-editable league configuration (name, season, display options) | `src/pages/admin/SettingsAdmin.tsx` | 1 | [flowchart](diagrams/features/league-settings/flowchart.md) | — | — | — |
 | 18 | [Data Correction](features/data-correction.md) | Two-panel matchup score editor for post-entry corrections | `src/pages/admin/DataCorrectionAdmin.tsx` | 2 | [flowchart](diagrams/features/data-correction/flowchart.md) | — | [component](diagrams/features/data-correction/component.md) | — |
+| 24 | [Season Details](features/season-details.md) | Admin schedule builder (start date, total weeks, holiday skips) + read-only week table in Site Settings | `src/pages/admin/SettingsAdmin.tsx`, `src/pages/admin/SeasonScheduleBuilder.tsx` | 2 | needed | — | needed | — |
 
 ## Data Pipeline
 
