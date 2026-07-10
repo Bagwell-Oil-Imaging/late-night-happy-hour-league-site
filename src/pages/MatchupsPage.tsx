@@ -21,7 +21,8 @@ import WeekSelector from '../components/WeekSelector'
 import MatchupDetailModal from '../components/MatchupDetailModal'
 import BowlerProfileModal from '../components/BowlerProfileModal'
 import StandingsPdfModal from '../components/StandingsPdfModal'
-import { useMatchups, useMatchupDetails, useScheduleWeeks } from '../hooks'
+import PlayoffBracket, { FIRST_HALF, SECOND_HALF } from '../components/PlayoffBracket'
+import { useLeagueConfig, useMatchups, useMatchupDetails, useScheduleWeeks } from '../hooks'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import { visibleWeekNumbers } from '../utils/weekVisibility'
 import type { MatchupDetail } from '../types'
@@ -90,9 +91,10 @@ function MatchupsPage() {
   // Fetch full team-aggregate detail records for scoreboard display
   const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails(seasonYear)
   const { data: scheduleWeeks, loading: scheduleLoading } = useScheduleWeeks(seasonYear)
+  const { data: leagueConfig, loading: configLoading } = useLeagueConfig(seasonYear)
   const visibleWeeks = useMemo(() => visibleWeekNumbers(scheduleWeeks), [scheduleWeeks])
 
-  const loading = matchupsLoading || detailsLoading || scheduleLoading
+  const loading = matchupsLoading || detailsLoading || scheduleLoading || configLoading
 
   // Determine the highest week that has been completed to default the selector
   // These useMemo calls must stay above any early return to satisfy Rules of Hooks
@@ -105,6 +107,22 @@ function MatchupsPage() {
   const currentWeek = parseInt(searchParams.get('week') ?? String(latestWeek), 10)
   const setWeek = (week: number) => setSearchParams({ week: String(week) })
 
+  // Earliest week the public schedule actually exposes. When an entire half has
+  // been hidden (e.g. corrupted first-half data), this jumps past it — but its
+  // playoff bracket is still worth reaching, so the navigable floor is extended
+  // back to that half's first playoff week rather than all the way to week 1.
+  const earliestVisibleWeek = useMemo(() => visibleWeeks.size ? Math.min(...visibleWeeks) : 1, [visibleWeeks])
+  const minWeek = useMemo(() => {
+    if (earliestVisibleWeek <= 1) return 1
+    const priorHalf = earliestVisibleWeek - 1 <= 16 ? FIRST_HALF : SECOND_HALF
+    const bracketFloor = priorHalf.playoffWeeks[0]
+    return bracketFloor < earliestVisibleWeek ? bracketFloor : earliestVisibleWeek
+  }, [earliestVisibleWeek])
+
+  // True once the user has paged back into that extended, hidden-but-bracket-only zone.
+  const bracketOnly = currentWeek < earliestVisibleWeek && currentWeek >= minWeek
+  const bracketOnlyHalf = currentWeek <= 16 ? FIRST_HALF : SECOND_HALF
+
   // Filter matchup details to only the selected week
   const weekMatchups = useMemo(() =>
     matchupDetails
@@ -115,16 +133,25 @@ function MatchupsPage() {
 
   const weekDate = weekMatchups[0]?.date
 
-  // Build the week list for the jump selector from available detail records
+  // Build the week list for the jump selector from available detail records, plus
+  // the extended bracket-only weeks (still hidden from the public schedule, but
+  // deliberately reachable — see minWeek above). Without those extra entries the
+  // <select> silently falls back to a different option when the current week
+  // isn't one of its choices.
   const weekList = useMemo(() => {
     const seen = new Map<number, string>()
     for (const m of matchupDetails) {
       if (visibleWeeks.has(m.week) && !seen.has(m.week)) seen.set(m.week, m.date)
     }
+    for (let w = minWeek; w < earliestVisibleWeek; w++) {
+      if (seen.has(w)) continue
+      const date = matchupDetails.find(m => m.week === w)?.date ?? scheduleWeeks.find(sw => sw.week === w)?.date ?? ''
+      seen.set(w, date)
+    }
     return Array.from(seen.entries())
       .map(([week, date]) => ({ week, date }))
       .sort((a, b) => a.week - b.week)
-  }, [matchupDetails, visibleWeeks])
+  }, [matchupDetails, visibleWeeks, minWeek, earliestVisibleWeek, scheduleWeeks])
 
   if (loading) return <div className="loading">Loading matchups…</div>
 
@@ -141,22 +168,22 @@ function MatchupsPage() {
     <div className="matchups-page">
       <h2 className="section-title">Matchups</h2>
 
-      <WeekSelector
-        week={currentWeek}
-        minWeek={1}
-        maxWeek={latestWeek}
-        date={weekDate}
-        weeks={weekList}
-        onPrev={() => setWeek(currentWeek - 1)}
-        onNext={() => setWeek(currentWeek + 1)}
-        onJump={setWeek}
-      />
-
-      {/* Standings PDF shortcut — only rendered when a PDF exists for this week */}
-      {weekMatchups.length > 0 && getStandingsPdfId(currentWeek) && (
-        <div className="week-pdf-bar">
+      <div className="matchups-toolbar">
+        <div />
+        <WeekSelector
+          week={currentWeek}
+          minWeek={minWeek}
+          maxWeek={latestWeek}
+          date={weekDate}
+          weeks={weekList}
+          onPrev={() => setWeek(currentWeek - 1)}
+          onNext={() => setWeek(currentWeek + 1)}
+          onJump={setWeek}
+        />
+        {/* Standings PDF shortcut — only rendered when a PDF exists for this week */}
+        {!bracketOnly && weekMatchups.length > 0 && getStandingsPdfId(currentWeek) && (
           <button
-            className="standings-pdf-btn"
+            className="standings-pdf-btn matchups-toolbar__pdf"
             onClick={() => setPdfWeek(currentWeek)}
             aria-label={`View standings PDF for Week ${currentWeek}`}
           >
@@ -165,10 +192,23 @@ function MatchupsPage() {
             </svg>
             Standings PDF
           </button>
-        </div>
+        )}
+      </div>
+
+      {bracketOnly && (
+        <p className="week-hidden-note">
+          Week {currentWeek} isn't part of the public schedule — showing the {bracketOnlyHalf.label} bracket only.
+        </p>
       )}
 
-      {weekMatchups.length === 0 ? (
+      <PlayoffBracket
+        matchupDetails={matchupDetails}
+        week={currentWeek}
+        playoffTeamCount={leagueConfig?.playoffTeamCount}
+        onSelectMatchup={setSelectedMatchupId}
+      />
+
+      {bracketOnly ? null : weekMatchups.length === 0 ? (
         <p className="no-data">No matchup data for this week.</p>
       ) : (
         <div className="matchup-scoreboard">

@@ -9,6 +9,18 @@
   gap: var(--space-6);
 }
 
+/* ── Toolbar row: week selector centered, PDF button pinned to the right ──── */
+.matchups-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.matchups-toolbar__pdf {
+  justify-self: end;
+}
+
 /* ── Week selector overrides for this page ───────────────────────────────── */
 .matchups-page .week-selector {
   padding-bottom: var(--space-2);
@@ -28,6 +40,20 @@
   height: 38px;
   border-radius: var(--radius-md);
   font-size: var(--text-base);
+}
+
+/* ── Hidden-week / bracket-only notice ───────────────────────────────────── */
+.week-hidden-note {
+  align-self: center;
+  margin: 0;
+  padding: .5rem 1rem;
+  border: 1px solid rgba(240, 180, 41, .3);
+  border-radius: var(--radius-md);
+  background: rgba(240, 180, 41, .07);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: .3px;
+  text-align: center;
 }
 
 /* ── Scoreboard shell ────────────────────────────────────────────────────── */
@@ -236,6 +262,16 @@
   .matchup-table th { padding: 9px 10px; letter-spacing: 1.5px; }
   .score-cell { font-size: var(--text-xl); }
   .team-cell { font-size: var(--text-sm); letter-spacing: 0.3px; }
+}
+
+@media (max-width: 640px) {
+  .matchups-toolbar {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: var(--space-2);
+  }
+  .matchups-toolbar > div:first-child { display: none; }
+  .matchups-toolbar__pdf { justify-self: center; }
 }
 
 @media (max-width: 540px) {

@@ -968,6 +968,7 @@ async function populateLeagueConfig(seasonYear) {
       // Season length from payment/fee structure
       totalWeeks: typeof api.paymentWeeks === 'number' ? api.paymentWeeks : 33,
 
+      playoffTeamCount: 8,
       // Physical setup
       numLanes: typeof api.numLanes === 'number' ? api.numLanes : 26,
 
@@ -1020,6 +1021,7 @@ async function populateLeagueConfig(seasonYear) {
       bowlersPerTeam: 4,
       gamesPerNight: 3,
       totalWeeks: 33,
+      playoffTeamCount: 8,
       numLanes: 26,
       handicapPct: 0.85,
       handicapBase: 220,
@@ -1035,7 +1037,7 @@ async function populateLeagueConfig(seasonYear) {
   }
 
   // Single-document write — no batch needed since there is exactly one config doc per season
-  await db.collection('leagueConfig').doc(seasonYear).set(doc)
+  await db.collection('leagueConfig').doc(seasonYear).set(doc, { merge: true })
   console.log(`[leagueConfig] Wrote document "${seasonYear}"`)
 }
 
@@ -2624,7 +2626,7 @@ async function main() {
 
   // 1. League configuration — single doc, no FK dependencies
   console.log('\n[1/11] leagueConfig...')
-  await clearCollection('leagueConfig')
+  // Preserve admin-managed configuration such as the playoff field across imports.
   await populateLeagueConfig(SEASON)
 
   // 2. Seasons — derived from standings; no FK dependencies
