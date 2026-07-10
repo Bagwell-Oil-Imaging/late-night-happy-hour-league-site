@@ -19,6 +19,10 @@ import { onAuthStateChanged, type User } from 'firebase/auth'
 import { auth } from '../../firebase'
 import './RequireAuth.css'
 
+const LOCAL_ADMIN_BYPASS = import.meta.env.DEV
+  && import.meta.env.VITE_LOCAL_ADMIN_BYPASS === 'true'
+  && ['localhost', '127.0.0.1'].includes(window.location.hostname)
+
 /**
  * Possible states for the authentication resolver.
  * - `'loading'` — Firebase has not yet called the auth state callback.
@@ -71,6 +75,10 @@ function RequireAuth() {
     // to prevent state updates on an unmounted component.
     return unsubscribe
   }, [])
+
+  if (LOCAL_ADMIN_BYPASS) {
+    return <Outlet />
+  }
 
   // Phase 1 — Auth state not yet resolved: show a spinner instead of the login
   // page to prevent an authenticated user from seeing a brief redirect flash.

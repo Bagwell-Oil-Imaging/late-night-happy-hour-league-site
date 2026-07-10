@@ -46,11 +46,14 @@ late-night-happy-hour-league-site/
 │   ├── App.tsx
 │   └── main.tsx
 ├── api/
+│   ├── reingest-week.js   # Vercel serverless - POST /api/reingest-week
+│   ├── local-admin-write.js # Local-only service-account bridge for bypassed admin schedule writes
 │   └── upload-to-drive.js    # Vercel serverless — POST /api/upload-to-drive
 ├── scripts/
 │   ├── fetch-league-data.js  # Fetches raw data from LeaguePals API
 │   ├── transform-data.js     # Transforms and writes all 12 Firestore collections
 │   └── download-weekly-standings.js
+│   └── dev-local.js         # Supervises Vite + local API for make run
 ├── docs/
 │   ├── adr/                  # Architecture Decision Records — see docs/adr/index.md
 │   ├── features.md           # Feature registry index — links to spec files and diagrams
@@ -101,7 +104,8 @@ For Drive upload, set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `G
 
 ## npm Scripts
 
-- `npm run dev` — Vite dev server (http://localhost:5173). Does NOT serve `api/`
+- `npm run dev` — Vite dev server (http://localhost:3001); proxies `/api/*` to the local API dev server on `http://localhost:3000`
+- `npm run dev:api` — Local API dev server at `http://localhost:3000` for Vite `/api/*` proxy targets
 - `npm run build` — TypeScript compile + Vite production build
 - `npm run fetch` — Fetch raw data from LeaguePals API
 - `npm run transform` — Transform fetched data and write to Firestore
@@ -109,7 +113,7 @@ For Drive upload, set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `G
 - `npm run standings` — Puppeteer script to download weekly standings PDFs
 - `npm run deploy:rules` — Deploy Firestore rules and indexes
 
-To test `api/upload-to-drive.js` locally, use `npx vercel dev` instead of `npm run dev`.
+To test serverless API routes locally, run `npm run dev:api` on `http://localhost:3000`; `npm run dev` on `http://localhost:3001` proxies `/api/*` there.
 
 ## Admin UI
 
@@ -162,7 +166,7 @@ Tier definitions (enforced by `/generate-diagrams`):
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **late-night-happy-hour-league-site** (1822 symbols, 2634 relationships, 58 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **late-night-happy-hour-league-site** (1793 symbols, 2686 relationships, 53 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

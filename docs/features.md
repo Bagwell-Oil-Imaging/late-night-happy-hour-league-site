@@ -28,7 +28,7 @@ Authoritative list of user-facing features and data flows in this repo. Each row
 
 | # | Feature | Description | Key Source Paths | Tier | Flow | Seq | Component | Class |
 |---|---------|-------------|-----------------|------|------|-----|-----------|-------|
-| 1 | [Home Dashboard](features/home-dashboard.md) | Hero carousel, live announcement badge in header, current-week stats, high game/series leaders | `src/pages/HomePage.tsx`, `src/components/Carousel.tsx`, `src/components/AwardLeaders.tsx` | 2 | [flowchart](diagrams/features/home-dashboard/flowchart.md) | — | [component](diagrams/features/home-dashboard/component.md) | — |
+| 1 | [Home Dashboard](features/home-dashboard.md) | Hero carousel, live announcement badge in header, current-week stats, high game/series leaders | `src/pages/HomePage.tsx`, `src/components/Carousel.tsx`, `src/components/AwardLeaders.tsx` | 2 | stale | — | stale | — |
 | 2 | [League Standings](features/league-standings.md) | Tabular standings by week, half-season award leaders | `src/pages/StandingsPage.tsx`, `src/components/LeagueStandings.tsx`, `src/components/AwardLeaders.tsx` | 3 | [flowchart](diagrams/features/league-standings/flowchart.md) | [sequence](diagrams/features/league-standings/sequence.md) | [component](diagrams/features/league-standings/component.md) | [class](diagrams/features/league-standings/class.md) |
 | 3 | [Weekly Matchups](features/weekly-matchups.md) | Team matchup grid with week selector, detailed per-game score modal | `src/pages/MatchupsPage.tsx`, `src/components/WeekMatchupsModal.tsx`, `src/components/MatchupDetailModal.tsx` | 2 | [flowchart](diagrams/features/weekly-matchups/flowchart.md) | — | [component](diagrams/features/weekly-matchups/component.md) | — |
 | 4 | [Team Roster](features/team-roster.md) | Team list with bowler roster per team | `src/pages/TeamsPage.tsx` | 1 | [flowchart](diagrams/features/team-roster/flowchart.md) | — | — | — |
@@ -51,12 +51,13 @@ Authoritative list of user-facing features and data flows in this repo. Each row
 | 16 | [Documents Management](features/documents-management.md) | Upload PDFs to Google Drive via serverless proxy, manage active version | `src/pages/admin/DocumentsAdmin.tsx`, `api/upload-to-drive.js` | 2 | [flowchart](diagrams/features/documents-management/flowchart.md) | — | [component](diagrams/features/documents-management/component.md) | — |
 | 17 | [League Settings](features/league-settings.md) | Admin-editable league configuration (name, season, display options) | `src/pages/admin/SettingsAdmin.tsx` | 1 | [flowchart](diagrams/features/league-settings/flowchart.md) | — | — | — |
 | 18 | [Data Correction](features/data-correction.md) | Two-panel matchup score editor for post-entry corrections | `src/pages/admin/DataCorrectionAdmin.tsx` | 2 | [flowchart](diagrams/features/data-correction/flowchart.md) | — | [component](diagrams/features/data-correction/component.md) | — |
+| 24 | [Season Details](features/season-details.md) | Unified season schedule builder, public week-visibility controls, and read-only week table in Site Settings | `src/pages/admin/SettingsAdmin.tsx`, `src/pages/admin/SeasonScheduleBuilder.tsx` | 2 | needed | — | needed | — |
 
 ## Data Pipeline
 
 | # | Feature | Description | Key Source Paths | Tier | Flow | Seq | Component | Class |
 |---|---------|-------------|-----------------|------|------|-----|-----------|-------|
-| 19 | [Weekly Data Sync](features/weekly-data-sync.md) | Fetch raw data from LeaguePals API, transform, write all 12 Firestore collections | `scripts/fetch-league-data.js`, `scripts/transform-data.js` | 3 | [flowchart](diagrams/features/weekly-data-sync/flowchart.md) | [sequence](diagrams/features/weekly-data-sync/sequence.md) | [component](diagrams/features/weekly-data-sync/component.md) | [class](diagrams/features/weekly-data-sync/class.md) |
+| 19 | [Weekly Data Sync](features/weekly-data-sync.md) | Fetch raw data from LeaguePals API, transform, write 11 of 12 Firestore collections (excludes `documents`) | `scripts/fetch-league-data.js`, `scripts/transform-data.js` | 3 | stale | stale | stale | stale |
 | 20 | [Standings PDF Download](features/standings-pdf-download.md) | Puppeteer-based PDF scraper for weekly standings (currently blocked — see `docs/known-issues.md`) | `scripts/download-weekly-standings.js` | 1 | blocked | — | — | — |
 
 ## Setup & Operations

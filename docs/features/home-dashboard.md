@@ -4,8 +4,6 @@ number: 1
 source-paths:
   - src/pages/HomePage.tsx
   - src/components/AwardLeaders.tsx
-diagram: ../diagrams/features/home-dashboard.md
-status: no diagram
 ---
 
 ## Intent
@@ -21,6 +19,7 @@ Surfaces current league status at a glance — a recap/preview scoreboard for th
 
 ## Conditional Paths
 - If no matchupDetails exist yet, recap/preview panels show loading state
+- Latest recap week is determined by `matchups.filter(m => m.completed)` max week — a week where `npm run fetch` ran before scores were entered in LeaguePals will NOT appear as the recap; it shows the prior week instead
 - If next week has no unfinished matchups, Preview panel shows empty message
 - AwardLeaders shows "Upcoming" status badge for the second half until any week in that range completes
 

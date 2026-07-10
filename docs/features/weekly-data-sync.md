@@ -4,8 +4,6 @@ number: 19
 source-paths:
   - scripts/fetch-league-data.js
   - scripts/transform-data.js
-diagram: ../diagrams/flows/weekly-data-sync.md
-status: no diagram
 ---
 
 ## Intent
@@ -19,6 +17,7 @@ Imports the week's bowling results from the LeaguePals API into 11 of the 12 Fir
 
 ## Conditional Paths
 - If fetch fails (API unreachable), transform does not run — `npm run update-data` chains the two scripts with `&&` so a non-zero exit from fetch prevents transform from starting
+- If `npm run fetch` is run before scores are entered in LeaguePals, team roster files will have no `weekGames` entry for that week's date; `buildMatchups` sets `completed: false` and `buildWeeklyMatchupDetails` skips writing that week's records (guard: both teams scratchSeries = 0)
 - If a Firestore collection write fails mid-pipeline, previous collections may be partially updated (no atomic transaction across collections)
 - If Firestore is not initialized (service account missing), all Firestore writes are silently skipped — local JSON files in src/data/ are still produced
 - Each collection is cleared before re-writing; this is not a simple upsert — it is a full delete-then-write per run

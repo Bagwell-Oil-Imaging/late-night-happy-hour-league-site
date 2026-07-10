@@ -53,7 +53,7 @@ cp .env.example .env
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`.
+The app will be available at `http://localhost:3001`. Use `make run` (or `npm run dev:local`) to start both Vite and the local API server; Vite proxies `/api/*` to `http://localhost:3000`.
 
 ### Firebase Setup
 
@@ -121,6 +121,10 @@ late-night-happy-hour-league-site/
 │   ├── firebase.ts           # Firebase app initialization
 │   ├── App.tsx
 │   └── main.tsx
+├── api/                      # Vercel serverless functions
+│   ├── reingest-week.js      # Re-fetch and overwrite one scored week
+│   ├── local-admin-write.js  # Local-only service-account bridge for bypassed admin schedule writes
+│   └── upload-to-drive.js    # Upload admin documents to Google Drive
 ├── scripts/                  # Node.js data pipeline
 │   ├── fetch-league-data.js  # Fetches raw data from LeaguePals API
 │   └── transform-data.js     # Transforms and writes to Firestore
@@ -157,7 +161,8 @@ Navigate to `/admin/login` in the browser. Log in with a Firebase Auth email/pas
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start local dev server |
+| `npm run dev` | Start Vite on `http://localhost:3001` with `/api/*` proxied to the local API dev server on `http://localhost:3000` |
+| `npm run dev:api` | Start the local API dev server on `http://localhost:3000` |
 | `npm run build` | TypeScript compile + Vite production build |
 | `npm run fetch` | Fetch raw data from LeaguePals API |
 | `npm run transform` | Transform data and write to Firestore |

@@ -27,6 +27,7 @@ Three top-level modes selectable via tab buttons:
 - Score entry supports two modes: individual bowler scores (per-game, with per-game blind flags) or team-totals-only (when individual scores are unavailable)
 - "Switch Side" flips which panel is editable without re-fetching data
 - Save writes corrected bowlerScores (add/update/delete) and updates the matching matchupDetails record; recalculates game totals, points, and handicap
+- Re-ingest data runs a server-side LeaguePals refresh for only the selected week, dry-runs first, warns with any adminOverride matchupDetails/bowlerScores values that will be replaced, then overwrites that week's matchups, matchupDetails, and bowlerScores on confirmation
 
 **Validate Matchups**
 - Scans all matchupDetails and bowlerScores for the season
@@ -44,6 +45,7 @@ Three top-level modes selectable via tab buttons:
 ## External Dependencies
 - Firestore: matchupDetails (read/write — collection name is matchupDetails, NOT weeklyMatchupDetails)
 - Firestore: bowlerScores (read/write)
+- Vercel API: /api/reingest-week (authenticated week-only LeaguePals refresh)
 - Firestore: bowlers (read/write — Edit Teams mode)
 - Firestore: teams (read/write — Edit Teams create-team flow)
 - Firebase Auth (route guard)
