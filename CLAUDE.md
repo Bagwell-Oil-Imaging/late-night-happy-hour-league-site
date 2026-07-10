@@ -163,10 +163,15 @@ Tier definitions (enforced by `/generate-diagrams`):
 | Firestore collection added/removed | `CLAUDE.md` (Architecture), `src/types/index.ts` |
 | `npx gitnexus analyze` run | `AGENTS.md` and CLAUDE.md GitNexus section auto-updated by tool — no manual action |
 
+## Pull Requests
+
+- Use the `pr` skill to generate or update a pull request targeting `main` — don't hand-roll `gh pr create`.
+- Always give the user the PR URL back after creating or updating one.
+
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **late-night-happy-hour-league-site** (2122 symbols, 3206 relationships, 69 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **late-night-happy-hour-league-site** (2159 symbols, 3250 relationships, 73 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
