@@ -25,6 +25,7 @@ import type { AppSettings } from '../../context/SeasonContext'
 import type { ScheduleWeek } from '../../types'
 import SeasonScheduleBuilder from './SeasonScheduleBuilder'
 import { isScheduleWeekVisible } from '../../utils/weekVisibility'
+import { isLocalAdminBypass, localAdminWrite } from '../../utils/localAdmin'
 import '../admin/AnnouncementsAdmin.css'
 
 // ---------------------------------------------------------------------------
@@ -133,7 +134,7 @@ function SettingsAdmin() {
 
   const isLoading = settingsLoading || seasonsLoading
   const isDirty = selected !== (settings?.currentSeasonYear ?? '')
-  const authRequiredMessage = 'Failed to update week visibility: Firebase admin sign-in is required. Local admin bypass can open the page, but Firestore still rejects direct writes.'
+  const authRequiredMessage = 'Failed to update week visibility: Firebase admin sign-in is required.'
 
   /**
    * Writes the selected season year to `settings/global`.
@@ -145,7 +146,11 @@ function SettingsAdmin() {
     setError('')
     setSavedMsg('')
     try {
-      await setDoc(doc(db, 'settings', 'global'), { currentSeasonYear: selected }, { merge: true })
+      if (isLocalAdminBypass()) {
+        await localAdminWrite({ operation: 'set-active-season', seasonYear: selected })
+      } else {
+        await setDoc(doc(db, 'settings', 'global'), { currentSeasonYear: selected }, { merge: true })
+      }
       setSavedMsg(`Active season updated to ${selected}`)
     } catch (err) {
       setError('Failed to save settings. Please try again.')
@@ -156,14 +161,18 @@ function SettingsAdmin() {
   }
 
   async function handleWeekVisibilityChange(week: ScheduleWeek, visible: boolean) {
-    if (!auth.currentUser) {
+    if (!isLocalAdminBypass() && !auth.currentUser) {
       setVisibilityMsg(authRequiredMessage)
       return
     }
     setVisibilitySaving(true)
     setVisibilityMsg('')
     try {
-      await setDoc(doc(db, 'scheduleWeeks', week.date), { visible }, { merge: true })
+      if (isLocalAdminBypass()) {
+        await localAdminWrite({ operation: 'set-week-visibility', updates: [{ date: week.date, visible }] })
+      } else {
+        await setDoc(doc(db, 'scheduleWeeks', week.date), { visible }, { merge: true })
+      }
       setVisibilityMsg(`${week.week == null ? formatWeekDate(week.date) : `Week ${week.week}`} is now ${visible ? 'visible' : 'hidden'}.`)
     } catch (err) {
       setVisibilityMsg('Failed to update week visibility. Please try again.')
@@ -175,19 +184,26 @@ function SettingsAdmin() {
 
   async function handleBatchVisibility(weeks: ScheduleWeek[], visible: boolean, label: string) {
     if (weeks.length === 0) return
-    if (!auth.currentUser) {
+    if (!isLocalAdminBypass() && !auth.currentUser) {
       setVisibilityMsg(authRequiredMessage)
       return
     }
     setVisibilitySaving(true)
     setVisibilityMsg('')
     try {
-      const batch = writeBatch(db)
-      weeks.forEach(week => {
-        batch.set(doc(db, 'scheduleWeeks', week.date), { visible }, { merge: true })
-      })
-      await batch.commit()
+      if (isLocalAdminBypass()) {
+        await localAdminWrite({
+          operation: 'set-week-visibility',
+          updates: weeks.map(week => ({ date: week.date, visible })),
+        })
+      } else {
+        const batch = writeBatch(db)
+        weeks.forEach(week => {
+          batch.set(doc(db, 'scheduleWeeks', week.date), { visible }, { merge: true })
+        })
+        await batch.commit()
       setVisibilityMsg(`${label} ${visible ? 'shown' : 'hidden'}.`)
+      }
     } catch (err) {
       setVisibilityMsg('Failed to update week visibility. Please try again.')
       console.error('[SettingsAdmin] batch visibility update error:', err)
@@ -313,9 +329,9 @@ function SettingsAdmin() {
         <div className="admin-form-card" style={{ marginTop: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
             <div>
-              <h2 className="admin-form-section-title" style={{ margin: '0 0 0.2rem' }}>Season Settings</h2>
+              <h2 className="admin-form-section-title" style={{ margin: '0 0 0.2rem' }}>Season Details</h2>
               <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.02em' }}>
-                Week visibility for {selected}
+                {selected}
                 {selected !== (settings?.currentSeasonYear ?? '') && (
                   <span style={{ marginLeft: '0.5rem', color: '#c9a84c', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>preview</span>
                 )}
@@ -364,102 +380,14 @@ function SettingsAdmin() {
           </div>
 
           <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.42)', lineHeight: 1.5 }}>
-            Hidden weeks stay editable in admin tools but are omitted from public schedule, matchup navigation, and homepage week selection.
+            Use the Public column in the schedule below to control what visitors can see. Hidden weeks stay editable in admin tools but are omitted from public schedule, matchup navigation, and homepage week selection.
           </p>
 
-          {visibilityMsg && (
-            <p className={visibilityMsg.startsWith('Failed') ? 'admin-error-msg' : 'admin-success-msg'} style={{ marginBottom: '1rem' }}>{visibilityMsg}</p>
-          )}
-
-          {weeksLoading ? (
-            <p className="admin-loading">Loading week visibility...</p>
-          ) : scheduleWeeks.length === 0 ? (
-            <p className="admin-form-hint">No schedule data for this season yet.</p>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                <thead>
-                  <tr>
-                    {(['Week', 'Date', 'Status', 'Public'] as const).map((col) => (
-                      <th
-                        key={col}
-                        style={{
-                          padding: '0.4rem 0.875rem',
-                          fontWeight: 600,
-                          fontSize: '0.62rem',
-                          letterSpacing: '0.12em',
-                          textTransform: 'uppercase',
-                          color: 'rgba(255,255,255,0.3)',
-                          borderBottom: '1px solid rgba(255,255,255,0.07)',
-                          textAlign: col === 'Public' ? 'right' : 'left',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {scheduleWeeks.map((week) => {
-                    const isVisible = isScheduleWeekVisible(week)
-                    const cfg = STATUS_CONFIG[week.status]
-                    return (
-                      <tr
-                        key={`visibility-${week.date}`}
-                        style={{
-                          borderBottom: '1px solid rgba(255,255,255,0.045)',
-                          opacity: isVisible ? 1 : 0.52,
-                        }}
-                      >
-                        <td style={{ padding: '0.65rem 0.875rem', color: week.week == null ? 'rgba(255,255,255,0.25)' : '#c9a84c', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                          {week.week ?? 'Off'}
-                        </td>
-                        <td style={{ padding: '0.65rem 0.875rem', color: 'rgba(255,255,255,0.78)' }}>
-                          {formatWeekDate(week.date)}
-                        </td>
-                        <td style={{ padding: '0.65rem 0.875rem' }}>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: cfg.textColor, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: cfg.dot }} />
-                            {cfg.label}
-                          </span>
-                        </td>
-                        <td style={{ padding: '0.65rem 0.875rem', textAlign: 'right' }}>
-                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', color: isVisible ? '#4ade80' : 'rgba(255,255,255,0.35)', fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: visibilitySaving ? 'default' : 'pointer' }}>
-                            <span>{isVisible ? 'Visible' : 'Hidden'}</span>
-                            <input
-                              type="checkbox"
-                              checked={isVisible}
-                              disabled={visibilitySaving}
-                              onChange={(event) => handleWeekVisibilityChange(week, event.target.checked)}
-                              style={{ width: '18px', height: '18px', accentColor: '#c9a84c', cursor: visibilitySaving ? 'default' : 'pointer' }}
-                            />
-                          </label>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-      {/* Season Details — read-only view + inline schedule builder          */}
-      {/* ------------------------------------------------------------------ */}
-      {selected && (
-        <div className="admin-form-card" style={{ marginTop: '1.5rem' }}>
-
-          {/* ── Header ────────────────────────────────────────────────────── */}
+          <div style={{ marginTop: '1.75rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            {/* ── Schedule ────────────────────────────────────────────────── */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
             <div>
-              <h2 className="admin-form-section-title" style={{ margin: '0 0 0.2rem' }}>Season Details</h2>
-              <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.02em' }}>
-                {selected}
-                {selected !== (settings?.currentSeasonYear ?? '') && (
-                  <span style={{ marginLeft: '0.5rem', color: '#c9a84c', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>preview</span>
-                )}
-              </p>
+              <h3 className="admin-form-section-title" style={{ margin: 0 }}>Schedule</h3>
             </div>
             {!showBuilder && !weeksLoading && !configLoading && (
               <button
@@ -490,6 +418,9 @@ function SettingsAdmin() {
 
           {scheduleMsg && (
             <p className="admin-success-msg" style={{ marginBottom: '1rem' }}>{scheduleMsg}</p>
+          )}
+          {visibilityMsg && (
+            <p className={visibilityMsg.startsWith('Failed') ? 'admin-error-msg' : 'admin-success-msg'} style={{ marginBottom: '1rem' }}>{visibilityMsg}</p>
           )}
 
           {/* ── Builder mode ──────────────────────────────────────────────── */}
@@ -559,7 +490,7 @@ function SettingsAdmin() {
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                         <thead>
                           <tr>
-                            {(['Wk', 'Date', 'Status', 'Notes'] as const).map((col) => (
+                            {(['Wk', 'Date', 'Status', 'Notes', 'Public'] as const).map((col) => (
                               <th
                                 key={col}
                                 style={{
@@ -570,7 +501,7 @@ function SettingsAdmin() {
                                   textTransform: 'uppercase',
                                   color: 'rgba(255,255,255,0.3)',
                                   borderBottom: '1px solid rgba(255,255,255,0.07)',
-                                  textAlign: 'left',
+                                  textAlign: col === 'Public' ? 'right' : 'left',
                                   whiteSpace: 'nowrap',
                                 }}
                               >
@@ -584,6 +515,7 @@ function SettingsAdmin() {
                             const cfg = STATUS_CONFIG[week.status]
                             const notes = buildWeekNotes(week)
                             const isSkip = week.status === 'skip'
+                            const isVisible = isScheduleWeekVisible(week)
                             return (
                               <tr
                                 key={week.date}
@@ -591,7 +523,7 @@ function SettingsAdmin() {
                                   borderBottom: '1px solid rgba(255,255,255,0.045)',
                                   borderLeft: `3px solid ${cfg.rowBorderColor}`,
                                   backgroundColor: cfg.rowBg,
-                                  opacity: isSkip ? 0.55 : 1,
+                                  opacity: isVisible ? (isSkip ? 0.55 : 1) : 0.45,
                                 }}
                               >
                                 {/* Week number — gold anchor for bowling weeks */}
@@ -650,6 +582,18 @@ function SettingsAdmin() {
                                 }}>
                                   {notes || <span style={{ color: 'rgba(255,255,255,0.12)' }}>—</span>}
                                 </td>
+                                <td style={{ padding: '0.6rem 0.875rem', verticalAlign: 'middle', textAlign: 'right' }}>
+                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', color: isVisible ? '#4ade80' : 'rgba(255,255,255,0.35)', fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: visibilitySaving ? 'default' : 'pointer' }}>
+                                    <span>{isVisible ? 'Visible' : 'Hidden'}</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={isVisible}
+                                      disabled={visibilitySaving}
+                                      onChange={(event) => handleWeekVisibilityChange(week, event.target.checked)}
+                                      style={{ width: '18px', height: '18px', accentColor: '#c9a84c', cursor: visibilitySaving ? 'default' : 'pointer' }}
+                                    />
+                                  </label>
+                                </td>
                               </tr>
                             )
                           })}
@@ -661,6 +605,7 @@ function SettingsAdmin() {
               })()}
             </>
           )}
+          </div>
         </div>
       )}
     </div>

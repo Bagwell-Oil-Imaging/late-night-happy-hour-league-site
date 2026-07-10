@@ -26,6 +26,7 @@
 import { useState, useMemo } from 'react'
 import { writeBatch, doc } from 'firebase/firestore'
 import { db } from '../../firebase'
+import { isLocalAdminBypass, localAdminWrite } from '../../utils/localAdmin'
 import type { ScheduleWeek } from '../../types'
 
 // ---------------------------------------------------------------------------
@@ -311,6 +312,36 @@ function SeasonScheduleBuilder({
       const completedDates = new Set(completedWeeks.map(w => w.date))
       const newDates = new Set(schedule.map(e => e.date))
       const batch = writeBatch(db)
+      if (isLocalAdminBypass()) {
+        await localAdminWrite({
+          operation: 'save-schedule',
+          seasonYear,
+          totalWeeks,
+          writes: schedule
+            .filter(entry => !completedDates.has(entry.date))
+            .map(entry => ({
+              date: entry.date,
+              data: {
+                seasonYear,
+                date: entry.date,
+                week: entry.week,
+                status: entry.status === 'skip' ? 'skip' : 'upcoming',
+                skipReason: entry.status === 'skip' ? (entry.skipReason || null) : null,
+                positionRound: false,
+                visible: existingWeeks.find(week => week.date === entry.date)?.visible ?? true,
+                event: null,
+              },
+            })),
+          deleteDates: existingWeeks
+            .filter(existing => !newDates.has(existing.date))
+            .map(existing => existing.date),
+        })
+        onSaved()
+        return
+      }
+      // Keep the season configuration in sync with an admin-corrected total.
+      // This is a merge so the rest of the league's settings are retained.
+      batch.set(doc(db, 'leagueConfig', seasonYear), { totalWeeks }, { merge: true })
 
       // Write upcoming and skip entries
       for (const entry of schedule) {
@@ -331,7 +362,7 @@ function SeasonScheduleBuilder({
       // Remove orphaned upcoming/skip entries no longer in the new schedule
       // (e.g. the last week was removed by reducing totalWeeks)
       for (const existing of existingWeeks) {
-        if (existing.status !== 'completed' && !newDates.has(existing.date)) {
+        if (!newDates.has(existing.date)) {
           batch.delete(doc(db, 'scheduleWeeks', existing.date))
         }
       }

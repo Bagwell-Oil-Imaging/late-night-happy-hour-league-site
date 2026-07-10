@@ -7,7 +7,7 @@ source-paths:
 ---
 
 ## Intent
-Lets admins define and maintain the season schedule (start date, total bowling weeks, holiday/skip dates) directly in Site Settings, then view the resulting week-by-week breakdown. Acts as the source of truth for the schedule before and between LeaguePals data runs.
+Lets admins define and maintain the season schedule (start date, total bowling weeks, holiday/skip dates) and public week visibility directly in one Season Details view, then review the resulting week-by-week breakdown. Acts as the source of truth for the schedule before and between LeaguePals data runs.
 
 ## Key Behaviors
 
@@ -18,6 +18,7 @@ Lets admins define and maintain the season schedule (start date, total bowling w
 - Responds to the Active Season dropdown — changing the dropdown previews any season before saving
 
 ### Schedule builder (Set Up / Edit)
+- The read-only schedule table includes a Public column for each week, so visibility is managed alongside that week's date, status, and notes without a duplicate table
 - "Set Up Schedule" button appears when no schedule data exists for the selected season
 - "Edit Schedule" button appears when schedule data already exists
 - Builder renders inline within the Season Details card; read-only table is replaced while builder is active
@@ -32,8 +33,9 @@ Lets admins define and maintain the season schedule (start date, total bowling w
 
 ### Save behaviour
 - Batch-writes all upcoming and skip entries to `scheduleWeeks/{YYYY-MM-DD}`
-- Never overwrites documents with `status: 'completed'`
-- Deletes any orphaned upcoming/skip documents from a previous schedule version that are absent from the new one
+- Merges the edited total into `leagueConfig.totalWeeks` so the configured season length matches the calendar
+- Never overwrites completed documents that remain within the edited schedule
+- Deletes every calendar entry absent from the edited schedule, including a completed surplus week after reducing the total; matchup and score records are retained
 - On success: builder collapses, read-only table reappears, success message shown
 - On season switch (dropdown): builder collapses automatically, form state resets
 

@@ -1,8 +1,8 @@
 .PHONY: run build fetch transform update-data standings lint deploy-rules
 
-# Start the Vite dev server at http://localhost:5173
+# Start Vite and the local API bridge together.
 run:
-	npm run dev
+	npm run dev:local
 
 # TypeScript compile + production build
 build:

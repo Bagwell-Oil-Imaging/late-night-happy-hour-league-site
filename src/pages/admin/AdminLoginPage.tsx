@@ -142,6 +142,12 @@ function AdminLoginPage() {
   async function handleSendLink(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
+      setError('This email address is not authorised to access the admin panel.')
+      return
+    }
+
     setLoading(true)
 
     const actionCodeSettings = {
@@ -152,9 +158,9 @@ function AdminLoginPage() {
     }
 
     try {
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings)
+      await sendSignInLinkToEmail(auth, normalizedEmail, actionCodeSettings)
       // Persist email so we can complete sign-in after the redirect.
-      localStorage.setItem(EMAIL_STORAGE_KEY, email)
+      localStorage.setItem(EMAIL_STORAGE_KEY, normalizedEmail)
       setLinkSent(true)
     } catch (err) {
       const errorCode = typeof err === 'object' && err !== null && 'code' in err

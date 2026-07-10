@@ -277,7 +277,7 @@ export function useScheduleWeeks(seasonYear: string) {
   return useCollection<ScheduleWeek>('scheduleWeeks', [
     where('seasonYear', '==', seasonYear),
     orderBy('date', 'asc'),
-  ]);
+  ], [seasonYear]);
 }
 
 // ---------------------------------------------------------------------------

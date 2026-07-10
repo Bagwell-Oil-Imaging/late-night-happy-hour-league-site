@@ -53,7 +53,7 @@ cp .env.example .env
 npm run dev
 ```
 
-The app will be available at `http://localhost:3001`. For admin actions that call `/api/*`, also run `npm run dev:api` so Vite can proxy those requests to `http://localhost:3000`.
+The app will be available at `http://localhost:3001`. Use `make run` (or `npm run dev:local`) to start both Vite and the local API server; Vite proxies `/api/*` to `http://localhost:3000`.
 
 ### Firebase Setup
 
@@ -123,6 +123,7 @@ late-night-happy-hour-league-site/
 │   └── main.tsx
 ├── api/                      # Vercel serverless functions
 │   ├── reingest-week.js      # Re-fetch and overwrite one scored week
+│   ├── local-admin-write.js  # Local-only service-account bridge for bypassed admin schedule writes
 │   └── upload-to-drive.js    # Upload admin documents to Google Drive
 ├── scripts/                  # Node.js data pipeline
 │   ├── fetch-league-data.js  # Fetches raw data from LeaguePals API

@@ -47,11 +47,13 @@ late-night-happy-hour-league-site/
 │   └── main.tsx
 ├── api/
 │   ├── reingest-week.js   # Vercel serverless - POST /api/reingest-week
+│   ├── local-admin-write.js # Local-only service-account bridge for bypassed admin schedule writes
 │   └── upload-to-drive.js    # Vercel serverless — POST /api/upload-to-drive
 ├── scripts/
 │   ├── fetch-league-data.js  # Fetches raw data from LeaguePals API
 │   ├── transform-data.js     # Transforms and writes all 12 Firestore collections
 │   └── download-weekly-standings.js
+│   └── dev-local.js         # Supervises Vite + local API for make run
 ├── docs/
 │   ├── adr/                  # Architecture Decision Records — see docs/adr/index.md
 │   ├── features.md           # Feature registry index — links to spec files and diagrams

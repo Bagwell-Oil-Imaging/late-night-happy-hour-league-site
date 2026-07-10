@@ -5,6 +5,7 @@
  */
 
 import fs from 'node:fs';
+import localAdminWrite from '../api/local-admin-write.js';
 import http from 'node:http';
 import path from 'node:path';
 import { config as loadEnv } from 'dotenv';
@@ -76,11 +77,15 @@ const server = http.createServer(async (req, res) => {
     await reingestWeek(req, res);
     return;
   }
+  if (url.pathname === '/api/local-admin-write') {
+    await localAdminWrite(req, res);
+    return;
+  }
 
   res.status(404).json({ error: `No local API route for ${url.pathname}.` });
 });
 
 server.listen(PORT, () => {
   console.log(`[dev-api] Listening on http://localhost:${PORT}`);
-  console.log('[dev-api] Routes: POST /api/reingest-week');
+  console.log('[dev-api] Routes: POST /api/reingest-week, POST /api/local-admin-write');
 });
