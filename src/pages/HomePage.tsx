@@ -28,9 +28,10 @@ import AwardLeaders from '../components/AwardLeaders'
 import MatchupDetailModal from '../components/MatchupDetailModal'
 import BowlerProfileModal from '../components/BowlerProfileModal'
 import StandingsPdfModal from '../components/StandingsPdfModal'
-import { useMatchupDetails, useMatchups, useTeams, useBowlers, useBowlerScoresByWeek, useSeasons } from '../hooks'
+import { useMatchupDetails, useMatchups, useTeams, useBowlers, useBowlerScoresByWeek, useSeasons, useScheduleWeeks } from '../hooks'
 import { useSeasonYear } from '../context/SeasonContext'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
+import { isScheduleWeekVisible, visibleWeekNumbers } from '../utils/weekVisibility'
 import type { MatchupDetail } from '../types'
 import './HomePage.css'
 import './MatchupsPage.css'
@@ -118,6 +119,9 @@ function HomePage() {
   const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails(SEASON_YEAR)
   const { data: teams, loading: teamsLoading } = useTeams(SEASON_YEAR)
   const { data: allMatchups, loading: matchupsLoading } = useMatchups(SEASON_YEAR)
+  const { data: scheduleWeeks, loading: scheduleLoading } = useScheduleWeeks(SEASON_YEAR)
+  const visibleWeeks = useMemo(() => visibleWeekNumbers(scheduleWeeks), [scheduleWeeks])
+  const visibleScheduleWeeks = useMemo(() => scheduleWeeks.filter(isScheduleWeekVisible), [scheduleWeeks])
   const { data: bowlers } = useBowlers(SEASON_YEAR)
   const { data: seasons } = useSeasons()
 
@@ -127,17 +131,17 @@ function HomePage() {
   // LeaguePals yet, causing an unplayed week to appear as the latest recap.
   // The `matchups` collection's `completed` flag is the authoritative signal.
   const latestWeek = useMemo(() => {
-    const completed = allMatchups.filter((m) => m.completed)
-    if (!completed.length) return 1
-    return Math.max(...completed.map((m) => m.week))
-  }, [allMatchups])
+    const completed = allMatchups.filter((m) => m.completed && visibleWeeks.has(m.week))
+    if (completed.length) return Math.max(...completed.map((m) => m.week))
+    return visibleScheduleWeeks.find((week) => week.week != null)?.week ?? 1
+  }, [allMatchups, visibleScheduleWeeks, visibleWeeks])
 
   // Filter to only the matchups from the most recently completed week
   const latestWeekDetails = useMemo(
     () => matchupDetails
-      .filter((m) => m.week === latestWeek)
+      .filter((m) => m.week === latestWeek && visibleWeeks.has(m.week))
       .sort((a, b) => Math.min(a.team1.lane, a.team2.lane) - Math.min(b.team1.lane, b.team2.lane)),
-    [matchupDetails, latestWeek]
+    [matchupDetails, latestWeek, visibleWeeks]
   )
 
   const latestDate = latestWeekDetails[0]?.date
@@ -149,12 +153,12 @@ function HomePage() {
   )
 
   // Next week's schedule matchups (not yet completed)
-  const nextWeek = latestWeek + 1
+  const nextWeek = visibleScheduleWeeks.find((week) => week.week != null && week.week > latestWeek && week.status !== 'completed')?.week ?? latestWeek + 1
   const nextWeekMatchups = useMemo(
     () => allMatchups
-      .filter((m) => m.week === nextWeek && !m.completed)
+      .filter((m) => m.week === nextWeek && visibleWeeks.has(m.week) && !m.completed)
       .sort((a, b) => Math.min(a.team1Lane, a.team2Lane) - Math.min(b.team1Lane, b.team2Lane)),
-    [allMatchups, nextWeek]
+    [allMatchups, nextWeek, visibleWeeks]
   )
   const nextWeekDate = nextWeekMatchups[0]?.date
 
@@ -239,7 +243,7 @@ function HomePage() {
     navigate(`/bowlers?id=${id}`)
   }
 
-  const isLoading = detailsLoading || teamsLoading || matchupsLoading || scoresLoading
+  const isLoading = detailsLoading || teamsLoading || matchupsLoading || scheduleLoading || scoresLoading
 
   return (
     <div className="home-page">

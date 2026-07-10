@@ -46,6 +46,7 @@ late-night-happy-hour-league-site/
 │   ├── App.tsx
 │   └── main.tsx
 ├── api/
+│   ├── reingest-week.js   # Vercel serverless - POST /api/reingest-week
 │   └── upload-to-drive.js    # Vercel serverless — POST /api/upload-to-drive
 ├── scripts/
 │   ├── fetch-league-data.js  # Fetches raw data from LeaguePals API
@@ -101,7 +102,8 @@ For Drive upload, set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `G
 
 ## npm Scripts
 
-- `npm run dev` — Vite dev server (http://localhost:5173). Does NOT serve `api/`
+- `npm run dev` — Vite dev server (http://localhost:3001); proxies `/api/*` to the local API dev server on `http://localhost:3000`
+- `npm run dev:api` — Local API dev server at `http://localhost:3000` for Vite `/api/*` proxy targets
 - `npm run build` — TypeScript compile + Vite production build
 - `npm run fetch` — Fetch raw data from LeaguePals API
 - `npm run transform` — Transform fetched data and write to Firestore
@@ -109,7 +111,7 @@ For Drive upload, set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `G
 - `npm run standings` — Puppeteer script to download weekly standings PDFs
 - `npm run deploy:rules` — Deploy Firestore rules and indexes
 
-To test `api/upload-to-drive.js` locally, use `npx vercel dev` instead of `npm run dev`.
+To test serverless API routes locally, run `npm run dev:api` on `http://localhost:3000`; `npm run dev` on `http://localhost:3001` proxies `/api/*` there.
 
 ## Admin UI
 

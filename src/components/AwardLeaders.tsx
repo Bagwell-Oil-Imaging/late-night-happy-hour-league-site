@@ -26,6 +26,7 @@
 import { useMemo } from 'react'
 import { useBowlers, useMatchupDetails, useScheduleWeeks } from '../hooks'
 import { useSeasonYear } from '../context/SeasonContext'
+import { isScheduleWeekVisible } from '../utils/weekVisibility'
 import type { Bowler, MatchupDetail, ScheduleWeek } from '../types'
 import './AwardLeaders.css'
 
@@ -92,7 +93,9 @@ function computeAwards(
   // Awards use top-level season-aggregate fields from the Bowler document.
   // gamesPlayed is back-filled by the transform pipeline; fall back to
   // checking highGame/average so seed-data awards still render correctly.
-  const activeBowlers = bowlers.filter(b => b.gamesPlayed > 0 || b.highGame > 0 || b.average > 0)
+  const activeBowlers = halfWeeks.size === 0
+    ? []
+    : bowlers.filter(b => b.gamesPlayed > 0 || b.highGame > 0 || b.average > 0)
 
   const byAvg    = [...activeBowlers].sort((a, b) => b.average - a.average)
   const byGame   = [...activeBowlers].sort((a, b) => b.highGame - a.highGame)
@@ -369,21 +372,26 @@ function AwardLeaders() {
 
   // --- Compute half metadata and award rows ---
   const { firstHalf, secondHalf } = useMemo(() => {
-    // Build week-number sets for each half from the schedule
-    const firstWeeks  = buildHalfWeekSet(schedule, 1, HALF_BOUNDARY)
-    const secondWeeks = buildHalfWeekSet(schedule, HALF_BOUNDARY + 1, 32)
+    // Build week-number sets for each half from the visible schedule
+    const visibleSchedule = schedule.filter(isScheduleWeekVisible)
+    const firstWeeks  = buildHalfWeekSet(visibleSchedule, 1, HALF_BOUNDARY)
+    const secondWeeks = buildHalfWeekSet(visibleSchedule, HALF_BOUNDARY + 1, 32)
 
     // A half is "complete" when every scheduled (non-skip) week in the range is completed
-    const firstComplete = schedule
+    const firstComplete = visibleSchedule
       .filter(s => s.week !== null && s.week >= 1 && s.week <= HALF_BOUNDARY && s.status !== 'skip')
       .every(s => s.status === 'completed')
 
-    const secondComplete = schedule
+    const secondComplete = visibleSchedule
       .filter(s => s.week !== null && s.week > HALF_BOUNDARY && s.week <= 32 && s.status !== 'skip')
       .every(s => s.status === 'completed')
 
     // A half has data when at least one week in its range has been completed
-    const secondHasData = schedule.some(
+    const firstHasData = visibleSchedule.some(
+      s => s.week !== null && s.week >= 1 && s.week <= HALF_BOUNDARY && s.status === 'completed'
+    )
+
+    const secondHasData = visibleSchedule.some(
       s => s.week !== null && s.week > HALF_BOUNDARY && s.status === 'completed'
     )
 
@@ -391,7 +399,7 @@ function AwardLeaders() {
       firstHalf: {
         weeks:    firstWeeks,
         complete: firstComplete,
-        hasData:  true, // First half always has data once the season starts
+        hasData:  firstHasData,
         awards:   computeAwards(bowlers, matchups, firstWeeks),
       },
       secondHalf: {

@@ -9,6 +9,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- `SettingsAdmin` + `scheduleWeeks.visible` - Add per-week public visibility toggles with quick actions to show all weeks or hide weeks 1-16; public schedule, matchup navigation, homepage week selection, and half-awards now omit hidden weeks while admin tools keep access.
+- `SettingsAdmin` - Add a **Season Settings** placeholder card for upcoming week visibility controls, including the target use case of hiding corrupted weeks 1-16 from public views.
+- Local admin bypass - Add VITE_LOCAL_ADMIN_BYPASS / LOCAL_ADMIN_BYPASS localhost-only dev flags so admin routes and re-ingest API calls can be exercised while Firebase email-link quota is exhausted.
+- `scripts/dev-api-server.js` + `npm run dev:api` - Add a local API server on `http://localhost:3000` so Vite can proxy admin serverless routes without requiring a valid Vercel CLI token; local startup falls back to `FIREBASE_SERVICE_ACCOUNT_PATH` when `GOOGLE_SERVICE_ACCOUNT_JSON` is placeholder or mismatched.
+- `DataCorrectionAdmin` + `/api/reingest-week` - Add **Re-ingest data** to the Edit Scores week view; it dry-runs a selected-week LeaguePals refresh, shows immediate UI status while fetching/replacing, warns with a summary of manual `adminOverride` score/detail values that will be replaced, then overwrites only that week's `matchups`, `matchupDetails`, and `bowlerScores` after confirmation.
 - `SettingsAdmin` + `SeasonScheduleBuilder` — Add **Season Details** section with inline schedule builder: admin enters start date, total bowling weeks, and marks holiday/skip dates inline; skip weeks extend the season rather than consuming a week slot (week 1 → holiday → week 2, not week 3); completed weeks are locked; schedule batch-written to `scheduleWeeks` on save; read-only status table shown when not editing
 - `MatchupDetailModal` — Add per-bowler **Avg** column and **Team Avg** summary row to the weekly matchup score breakdown; team average is computed as the sum of entering averages for all active and blind-counted bowlers that week
 - `DataCorrectionAdmin` — Add per-bowler **Avg** column and **Team Avg** tfoot row to both the read-only summary panel and the edit-form score table; edit form places Avg between Bowler and G1 as a reference when marking blinds
@@ -16,9 +21,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` env vars — OAuth2 credentials for Drive uploads (replaces service-account-based Drive auth in `api/upload-to-drive.js`)
 
 ### Added
+- Local admin bypass - Add VITE_LOCAL_ADMIN_BYPASS / LOCAL_ADMIN_BYPASS localhost-only dev flags so admin routes and re-ingest API calls can be exercised while Firebase email-link quota is exhausted.
+- `DataCorrectionAdmin` + `/api/reingest-week` - Add **Re-ingest data** to the Edit Scores week view; it dry-runs a selected-week LeaguePals refresh, shows immediate UI status while fetching/replacing, warns with a summary of manual `adminOverride` score/detail values that will be replaced, then overwrites only that week's `matchups`, `matchupDetails`, and `bowlerScores` after confirmation.
 - `DataCorrectionAdmin` — Add **Vacant team** support: when a team name contains "vacant" (case-insensitive), the matchup editor auto-assigns a flat score equal to `floor(opponent avg sum × 0.90)` for all three games, sets handicap to 0 for both sides, writes no individual bowler score docs (`individualScoresUnavailable: true`), and shows a VACANT badge with a live score preview on the inactive panel; editing the real team's scores auto-recalculates the Vacant score in real time; Vacant teams appear in the opponent dropdown for orphan/missing entries; if Vacant is assigned to the left (team1) position the editor auto-flips to editing the right (real) side
 
 ### Fixed
+- SettingsAdmin + firestore.rules - Make week visibility write failures actionable by detecting missing Firebase auth before writing and explicitly allowing authenticated scheduleWeeks writes in Firestore rules.
+- `vite.config.ts` - Proxy local `/api/*` requests from Vite on `http://localhost:3001` to the local API dev server on `http://localhost:3000`, so admin re-ingest calls no longer 404 during local development.
 - `scripts/transform-data.js` + `MatchupDetailModal` - Populate Vacant team matchup detail scores during ingestion as 90% of the active opponent's team average for each game, calculate points against those scores, and display stored Vacant totals in matchup details
 - `scripts/transform-data.js` - Cap blind-counted bowlers to the open four-person team slots when LeaguePals emits extra absent/blind markers; excess blind docs are removed by league priority (most prior games, then highest average) so five-person rosters only contribute four scores per week
 - `scripts/transform-data.js` - Remap blank/stale matchup detail admin overrides back onto canonical pipeline matchup documents by logical team identity so corrected vacant-team rows do not restore as duplicates
@@ -30,11 +39,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `vercel.json` SPA rewrite: exclude `/@*` paths so Vite virtual modules (`/@vite/client`, `/@react-refresh`) are no longer intercepted by the rewrite rule, fixing `vercel dev`
 
 ### Added
+- Local admin bypass - Add VITE_LOCAL_ADMIN_BYPASS / LOCAL_ADMIN_BYPASS localhost-only dev flags so admin routes and re-ingest API calls can be exercised while Firebase email-link quota is exhausted.
+- `DataCorrectionAdmin` + `/api/reingest-week` - Add **Re-ingest data** to the Edit Scores week view; it dry-runs a selected-week LeaguePals refresh, shows immediate UI status while fetching/replacing, warns with a summary of manual `adminOverride` score/detail values that will be replaced, then overwrites only that week's `matchups`, `matchupDetails`, and `bowlerScores` after confirmation.
 - `src/utils/drive.ts` — `driveFileUrl(fileId)` and `driveDownloadUrl(fileId)` helpers that convert a Google Drive file ID to a viewer or download URL
 - `DocumentSource.driveFileId: string | null` field — replaces Firebase Storage URL with a Drive file ID for PDF documents
 - Drag-and-drop PDF upload zone in `DocumentsAdmin` — uploads immediately to Google Drive on file select or drop (no waiting for form submit); shows spinner while uploading, green checkmark + Drive link on success, error message on failure
 
 ### Changed
+- AdminLoginPage - Show and log Firebase Auth error codes when sending passwordless admin sign-in links fails, making local login setup errors diagnosable.
 - Contact page: replaced Formspree form with Google Forms iframe embed; removed `VITE_FORMSPREE_ID` env var dependency (ADR-007)
 - **Admin panel UI overhaul** — comprehensive redesign across all admin routes:
   - `AnnouncementsAdmin.css` — added missing `.admin-field`, `.admin-label`, `.admin-input`, `.admin-select`, `.admin-textarea`, `.admin-field-check`, `.admin-check-label` shared classes; polished buttons (hover lift + gold glow), form cards (gold left-border accent, section divider), inputs (gold focus ring), table (accent-colored headers, pill badges), and checkbox rows
@@ -43,6 +55,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `AdminLoginPage.css` — replaced all hard-coded hex values with design-system variables, added card entrance animation, improved button to full-width with hover lift
 
 ### Changed
+- AdminLoginPage - Show and log Firebase Auth error codes when sending passwordless admin sign-in links fails, making local login setup errors diagnosable.
 - `DocumentsAdmin` simplified: bylaws PDFs only (type selector removed), season year is now a dropdown populated from the `seasons` collection, markdown/text content source removed, PDF upload is immediate (fires to Google Drive on file select/drop, before form submit)
 - `LeagueDocument.type` narrowed from union `'bylaws' | 'rules' | 'prizefund' | 'handbook' | 'other'` to just `'bylaws'`
 
@@ -68,6 +81,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Security rules for Firestore and Firebase Storage
 
 ### Changed
+- AdminLoginPage - Show and log Firebase Auth error codes when sending passwordless admin sign-in links fails, making local login setup errors diagnosable.
 - `scripts/transform-data.js` — now writes directly to Firestore via firebase-admin batch writes
 - All React components migrated from static JSON imports to live Firestore hooks
 - TypeScript interfaces updated to match new Firestore schema (corrected 21 schema issues)

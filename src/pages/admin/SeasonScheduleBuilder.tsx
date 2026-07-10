@@ -315,6 +315,7 @@ function SeasonScheduleBuilder({
       // Write upcoming and skip entries
       for (const entry of schedule) {
         if (completedDates.has(entry.date)) continue
+        const existingVisibility = existingWeeks.find(w => w.date === entry.date)?.visible
         batch.set(doc(db, 'scheduleWeeks', entry.date), {
           seasonYear,
           date: entry.date,
@@ -322,6 +323,7 @@ function SeasonScheduleBuilder({
           status: entry.status === 'skip' ? 'skip' : 'upcoming',
           skipReason: entry.status === 'skip' ? (entry.skipReason || null) : null,
           positionRound: false,
+          visible: existingVisibility ?? true,
           event: null,
         })
       }

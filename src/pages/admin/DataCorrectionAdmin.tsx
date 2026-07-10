@@ -15,7 +15,7 @@ import {
   collection, query, where, getDocs, getDoc,
   addDoc, updateDoc, deleteDoc, doc, setDoc,
 } from 'firebase/firestore'
-import { db } from '../../firebase'
+import { db, auth } from '../../firebase'
 import { useTeams, useScheduleWeeks } from '../../hooks'
 import { useSeasonYear } from '../../context/SeasonContext'
 import type { Bowler, BowlerScore, MatchupDetail, Team, TeamSummary } from '../../types'
@@ -28,6 +28,9 @@ const HDCP_PCT = 0.85
 // Blind score penalty: 10% of the bowler's average, rounded down, deducted from their average.
 // Matches the formula used in the transform pipeline.
 const BLIND_PENALTY_PCT = 0.10
+const LOCAL_ADMIN_BYPASS = import.meta.env.DEV
+  && import.meta.env.VITE_LOCAL_ADMIN_BYPASS === 'true'
+  && ['localhost', '127.0.0.1'].includes(window.location.hostname)
 
 // 36 lanes in the house → 18 pairs: odd lane is always the first of the pair (1, 3, 5 … 35)
 const LANE_PAIRS = Array.from({ length: 18 }, (_, i) => ({
@@ -132,6 +135,34 @@ interface MatchupValidationResult {
   team2Mismatch: boolean
   valid: boolean
 }
+interface ReingestOverrideItem {
+  collection: string
+  docId: string
+  label: string
+  value: unknown
+}
+
+interface ReingestResponse {
+  dryRun: boolean
+  generated: {
+    weekDate: string
+    matchups: number
+    matchupDetails: number
+    bowlerScores: number
+  }
+  overrideSummary: {
+    count: number
+    matchupDetails: ReingestOverrideItem[]
+    bowlerScores: ReingestOverrideItem[]
+  }
+  writeSummary?: {
+    deletedMatchupDetails: number
+    deletedBowlerScores: number
+    writtenMatchups: number
+    writtenMatchupDetails: number
+    writtenBowlerScores: number
+  }
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -204,6 +235,9 @@ function DataCorrectionAdmin() {
   const [savingTeamTotals, setSavingTeamTotals] = useState(false)
   const [deletingData, setDeletingData] = useState(false)
   const [swappingLanes, setSwappingLanes] = useState(false)
+  const [reingestingWeek, setReingestingWeek] = useState(false)
+  const [reingestStatus, setReingestStatus] = useState('')
+  const [reingestReport, setReingestReport] = useState<ReingestResponse | null>(null)
   /** When true, shows a read-only summary of both panels after a successful save. */
   const [showSummary, setShowSummary] = useState(false)
 
@@ -458,6 +492,8 @@ function DataCorrectionAdmin() {
     setExpandedEntryId(null)
     setSaveMsg('')
     setSaveError('')
+    setReingestStatus('')
+    setReingestReport(null)
     try {
       const detailsSnap = await getDocs(
         query(collection(db, 'matchupDetails'), where('seasonYear', '==', seasonYear), where('week', '==', week))
@@ -1321,6 +1357,102 @@ function DataCorrectionAdmin() {
     }
   }
 
+  // ── Re-ingest selected week ────────────────────────────────────────────────
+
+  function formatReingestOverrides(report: ReingestResponse): string {
+    const items = [
+      ...report.overrideSummary.matchupDetails,
+      ...report.overrideSummary.bowlerScores,
+    ]
+    if (items.length === 0) return 'No manual admin edits were found for this week.'
+    const shown = items.slice(0, 12).map(item => `- ${item.collection}/${item.docId}: ${item.label}`)
+    const hidden = items.length > shown.length ? [`- +${items.length - shown.length} more manual edit(s)`] : []
+    return [
+      `${items.length} manual admin edit(s) will be replaced:`,
+      ...shown,
+      ...hidden,
+    ].join('\n')
+  }
+
+  async function requestWeekReingest(confirm: boolean): Promise<ReingestResponse> {
+    const token = await auth.currentUser?.getIdToken()
+    if (!token && !LOCAL_ADMIN_BYPASS) {
+      throw new Error('You must be signed in as an admin to re-ingest data.')
+    }
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    } else {
+      headers['X-Local-Admin-Bypass'] = 'true'
+    }
+
+    const res = await fetch('/api/reingest-week', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ seasonYear, week: selectedWeek, confirm }),
+    })
+
+    const payload = await res.json().catch(() => null)
+    if (!res.ok) {
+      throw new Error(payload?.error ?? `Re-ingest failed (${res.status})`)
+    }
+    return payload as ReingestResponse
+  }
+
+  async function handleReingestWeek() {
+    if (!selectedWeek || reingestingWeek) return
+    setReingestingWeek(true)
+    setSaveError('')
+    setSaveMsg('')
+    setReingestReport(null)
+    setReingestStatus(`Fetching fresh LeaguePals data for Week ${selectedWeek}...`)
+
+    try {
+      const dryRun = await requestWeekReingest(false)
+      setReingestReport(dryRun)
+      setReingestStatus(
+        dryRun.overrideSummary.count > 0
+          ? `Review needed: ${dryRun.overrideSummary.count} manual edit(s) will be replaced.`
+          : 'Fresh LeaguePals data is ready. No manual edits were found.'
+      )
+
+      const overrideWarning = formatReingestOverrides(dryRun)
+      const proceed = window.confirm(
+        `Re-ingest Week ${selectedWeek} from LeaguePals?\n\n` +
+        `${overrideWarning}\n\n` +
+        `Fresh data ready: ${dryRun.generated.matchupDetails} matchup detail(s), ` +
+        `${dryRun.generated.bowlerScores} bowler score(s).\n\n` +
+        `This replaces only Week ${selectedWeek} score data.`
+      )
+      if (!proceed) {
+        setReingestStatus('Re-ingest cancelled. No data was changed.')
+        return
+      }
+
+      setReingestStatus(`Replacing Week ${selectedWeek} scores in Firestore...`)
+      const result = await requestWeekReingest(true)
+      setReingestReport(result)
+      setExpandedEntryId(null)
+      resetEditorState()
+      await loadWeekMatchups(selectedWeek as number)
+      setReingestReport(result)
+      setSaveMsg(
+        `Week ${selectedWeek} re-ingested from LeaguePals: ` +
+        `${result.writeSummary?.writtenMatchupDetails ?? 0} matchup detail(s), ` +
+        `${result.writeSummary?.writtenBowlerScores ?? 0} bowler score(s).`
+      )
+      setReingestStatus(`Week ${selectedWeek} re-ingest complete.`)
+    } catch (err) {
+      console.error('[DataCorrectionAdmin] handleReingestWeek:', err)
+      setSaveError(err instanceof Error ? err.message : 'Failed to re-ingest week data.')
+      setReingestStatus('Re-ingest failed. See the error below.')
+    } finally {
+      setReingestingWeek(false)
+    }
+  }
   // ── Validate Matchups ──────────────────────────────────────────────────────
 
   /**
@@ -2431,17 +2563,59 @@ function DataCorrectionAdmin() {
       {mode === 'scores' && (
         <div className="dc-scores-mode">
           <div className="admin-form-card dc-selectors-card">
-            <div className="dc-selector-group">
-              <label htmlFor="dc-week-select" className="admin-label">Select Week</label>
-              <select id="dc-week-select" className="admin-input dc-week-select"
-                value={selectedWeek}
-                onChange={e => setSelectedWeek(Number(e.target.value) || '')}>
-                <option value="">— Choose a week to see all matchups —</option>
-                {completedWeeks.map(w => (
-                  <option key={w.week} value={w.week!}>Week {w.week} — {w.date}</option>
-                ))}
-              </select>
+            <div className="dc-selector-row">
+              <div className="dc-selector-group">
+                <label htmlFor="dc-week-select" className="admin-label">Select Week</label>
+                <select id="dc-week-select" className="admin-input dc-week-select"
+                  value={selectedWeek}
+                  onChange={e => setSelectedWeek(Number(e.target.value) || '')}>
+                  <option value="">— Choose a week to see all matchups —</option>
+                  {completedWeeks.map(w => (
+                    <option key={w.week} value={w.week!}>Week {w.week} — {w.date}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="dc-reingest-panel">
+                <button
+                  type="button"
+                  className="admin-btn-secondary dc-reingest-btn"
+                  onClick={handleReingestWeek}
+                  disabled={!selectedWeek || loadingWeek || reingestingWeek}
+                >
+                  {reingestingWeek ? 'Re-ingesting…' : 'Re-ingest data'}
+                </button>
+              </div>
             </div>
+
+            {(reingestStatus || reingestReport) && (
+              <div
+                className={`dc-reingest-report${reingestReport?.overrideSummary.count ? ' dc-reingest-report--warn' : ''}${reingestingWeek ? ' dc-reingest-report--active' : ''}`}
+                role="status"
+                aria-live="polite"
+              >
+                {reingestStatus && <p className="dc-reingest-status">{reingestStatus}</p>}
+                {reingestReport && (
+                  <>
+                    <p>
+                      {reingestReport.overrideSummary.count > 0
+                        ? `${reingestReport.overrideSummary.count} manual edit(s) ${reingestReport.dryRun ? 'would be' : 'were'} replaced.`
+                        : 'No manual edits found for this week.'}
+                    </p>
+                    <p>
+                      Fresh LeaguePals data: {reingestReport.generated.matchupDetails} matchup detail(s), {reingestReport.generated.bowlerScores} bowler score(s).
+                    </p>
+                    {reingestReport.overrideSummary.count > 0 && (
+                      <ul>
+                        {[...reingestReport.overrideSummary.matchupDetails, ...reingestReport.overrideSummary.bowlerScores]
+                          .slice(0, 6)
+                          .map(item => <li key={`${item.collection}-${item.docId}`}>{item.label}</li>)}
+                      </ul>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {selectedWeek !== '' && (

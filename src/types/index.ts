@@ -201,6 +201,8 @@ export interface ScheduleWeek {
   date: string;
   seasonYear: string;
   status: 'completed' | 'upcoming' | 'skip';
+  /** Public visibility toggle; missing/true means visible. */
+  visible?: boolean;
   positionRound: boolean;
   skipReason: string | null;
   event: string | null;

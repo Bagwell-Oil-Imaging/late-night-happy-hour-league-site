@@ -18,6 +18,7 @@ import WeekMatchupsModal from '../components/WeekMatchupsModal'
 import StandingsPdfModal from '../components/StandingsPdfModal'
 import { useSeasonYear } from '../context/SeasonContext'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
+import { isScheduleWeekVisible } from '../utils/weekVisibility'
 import type { ScheduleWeek } from '../types'
 import './SchedulePage.css'
 
@@ -148,13 +149,17 @@ function SchedulePage() {
 
   // Firestore subscription for all schedule weeks in the current season
   const { data: scheduleWeeks, loading } = useScheduleWeeks(SEASON_YEAR)
+  const visibleScheduleWeeks = useMemo(
+    () => scheduleWeeks.filter(isScheduleWeekVisible),
+    [scheduleWeeks]
+  )
 
   /* ── Map "YYYY-MM-DD" → ScheduleWeek (for calendar lookup) ─────────── */
   const bowlingDateMap = useMemo<Record<string, ScheduleWeek>>(() => {
     const map: Record<string, ScheduleWeek> = {}
-    for (const entry of scheduleWeeks) map[entry.date] = entry
+    for (const entry of visibleScheduleWeeks) map[entry.date] = entry
     return map
-  }, [scheduleWeeks])
+  }, [visibleScheduleWeeks])
 
   /* ── Calendar month range: Sept 2025 – May 2026 ─────────────────────── */
   const calendarMonths = useMemo(() => {
@@ -227,7 +232,7 @@ function SchedulePage() {
               </tr>
             </thead>
             <tbody>
-              {scheduleWeeks.map((entry, idx) => {
+              {visibleScheduleWeeks.map((entry, idx) => {
                 const isSkip = entry.status === 'skip'
 
                 return (

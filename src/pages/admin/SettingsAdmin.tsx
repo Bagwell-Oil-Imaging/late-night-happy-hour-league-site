@@ -17,13 +17,14 @@
  */
 
 import { useState, useEffect } from 'react'
-import { doc, setDoc } from 'firebase/firestore'
-import { db } from '../../firebase'
+import { doc, setDoc, writeBatch } from 'firebase/firestore'
+import { auth, db } from '../../firebase'
 import { useDocument } from '../../hooks/useFirestore'
 import { useSeasons, useScheduleWeeks, useLeagueConfig } from '../../hooks'
 import type { AppSettings } from '../../context/SeasonContext'
 import type { ScheduleWeek } from '../../types'
 import SeasonScheduleBuilder from './SeasonScheduleBuilder'
+import { isScheduleWeekVisible } from '../../utils/weekVisibility'
 import '../admin/AnnouncementsAdmin.css'
 
 // ---------------------------------------------------------------------------
@@ -115,6 +116,8 @@ function SettingsAdmin() {
   const [error, setError] = useState('')
   const [showBuilder, setShowBuilder] = useState(false)
   const [scheduleMsg, setScheduleMsg] = useState('')
+  const [visibilitySaving, setVisibilitySaving] = useState(false)
+  const [visibilityMsg, setVisibilityMsg] = useState('')
 
   // Load schedule weeks and league config for the currently *selected* season so the
   // admin can preview any season's details before saving the active-season change.
@@ -130,6 +133,7 @@ function SettingsAdmin() {
 
   const isLoading = settingsLoading || seasonsLoading
   const isDirty = selected !== (settings?.currentSeasonYear ?? '')
+  const authRequiredMessage = 'Failed to update week visibility: Firebase admin sign-in is required. Local admin bypass can open the page, but Firestore still rejects direct writes.'
 
   /**
    * Writes the selected season year to `settings/global`.
@@ -151,6 +155,46 @@ function SettingsAdmin() {
     }
   }
 
+  async function handleWeekVisibilityChange(week: ScheduleWeek, visible: boolean) {
+    if (!auth.currentUser) {
+      setVisibilityMsg(authRequiredMessage)
+      return
+    }
+    setVisibilitySaving(true)
+    setVisibilityMsg('')
+    try {
+      await setDoc(doc(db, 'scheduleWeeks', week.date), { visible }, { merge: true })
+      setVisibilityMsg(`${week.week == null ? formatWeekDate(week.date) : `Week ${week.week}`} is now ${visible ? 'visible' : 'hidden'}.`)
+    } catch (err) {
+      setVisibilityMsg('Failed to update week visibility. Please try again.')
+      console.error('[SettingsAdmin] visibility update error:', err)
+    } finally {
+      setVisibilitySaving(false)
+    }
+  }
+
+  async function handleBatchVisibility(weeks: ScheduleWeek[], visible: boolean, label: string) {
+    if (weeks.length === 0) return
+    if (!auth.currentUser) {
+      setVisibilityMsg(authRequiredMessage)
+      return
+    }
+    setVisibilitySaving(true)
+    setVisibilityMsg('')
+    try {
+      const batch = writeBatch(db)
+      weeks.forEach(week => {
+        batch.set(doc(db, 'scheduleWeeks', week.date), { visible }, { merge: true })
+      })
+      await batch.commit()
+      setVisibilityMsg(`${label} ${visible ? 'shown' : 'hidden'}.`)
+    } catch (err) {
+      setVisibilityMsg('Failed to update week visibility. Please try again.')
+      console.error('[SettingsAdmin] batch visibility update error:', err)
+    } finally {
+      setVisibilitySaving(false)
+    }
+  }
   return (
     <div className="admin-panel">
       <div className="admin-panel-header">
@@ -203,6 +247,7 @@ function SettingsAdmin() {
                   setSavedMsg('')
                   setShowBuilder(false)
                   setScheduleMsg('')
+                  setVisibilityMsg('')
                 }}
               >
                 {seasons.length === 0 && (
@@ -264,6 +309,142 @@ function SettingsAdmin() {
       </div>
 
       {/* ------------------------------------------------------------------ */}
+      {selected && (
+        <div className="admin-form-card" style={{ marginTop: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+            <div>
+              <h2 className="admin-form-section-title" style={{ margin: '0 0 0.2rem' }}>Season Settings</h2>
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.02em' }}>
+                Week visibility for {selected}
+                {selected !== (settings?.currentSeasonYear ?? '') && (
+                  <span style={{ marginLeft: '0.5rem', color: '#c9a84c', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>preview</span>
+                )}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                disabled={visibilitySaving || weeksLoading || scheduleWeeks.length === 0}
+                onClick={() => handleBatchVisibility(scheduleWeeks.filter(w => w.week != null), true, 'All bowling weeks')}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(201,168,76,0.4)',
+                  borderRadius: '6px',
+                  color: '#c9a84c',
+                  padding: '0.45rem 0.85rem',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  cursor: visibilitySaving || weeksLoading || scheduleWeeks.length === 0 ? 'default' : 'pointer',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Show All
+              </button>
+              <button
+                type="button"
+                disabled={visibilitySaving || weeksLoading || scheduleWeeks.length === 0}
+                onClick={() => handleBatchVisibility(scheduleWeeks.filter(w => w.week != null && w.week >= 1 && w.week <= 16), false, 'Weeks 1-16')}
+                style={{
+                  background: 'rgba(248,113,113,0.08)',
+                  border: '1px solid rgba(248,113,113,0.35)',
+                  borderRadius: '6px',
+                  color: '#fca5a5',
+                  padding: '0.45rem 0.85rem',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  cursor: visibilitySaving || weeksLoading || scheduleWeeks.length === 0 ? 'default' : 'pointer',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Hide Weeks 1-16
+              </button>
+            </div>
+          </div>
+
+          <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.42)', lineHeight: 1.5 }}>
+            Hidden weeks stay editable in admin tools but are omitted from public schedule, matchup navigation, and homepage week selection.
+          </p>
+
+          {visibilityMsg && (
+            <p className={visibilityMsg.startsWith('Failed') ? 'admin-error-msg' : 'admin-success-msg'} style={{ marginBottom: '1rem' }}>{visibilityMsg}</p>
+          )}
+
+          {weeksLoading ? (
+            <p className="admin-loading">Loading week visibility...</p>
+          ) : scheduleWeeks.length === 0 ? (
+            <p className="admin-form-hint">No schedule data for this season yet.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                <thead>
+                  <tr>
+                    {(['Week', 'Date', 'Status', 'Public'] as const).map((col) => (
+                      <th
+                        key={col}
+                        style={{
+                          padding: '0.4rem 0.875rem',
+                          fontWeight: 600,
+                          fontSize: '0.62rem',
+                          letterSpacing: '0.12em',
+                          textTransform: 'uppercase',
+                          color: 'rgba(255,255,255,0.3)',
+                          borderBottom: '1px solid rgba(255,255,255,0.07)',
+                          textAlign: col === 'Public' ? 'right' : 'left',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {scheduleWeeks.map((week) => {
+                    const isVisible = isScheduleWeekVisible(week)
+                    const cfg = STATUS_CONFIG[week.status]
+                    return (
+                      <tr
+                        key={`visibility-${week.date}`}
+                        style={{
+                          borderBottom: '1px solid rgba(255,255,255,0.045)',
+                          opacity: isVisible ? 1 : 0.52,
+                        }}
+                      >
+                        <td style={{ padding: '0.65rem 0.875rem', color: week.week == null ? 'rgba(255,255,255,0.25)' : '#c9a84c', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                          {week.week ?? 'Off'}
+                        </td>
+                        <td style={{ padding: '0.65rem 0.875rem', color: 'rgba(255,255,255,0.78)' }}>
+                          {formatWeekDate(week.date)}
+                        </td>
+                        <td style={{ padding: '0.65rem 0.875rem' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: cfg.textColor, fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: cfg.dot }} />
+                            {cfg.label}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.65rem 0.875rem', textAlign: 'right' }}>
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', color: isVisible ? '#4ade80' : 'rgba(255,255,255,0.35)', fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: visibilitySaving ? 'default' : 'pointer' }}>
+                            <span>{isVisible ? 'Visible' : 'Hidden'}</span>
+                            <input
+                              type="checkbox"
+                              checked={isVisible}
+                              disabled={visibilitySaving}
+                              onChange={(event) => handleWeekVisibilityChange(week, event.target.checked)}
+                              style={{ width: '18px', height: '18px', accentColor: '#c9a84c', cursor: visibilitySaving ? 'default' : 'pointer' }}
+                            />
+                          </label>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
       {/* Season Details — read-only view + inline schedule builder          */}
       {/* ------------------------------------------------------------------ */}
       {selected && (

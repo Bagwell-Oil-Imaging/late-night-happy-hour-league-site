@@ -156,8 +156,19 @@ function AdminLoginPage() {
       // Persist email so we can complete sign-in after the redirect.
       localStorage.setItem(EMAIL_STORAGE_KEY, email)
       setLinkSent(true)
-    } catch {
-      setError('Failed to send sign-in link. Please check the email address and try again.')
+    } catch (err) {
+      const errorCode = typeof err === 'object' && err !== null && 'code' in err
+        ? String((err as { code?: unknown }).code)
+        : null
+      const errorMessage = typeof err === 'object' && err !== null && 'message' in err
+        ? String((err as { message?: unknown }).message)
+        : null
+      console.error('[AdminLoginPage] sendSignInLinkToEmail failed:', err)
+      setError(
+        errorCode
+          ? `Failed to send sign-in link (${errorCode}). ${errorMessage ?? 'Please check the email address and try again.'}`
+          : 'Failed to send sign-in link. Please check the email address and try again.'
+      )
     } finally {
       setLoading(false)
     }

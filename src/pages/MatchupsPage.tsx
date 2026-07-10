@@ -21,8 +21,9 @@ import WeekSelector from '../components/WeekSelector'
 import MatchupDetailModal from '../components/MatchupDetailModal'
 import BowlerProfileModal from '../components/BowlerProfileModal'
 import StandingsPdfModal from '../components/StandingsPdfModal'
-import { useMatchups, useMatchupDetails } from '../hooks'
+import { useMatchups, useMatchupDetails, useScheduleWeeks } from '../hooks'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
+import { visibleWeekNumbers } from '../utils/weekVisibility'
 import type { MatchupDetail } from '../types'
 import './MatchupsPage.css'
 
@@ -81,17 +82,21 @@ function MatchupsPage() {
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null)
   const [pdfWeek, setPdfWeek] = useState<number | null>(null)
 
+  const seasonYear = '2025-2026'
+
   // Fetch lightweight matchup records to determine the latest completed week
-  const { data: matchups, loading: matchupsLoading } = useMatchups('2025-2026')
+  const { data: matchups, loading: matchupsLoading } = useMatchups(seasonYear)
 
   // Fetch full team-aggregate detail records for scoreboard display
-  const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails('2025-2026')
+  const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails(seasonYear)
+  const { data: scheduleWeeks, loading: scheduleLoading } = useScheduleWeeks(seasonYear)
+  const visibleWeeks = useMemo(() => visibleWeekNumbers(scheduleWeeks), [scheduleWeeks])
 
-  const loading = matchupsLoading || detailsLoading
+  const loading = matchupsLoading || detailsLoading || scheduleLoading
 
   // Determine the highest week that has been completed to default the selector
   // These useMemo calls must stay above any early return to satisfy Rules of Hooks
-  const completedMatches = useMemo(() => matchups.filter(m => m.completed), [matchups])
+  const completedMatches = useMemo(() => matchups.filter(m => m.completed && visibleWeeks.has(m.week)), [matchups, visibleWeeks])
   const latestWeek = useMemo(() =>
     completedMatches.length ? Math.max(...completedMatches.map(m => m.week)) : 1,
     [completedMatches]
@@ -103,9 +108,9 @@ function MatchupsPage() {
   // Filter matchup details to only the selected week
   const weekMatchups = useMemo(() =>
     matchupDetails
-      .filter(m => m.week === currentWeek)
+      .filter(m => m.week === currentWeek && visibleWeeks.has(m.week))
       .sort((a, b) => a.team1.lane - b.team1.lane),
-    [matchupDetails, currentWeek]
+    [matchupDetails, currentWeek, visibleWeeks]
   )
 
   const weekDate = weekMatchups[0]?.date
@@ -114,12 +119,12 @@ function MatchupsPage() {
   const weekList = useMemo(() => {
     const seen = new Map<number, string>()
     for (const m of matchupDetails) {
-      if (!seen.has(m.week)) seen.set(m.week, m.date)
+      if (visibleWeeks.has(m.week) && !seen.has(m.week)) seen.set(m.week, m.date)
     }
     return Array.from(seen.entries())
       .map(([week, date]) => ({ week, date }))
       .sort((a, b) => a.week - b.week)
-  }, [matchupDetails])
+  }, [matchupDetails, visibleWeeks])
 
   if (loading) return <div className="loading">Loading matchups…</div>
 

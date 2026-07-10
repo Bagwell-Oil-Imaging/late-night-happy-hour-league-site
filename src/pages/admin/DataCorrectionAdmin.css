@@ -52,7 +52,14 @@
 .dc-selectors-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  gap: var(--space-3);
+}
+
+.dc-selector-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  flex-wrap: wrap;
 }
 
 .dc-selector-group {
@@ -1156,4 +1163,62 @@
 
 .dc-delete-btn:hover:not(:disabled) {
   opacity: 1;
+}
+
+/* ── Week re-ingest control ─────────────────────────────────────────────── */
+
+.dc-reingest-panel {
+  display: flex;
+  align-items: flex-end;
+  min-height: 43px;
+}
+
+.dc-reingest-btn { white-space: nowrap; }
+
+.dc-reingest-report {
+  width: 100%;
+  max-width: 720px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-sunken) 75%, transparent);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.dc-reingest-report--active {
+  border-color: rgba(240, 180, 41, 0.35);
+  background: rgba(240, 180, 41, 0.06);
+}
+
+.dc-reingest-report--warn {
+  border-color: rgba(240, 180, 41, 0.45);
+  background: rgba(240, 180, 41, 0.08);
+  color: var(--text-primary);
+}
+
+.dc-reingest-report p {
+  margin: 0 0 var(--space-1);
+}
+
+.dc-reingest-status {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dc-reingest-report p:last-child { margin-bottom: 0; }
+
+.dc-reingest-report ul {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}
+
+.dc-reingest-report li { margin-bottom: 2px; }
+
+
+@media (max-width: 720px) {
+  .dc-selector-row { align-items: stretch; }
+  .dc-selector-group { max-width: none; width: 100%; }
+  .dc-reingest-panel { width: 100%; min-height: 0; }
+  .dc-reingest-btn { width: 100%; }
 }
