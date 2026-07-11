@@ -33,6 +33,8 @@ export interface LeagueConfig {
   gamesPerNight: number;
   totalWeeks: number;
   numLanes: number;
+  /** Number of teams that qualify for each half's playoff bracket (2–8). */
+  playoffTeamCount?: number;
   /** Handicap percentage, e.g. 0.85 for 85% */
   handicapPct: number;
   handicapBase: number;

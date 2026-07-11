@@ -25,6 +25,7 @@ import type { AppSettings } from '../../context/SeasonContext'
 import type { ScheduleWeek } from '../../types'
 import SeasonScheduleBuilder from './SeasonScheduleBuilder'
 import { isScheduleWeekVisible } from '../../utils/weekVisibility'
+import PlayoffSettings from '../../components/admin/PlayoffSettings'
 import { isLocalAdminBypass, localAdminWrite } from '../../utils/localAdmin'
 import '../admin/AnnouncementsAdmin.css'
 
@@ -382,6 +383,8 @@ function SettingsAdmin() {
           <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.42)', lineHeight: 1.5 }}>
             Use the Public column in the schedule below to control what visitors can see. Hidden weeks stay editable in admin tools but are omitted from public schedule, matchup navigation, and homepage week selection.
           </p>
+
+          <PlayoffSettings seasonYear={selected} />
 
           <div style={{ marginTop: '1.75rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
             {/* ── Schedule ────────────────────────────────────────────────── */}

@@ -66,6 +66,11 @@ export default async function localAdminWrite(req, res) {
         batch.set(db.collection('scheduleWeeks').doc(update.date), { visible: update.visible }, { merge: true });
       }
       await batch.commit();
+    } else if (body.operation === 'set-playoff-team-count') {
+      if (!validSeasonYear(body.seasonYear) || !Number.isInteger(body.playoffTeamCount) || body.playoffTeamCount < 2 || body.playoffTeamCount > 8) {
+        return res.status(400).json({ error: 'Playoff team count must be an integer from 2 to 8.' });
+      }
+      await db.collection('leagueConfig').doc(body.seasonYear).set({ playoffTeamCount: body.playoffTeamCount }, { merge: true });
     } else if (body.operation === 'save-schedule') {
       if (!validSeasonYear(body.seasonYear) || !Number.isInteger(body.totalWeeks) || body.totalWeeks < 1 || body.totalWeeks > 52) {
         return res.status(400).json({ error: 'Invalid schedule configuration.' });

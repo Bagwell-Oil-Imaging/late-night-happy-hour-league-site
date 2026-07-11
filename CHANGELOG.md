@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- `PlayoffBracket` - Make bracket team rows clickable, opening the existing `MatchupDetailModal` for that team's real matchup that week (their actual lane opponent, not the bracket-seeded one — see the Fixed entry below on how playoff advancement is scored).
+- `PlayoffBracket` + `MatchupsPage` - Add a live, three-week single-elimination bracket above weekly matchups, including projected/locked half seeds and completed-round results.
+- `PlayoffSettings` + `SettingsAdmin` - Add a per-season playoff field setting for 2–8 qualifying teams, with first-round byes for smaller fields.
 - `SettingsAdmin` + `scheduleWeeks.visible` - Add per-week public visibility toggles with quick actions to show all weeks or hide weeks 1-16; public schedule, matchup navigation, homepage week selection, and half-awards now omit hidden weeks while admin tools keep access.
 - `SettingsAdmin` - Add a **Season Settings** placeholder card for upcoming week visibility controls, including the target use case of hiding corrupted weeks 1-16 from public views.
 - Local admin bypass - Add VITE_LOCAL_ADMIN_BYPASS / LOCAL_ADMIN_BYPASS localhost-only dev flags so admin routes and re-ingest API calls can be exercised while Firebase email-link quota is exhausted.
@@ -20,12 +23,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `scripts/get-google-refresh-token.js` — one-time CLI script (`npm run oauth-token`) to obtain a Google OAuth2 refresh token for the league Google account; required for Drive uploads from the serverless function; see `docs/runbooks/google-drive-oauth.md`
 - `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` env vars — OAuth2 credentials for Drive uploads (replaces service-account-based Drive auth in `api/upload-to-drive.js`)
 
+### Changed
+- `MatchupsPage` - Move the Standings PDF button into the same row as the week selector (right-aligned via a 3-column toolbar grid) instead of its own row below.
+
 ### Added
 - Local admin bypass - Add VITE_LOCAL_ADMIN_BYPASS / LOCAL_ADMIN_BYPASS localhost-only dev flags so admin routes and re-ingest API calls can be exercised while Firebase email-link quota is exhausted.
 - `DataCorrectionAdmin` + `/api/reingest-week` - Add **Re-ingest data** to the Edit Scores week view; it dry-runs a selected-week LeaguePals refresh, shows immediate UI status while fetching/replacing, warns with a summary of manual `adminOverride` score/detail values that will be replaced, then overwrites only that week's `matchups`, `matchupDetails`, and `bowlerScores` after confirmation.
 - `DataCorrectionAdmin` — Add **Vacant team** support: when a team name contains "vacant" (case-insensitive), the matchup editor auto-assigns a flat score equal to `floor(opponent avg sum × 0.90)` for all three games, sets handicap to 0 for both sides, writes no individual bowler score docs (`individualScoresUnavailable: true`), and shows a VACANT badge with a live score preview on the inactive panel; editing the real team's scores auto-recalculates the Vacant score in real time; Vacant teams appear in the opponent dropdown for orphan/missing entries; if Vacant is assigned to the left (team1) position the editor auto-flips to editing the right (real) side
 
 ### Fixed
+- `MatchupsPage` - Fix the week header freezing on the previous week's label after paging back into a week with no visible matchup data — the `<select>`-based selector silently fell back to a different option whenever the current week wasn't in its choices; the jump list now always includes an entry for the current week.
+- `MatchupsPage` - Extend the back-navigation floor to a hidden half's own first playoff week (rather than blocking at week 1 or wherever public data resumes), so its bracket stays reachable; going further back is now disabled. When paged into that hidden-but-bracket-reachable zone, show only the bracket and a short explanatory note instead of the scoreboard table, PDF button, and "No matchup data" message.
+- `PlayoffBracket` - Decide playoff round winners by comparing each seeded team's own three-game total pins that week instead of looking for a scheduled head-to-head matchup; playoff weeks keep the normal round-robin lane rotation, so no such matchup ever exists past Round 1, leaving every later round stuck on TBD. Also add a champion banner once the half's final is decided.
+- `PlayoffBracket` - Replace the vertical alignment/connector-line CSS heuristics (which misaligned semifinal/final cards and drew no bracket lines) with measured positioning: `useLayoutEffect` centers each semifinal/final card on its two feeder matches and draws SVG elbow connectors between rounds.
+- `PlayoffBracket` - Fix a self-inflicted `ResizeObserver` feedback loop where the connector SVG's size was read from its own container's `scrollHeight`, inflating the section's height every measurement pass; the SVG is now sized purely via CSS.
+- `PlayoffBracket` - Correct first-half seed cutoff to week 13 (was 12), so week 13's regular-season results count toward seeding instead of being dropped in an unused gap before Week 14 playoffs.
+- `scripts/transform-data.js` - Remove a dead `if (false)` guard that skipped `populateLeagueConfig`, which combined with the preceding `clearCollection('leagueConfig')` call meant every data refresh wiped the season's league configuration and never rewrote it.
+- `api/local-admin-write.js` - Remove a duplicated `set-playoff-team-count` branch that had swallowed the `set-week-visibility` operation's body, silently no-opping admin week-hide requests made through the local bypass.
 - Local admin bypass + `AdminLoginPage` — Route local SettingsAdmin season, visibility, and schedule writes through a localhost-only service-account endpoint; reject non-allowlisted email addresses before requesting a Firebase email sign-in link.
 - `make run` - Start Vite and the local API bridge together through `npm run dev:local`, stopping both processes together on exit so the local admin service-account bypass is available.
 - `useScheduleWeeks` - Resubscribe when the selected season changes, so Season Details detects and displays the existing 2025-2026 calendar after the active-season setting loads.
