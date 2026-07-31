@@ -19,9 +19,10 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMatchupDetails, useMatchups, useTeams } from '../hooks'
+import { useMatchupDetails, useMatchups, useTeams, useLeagueConfig } from '../hooks'
 import MatchupDetailModal from './MatchupDetailModal'
 import StandingsPdfModal from './StandingsPdfModal'
+import PlayoffBracket from './PlayoffBracket'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import type { ScheduleWeek, MatchupDetail } from '../types'
 import './WeekMatchupsModal.css'
@@ -58,6 +59,9 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
 
   // Fetch teams to build a leaguePalsId → name lookup for upcoming pairings
   const { data: teams } = useTeams('2025-2026')
+
+  // League config drives the playoff bracket's field size
+  const { data: leagueConfig } = useLeagueConfig('2025-2026')
 
   /* ── Lock body scroll while open ────────────────────────────────────────── */
   useEffect(() => {
@@ -127,13 +131,11 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
    * @returns `{ team1, team2 }` point totals summing to 4
    */
   function getMatchPoints(detail: MatchupDetail) {
-    const h1 = detail.team1.handicapPerGame
-    const h2 = detail.team2.handicapPerGame
     const t1 =
       // game1Total/game2Total/game3Total replace the old gameTotals.g1/g2/g3 fields
-      calcPts(detail.team1.game1Total + h1, detail.team2.game1Total + h2) +
-      calcPts(detail.team1.game2Total + h1, detail.team2.game2Total + h2) +
-      calcPts(detail.team1.game3Total + h1, detail.team2.game3Total + h2) +
+      calcPts(detail.team1.game1Total + detail.team1.handicapGame1, detail.team2.game1Total + detail.team2.handicapGame1) +
+      calcPts(detail.team1.game2Total + detail.team1.handicapGame2, detail.team2.game2Total + detail.team2.handicapGame2) +
+      calcPts(detail.team1.game3Total + detail.team1.handicapGame3, detail.team2.game3Total + detail.team2.handicapGame3) +
       calcPts(detail.team1.totalSeries, detail.team2.totalSeries)
     return { team1: t1, team2: 4 - t1 }
   }
@@ -199,6 +201,16 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
 
           {/* Body */}
           <div className="modal-body wm-body">
+
+            {/* ── Championship bracket (self-hides when no seed data exists for this week) ── */}
+            {weekEntry.week != null && (
+              <PlayoffBracket
+                matchupDetails={matchupDetails}
+                week={weekEntry.week}
+                playoffTeamCount={leagueConfig?.playoffTeamCount}
+                onSelectMatchup={setDetailMatchupId}
+              />
+            )}
 
             {/* ── Completed week: show scores ─────────────────────────────── */}
             {weekEntry.status === 'completed' && (

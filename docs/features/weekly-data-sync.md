@@ -14,6 +14,8 @@ Imports the week's bowling results from the LeaguePals API into 11 of the 12 Fir
 - fetch-league-data.js calls LeaguePals API (no auth required — all endpoints are public) and writes raw JSON to leaguepals-data/; league-level endpoints are fetched in parallel, 16 team roster files are fetched sequentially
 - transform-data.js reads raw data, transforms into typed records, clears each Firestore collection, then re-writes 11 Firestore collections for the season (leagueConfig, seasons, scheduleWeeks, teams, bowlers, matchups, matchupDetails, bowlerScores, announcements, events, carouselImages); the `documents` collection is NOT managed by the pipeline
 - Admin-overridden documents (adminOverride: true) are preserved across pipeline runs for teams, bowlers, matchupDetails, and bowlerScores — they are read before the clear and restored after the pipeline writes
+- Each `bowlerScores` document stores `avgBeforeThisWeek` from the bowler's exact cumulative pins and games before that week's scores are added; `rollingAvg` remains the floored average through that week
+- Partial weeks preserve every numeric LeaguePals game and count only those games toward the running average; a score record is fully blinded only when it contains no numeric games
 
 ## Conditional Paths
 - If fetch fails (API unreachable), transform does not run — `npm run update-data` chains the two scripts with `&&` so a non-zero exit from fetch prevents transform from starting

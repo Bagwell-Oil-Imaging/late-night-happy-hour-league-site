@@ -109,8 +109,8 @@ function WeekCardDetail({
   const oppScratchTotal = oppScratch1 + oppScratch2 + oppScratch3
 
   // Handicap-adjusted per-game totals for winner colouring and point calculation
-  const myTotals  = [myScratch1 + my.handicapPerGame,  myScratch2 + my.handicapPerGame,  myScratch3 + my.handicapPerGame]
-  const oppTotals = [oppScratch1 + opp.handicapPerGame, oppScratch2 + opp.handicapPerGame, oppScratch3 + opp.handicapPerGame]
+  const myTotals  = [myScratch1 + my.handicapGame1,  myScratch2 + my.handicapGame2,  myScratch3 + my.handicapGame3]
+  const oppTotals = [oppScratch1 + opp.handicapGame1, oppScratch2 + opp.handicapGame2, oppScratch3 + opp.handicapGame3]
   const myTotalSeries  = myScratchTotal  + my.handicapSeries
   const oppTotalSeries = oppScratchTotal + opp.handicapSeries
 
@@ -208,16 +208,16 @@ function WeekCardDetail({
           <tr className="wct-hdcp">
             <td>Handicap</td>
             <td className="wct-opp-col wct-name-col" />
-            <td className="wct-opp-col">+{opp.handicapPerGame}</td>
-            <td className="wct-opp-col">+{opp.handicapPerGame}</td>
-            <td className="wct-opp-col">+{opp.handicapPerGame}</td>
+            <td className="wct-opp-col">+{opp.handicapGame1}</td>
+            <td className="wct-opp-col">+{opp.handicapGame2}</td>
+            <td className="wct-opp-col">+{opp.handicapGame3}</td>
             <td className="wct-opp-col">+{opp.handicapSeries}</td>
             <td className="wct-opp-col" />
             <td className="wct-divider" />
             <td className="wct-name-col" />
-            <td>+{my.handicapPerGame}</td>
-            <td>+{my.handicapPerGame}</td>
-            <td>+{my.handicapPerGame}</td>
+            <td>+{my.handicapGame1}</td>
+            <td>+{my.handicapGame2}</td>
+            <td>+{my.handicapGame3}</td>
             <td>+{my.handicapSeries}</td>
             <td />
           </tr>

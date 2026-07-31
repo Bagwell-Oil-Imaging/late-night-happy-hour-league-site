@@ -42,6 +42,18 @@ function validDate(value) {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+function validDocId(value) {
+  return typeof value === 'string' && value.length > 0 && value.length <= 1500 && !value.includes('/');
+}
+
+function validRosterName(value) {
+  return typeof value === 'string' && value.trim().length > 0 && value.length <= 100;
+}
+
+function validEnteringAvg(value) {
+  return Number.isInteger(value) && value >= 0 && value <= 300;
+}
+
 export default async function localAdminWrite(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
   if (!localBypassAllowed(req)) return res.status(403).json({ error: 'Local admin bypass is disabled.' });
@@ -71,6 +83,124 @@ export default async function localAdminWrite(req, res) {
         return res.status(400).json({ error: 'Playoff team count must be an integer from 2 to 8.' });
       }
       await db.collection('leagueConfig').doc(body.seasonYear).set({ playoffTeamCount: body.playoffTeamCount }, { merge: true });
+    } else if (body.operation === 'set-handicap-profile') {
+      const profile = body.handicapProfile;
+      const validType = profile?.type === 'teamDifference' || profile?.type === 'basisScore';
+      const validPct = typeof profile?.percentage === 'number' && profile.percentage > 0 && profile.percentage <= 1;
+      const validValue = profile?.type !== 'basisScore' || (Number.isInteger(profile?.value) && profile.value > 0);
+      if (!validSeasonYear(body.seasonYear) || !validType || !validPct || !validValue) {
+        return res.status(400).json({ error: 'Invalid handicap profile.' });
+      }
+      await db.collection('leagueConfig').doc(body.seasonYear).set({ handicapProfile: profile }, { merge: true });
+    } else if (body.operation === 'save-roster-bowler') {
+      if (!validDocId(body.docId) || !validRosterName(body.firstName)
+        || !validRosterName(body.lastName) || !validRosterName(body.name)
+        || !validEnteringAvg(body.enteringAvg)) {
+        return res.status(400).json({ error: 'Invalid roster bowler update.' });
+      }
+      await db.collection('bowlers').doc(body.docId).set({
+        firstName: body.firstName.trim(),
+        lastName: body.lastName.trim(),
+        name: body.name.trim(),
+        enteringAvg: body.enteringAvg,
+        averageFloat: body.enteringAvg,
+        adminOverride: true,
+        rosterRemoved: false,
+      }, { merge: true });
+    } else if (body.operation === 'add-roster-bowler') {
+      const bowler = body.bowler;
+      if (!validDocId(body.docId) || !bowler || !validSeasonYear(bowler.seasonYear)
+        || !validDocId(bowler.teamId) || !validRosterName(bowler.teamName)
+        || !validRosterName(bowler.firstName) || !validRosterName(bowler.lastName)
+        || !validRosterName(bowler.name) || !validEnteringAvg(bowler.enteringAvg)) {
+        return res.status(400).json({ error: 'Invalid new roster bowler.' });
+      }
+      await db.collection('bowlers').doc(body.docId).set({
+        leaguePalsId: typeof bowler.leaguePalsId === 'string' ? bowler.leaguePalsId : 'admin-' + Date.now(),
+        seasonYear: bowler.seasonYear,
+        teamId: bowler.teamId,
+        teamName: bowler.teamName.trim(),
+        firstName: bowler.firstName.trim(),
+        lastName: bowler.lastName.trim(),
+        name: bowler.name.trim(),
+        avatarUrl: null,
+        average: bowler.enteringAvg,
+        averageFloat: bowler.enteringAvg,
+        enteringAvg: bowler.enteringAvg,
+        enteringAvgSeason: bowler.seasonYear,
+        highGame: 0,
+        highGameHdcp: 0,
+        highSeries: 0,
+        highSeriesHdcp: 0,
+        gamesPlayed: 0,
+        blindWeeksTotal: 0,
+        blindWeeksRow: 0,
+        indPointsWon: 0,
+        adminOverride: true,
+        rosterRemoved: false,
+      });
+    } else if (body.operation === 'add-substitute-bowler') {
+      const bowler = body.bowler;
+      if (!validDocId(body.docId) || !bowler || !validSeasonYear(bowler.seasonYear)
+        || !validRosterName(bowler.firstName) || !validRosterName(bowler.lastName)
+        || !validRosterName(bowler.name) || !validEnteringAvg(bowler.enteringAvg)) {
+        return res.status(400).json({ error: 'Invalid new substitute bowler.' });
+      }
+      await db.collection('bowlers').doc(body.docId).set({
+        leaguePalsId: typeof bowler.leaguePalsId === 'string' ? bowler.leaguePalsId : 'admin-sub-' + Date.now(),
+        seasonYear: bowler.seasonYear,
+        teamId: '',
+        teamName: '',
+        firstName: bowler.firstName.trim(),
+        lastName: bowler.lastName.trim(),
+        name: bowler.name.trim(),
+        avatarUrl: null,
+        average: bowler.enteringAvg,
+        averageFloat: bowler.enteringAvg,
+        enteringAvg: bowler.enteringAvg,
+        enteringAvgSeason: bowler.seasonYear,
+        highGame: 0,
+        highGameHdcp: 0,
+        highSeries: 0,
+        highSeriesHdcp: 0,
+        gamesPlayed: 0,
+        blindWeeksTotal: 0,
+        blindWeeksRow: 0,
+        indPointsWon: 0,
+        adminOverride: true,
+        isSubPool: true,
+      });
+    } else if (body.operation === 'remove-roster-bowler') {
+      if (!validDocId(body.docId)) {
+        return res.status(400).json({ error: 'Invalid roster bowler document ID.' });
+      }
+      await db.collection('bowlers').doc(body.docId).set({
+        teamId: '',
+        teamName: '',
+        adminOverride: true,
+        rosterRemoved: true,
+        rosterRemovedAt: new Date().toISOString(),
+      }, { merge: true });
+    } else if (body.operation === 'save-score-docs') {
+      if (!Array.isArray(body.writes) || body.writes.length < 1 || body.writes.length > 100) {
+        return res.status(400).json({ error: 'Provide 1 to 100 score document writes.' });
+      }
+      const allowedCollections = new Set(['bowlerScores', 'matchupDetails']);
+      const batch = db.batch();
+      for (const write of body.writes) {
+        if (!allowedCollections.has(write?.collection) || !validDocId(write?.docId)) {
+          return res.status(400).json({ error: 'Invalid score document target.' });
+        }
+        const ref = db.collection(write.collection).doc(write.docId);
+        if (write.operation === 'delete') {
+          batch.delete(ref);
+        } else if (write.operation === 'set' && write.data && typeof write.data === 'object' && !Array.isArray(write.data)) {
+          batch.set(ref, write.data, { merge: write.merge === true });
+        } else {
+          return res.status(400).json({ error: 'Invalid score document write.' });
+        }
+      }
+      await batch.commit();
     } else if (body.operation === 'save-schedule') {
       if (!validSeasonYear(body.seasonYear) || !Number.isInteger(body.totalWeeks) || body.totalWeeks < 1 || body.totalWeeks > 52) {
         return res.status(400).json({ error: 'Invalid schedule configuration.' });

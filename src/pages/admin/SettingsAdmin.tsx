@@ -26,6 +26,7 @@ import type { ScheduleWeek } from '../../types'
 import SeasonScheduleBuilder from './SeasonScheduleBuilder'
 import { isScheduleWeekVisible } from '../../utils/weekVisibility'
 import PlayoffSettings from '../../components/admin/PlayoffSettings'
+import HandicapSettings from '../../components/admin/HandicapSettings'
 import { isLocalAdminBypass, localAdminWrite } from '../../utils/localAdmin'
 import '../admin/AnnouncementsAdmin.css'
 
@@ -385,6 +386,7 @@ function SettingsAdmin() {
           </p>
 
           <PlayoffSettings seasonYear={selected} />
+          <HandicapSettings seasonYear={selected} />
 
           <div style={{ marginTop: '1.75rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
             {/* ── Schedule ────────────────────────────────────────────────── */}

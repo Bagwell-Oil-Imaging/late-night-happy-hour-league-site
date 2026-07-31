@@ -53,7 +53,7 @@ cp .env.example .env
 npm run dev
 ```
 
-The app will be available at `http://localhost:3001`. Use `make run` (or `npm run dev:local`) to start both Vite and the local API server; Vite proxies `/api/*` to `http://localhost:3000`.
+The app will be available at `http://localhost:3001`. Use `make run` (or `npm run dev:local`) to start both Vite and the local API server; Vite proxies `/api/*` to `http://localhost:3003`.
 
 ### Firebase Setup
 
@@ -161,8 +161,8 @@ Navigate to `/admin/login` in the browser. Log in with a Firebase Auth email/pas
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start Vite on `http://localhost:3001` with `/api/*` proxied to the local API dev server on `http://localhost:3000` |
-| `npm run dev:api` | Start the local API dev server on `http://localhost:3000` |
+| `npm run dev` | Start Vite on `http://localhost:3001` with `/api/*` proxied to the local API dev server on `http://localhost:3003` |
+| `npm run dev:api` | Start the local API dev server on `http://localhost:3003` |
 | `npm run build` | TypeScript compile + Vite production build |
 | `npm run fetch` | Fetch raw data from LeaguePals API |
 | `npm run transform` | Transform data and write to Firestore |

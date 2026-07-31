@@ -9,6 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- `HomePage` - Add Previous/Next controls to browse completed visible recap weeks directly from the homepage, updating the recap scoreboard, highlights, playoff bracket, standings PDF, and matchup link together.
+- `DataCorrectionAdmin` - Add a per-team matchup handicap pin: admins can override the automatically calculated per-game handicap, persist it with the matchup, and return to Auto calculation at any time.
+- `DataCorrectionAdmin` - Make each bowler's weekly **Avg** editable in the individual score editor; persist the override as `avgBeforeThisWeek` and use it for that matchup's blind scores, team average, and handicap.
+- `BowlersPage` - Add each bowler's cumulative rolling average through the selected week as an **Avg** column in the weekly score-history table.
+- `DataCorrectionAdmin` - Add **+ Add Sub** to the Edit Scores individual score editor: pick an existing league-wide substitute or create a new one with a separately stored entering average, then manually enter the sub's average for the selected week. The weekly value drives that matchup's handicap contribution. Substitute bowlers are stored as `bowlers` docs with `isSubPool: true` and are filtered out of all public-facing bowler queries (`useBowlers`) so they never appear on leaderboards or team rosters.
+- `DataCorrectionAdmin` - Show each bowler's season games played in parentheses beside their name in the individual score editor.
+- `HomePage` + `WeekMatchupsModal` - Add the `PlayoffBracket` to the homepage recap tab (latest week) and the weekly matchups modal (selected week), reusing the same self-hiding component already shown on `MatchupsPage`.
 - `PlayoffBracket` - Make bracket team rows clickable, opening the existing `MatchupDetailModal` for that team's real matchup that week (their actual lane opponent, not the bracket-seeded one — see the Fixed entry below on how playoff advancement is scored).
 - `PlayoffBracket` + `MatchupsPage` - Add a live, three-week single-elimination bracket above weekly matchups, including projected/locked half seeds and completed-round results.
 - `PlayoffSettings` + `SettingsAdmin` - Add a per-season playoff field setting for 2–8 qualifying teams, with first-round byes for smaller fields.
@@ -24,6 +31,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REFRESH_TOKEN` env vars — OAuth2 credentials for Drive uploads (replaces service-account-based Drive auth in `api/upload-to-drive.js`)
 
 ### Changed
+- `HomePage` - Restyle recap Previous/Next controls as compact, borderless muted arrows with a restrained hover accent.
+- Handicap calculation - Floor both team-average totals before calculating their difference and applying the Team Difference percentage; continue flooring the final handicap result.
+- `DataCorrectionAdmin` - Place the Add Sub entering and weekly average fields on their own full-width row and widen them so both placeholders remain readable.
 - `MatchupsPage` - Move the Standings PDF button into the same row as the week selector (right-aligned via a 3-column toolbar grid) instead of its own row below.
 
 ### Added
@@ -32,6 +42,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `DataCorrectionAdmin` — Add **Vacant team** support: when a team name contains "vacant" (case-insensitive), the matchup editor auto-assigns a flat score equal to `floor(opponent avg sum × 0.90)` for all three games, sets handicap to 0 for both sides, writes no individual bowler score docs (`individualScoresUnavailable: true`), and shows a VACANT badge with a live score preview on the inactive panel; editing the real team's scores auto-recalculates the Vacant score in real time; Vacant teams appear in the opponent dropdown for orphan/missing entries; if Vacant is assigned to the left (team1) position the editor auto-flips to editing the right (real) side
 
 ### Fixed
+- `DataCorrectionAdmin` - Compute blind scores and the displayed per-bowler Avg from each bowler's current rolling average instead of their static prior-season entering average, which had been inflating blind scores and the Avg column for returning bowlers.
+- `DataCorrectionAdmin` - Source each bowler's current average from their most recent `bowlerScores.rollingAvg` (the week before the one being edited) instead of the `bowlers.average` field, which only refreshes on a full pipeline run (`npm run transform`) and goes stale after a single-week `reingest-week` correction.
+- `DataCorrectionAdmin` - Compute Team Avg and handicap from each bowler's current rolling average instead of their entering average in the live editor and on save, so the saved/displayed Team Avg matches the sum of the shown per-bowler averages for whichever bowlers are actually active/blinded that week.
+- `DataCorrectionAdmin` - Removing a bowler from a weekly lineup now automatically clears all three blind-score checkboxes for that bowler.
+- `HomePage` - Hide the next-week Preview tab and panel when the latest completed week reaches the admin-configured `leagueConfig.totalWeeks`, preventing a nonexistent week from being advertised after the season ends.
+- LeaguePals average ingestion - Persist each bowler's exact floored average entering the week before adding that week's scores, and preserve numeric games from partial weeks instead of treating the entire week as blind. Matchup averages now use the stored point-in-time value, eliminating one-pin errors caused by reversing a previously floored rolling average.
+- `DataCorrectionAdmin` - Route new substitute-pool bowler creation through the local Firebase Admin bridge when localhost auth bypass is enabled, preventing the generic "Failed to add substitute" error caused by unauthenticated client Firestore writes.
+- Local development - Move the bowling site's `/api/*` proxy target and local admin API bridge from port 3000 to port 3003 so another app already using port 3000 cannot intercept roster writes with a 404.
+- `DataCorrectionAdmin` - Make roster add, edit, and remove work under the localhost admin bypass by routing those writes through the local Firebase Admin bridge; roster removals now retain a hidden admin-override tombstone so historical score references remain valid and future LeaguePals transforms do not recreate the removed bowler.
+- MatchupDetailModal - Restore handicap values and numeric totals for historical matchup documents that still use the legacy per-game handicap field while supporting the new game-specific fields.
+- Fixed individual score saves in the local admin-bypass workflow by routing `bowlerScores` and `matchupDetails` writes through the local Firebase Admin bridge.
 - `MatchupsPage` - Fix the week header freezing on the previous week's label after paging back into a week with no visible matchup data — the `<select>`-based selector silently fell back to a different option whenever the current week wasn't in its choices; the jump list now always includes an entry for the current week.
 - `MatchupsPage` - Extend the back-navigation floor to a hidden half's own first playoff week (rather than blocking at week 1 or wherever public data resumes), so its bracket stays reachable; going further back is now disabled. When paged into that hidden-but-bracket-reachable zone, show only the bracket and a short explanatory note instead of the scoreboard table, PDF button, and "No matchup data" message.
 - `PlayoffBracket` - Decide playoff round winners by comparing each seeded team's own three-game total pins that week instead of looking for a scheduled head-to-head matchup; playoff weeks keep the normal round-robin lane rotation, so no such matchup ever exists past Round 1, leaving every later round stuck on TBD. Also add a champion banner once the half's final is decided.

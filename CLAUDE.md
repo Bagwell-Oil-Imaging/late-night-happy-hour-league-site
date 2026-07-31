@@ -104,8 +104,8 @@ For Drive upload, set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `G
 
 ## npm Scripts
 
-- `npm run dev` — Vite dev server (http://localhost:3001); proxies `/api/*` to the local API dev server on `http://localhost:3000`
-- `npm run dev:api` — Local API dev server at `http://localhost:3000` for Vite `/api/*` proxy targets
+- `npm run dev` — Vite dev server (http://localhost:3001); proxies `/api/*` to the local API dev server on `http://localhost:3003`
+- `npm run dev:api` — Local API dev server at `http://localhost:3003` for Vite `/api/*` proxy targets
 - `npm run build` — TypeScript compile + Vite production build
 - `npm run fetch` — Fetch raw data from LeaguePals API
 - `npm run transform` — Transform fetched data and write to Firestore
@@ -113,7 +113,7 @@ For Drive upload, set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `G
 - `npm run standings` — Puppeteer script to download weekly standings PDFs
 - `npm run deploy:rules` — Deploy Firestore rules and indexes
 
-To test serverless API routes locally, run `npm run dev:api` on `http://localhost:3000`; `npm run dev` on `http://localhost:3001` proxies `/api/*` there.
+To test serverless API routes locally, run `npm run dev:api` on `http://localhost:3003`; `npm run dev` on `http://localhost:3001` proxies `/api/*` there.
 
 ## Admin UI
 
@@ -171,7 +171,7 @@ Tier definitions (enforced by `/generate-diagrams`):
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **late-night-happy-hour-league-site** (2154 symbols, 3245 relationships, 73 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **late-night-happy-hour-league-site** (2216 symbols, 3378 relationships, 79 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

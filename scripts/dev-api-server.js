@@ -14,7 +14,7 @@ import reingestWeek from '../api/reingest-week.js';
 loadEnv({ path: '.env.local' });
 loadEnv();
 
-const PORT = Number(process.env.LOCAL_API_PORT ?? 3000);
+const PORT = Number(process.env.LOCAL_API_PORT ?? 3003);
 process.env.LOCAL_API_SERVER = 'true';
 
 function parseServiceAccountProjectId(value) {

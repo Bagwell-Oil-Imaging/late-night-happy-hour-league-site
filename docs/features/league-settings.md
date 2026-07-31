@@ -3,6 +3,7 @@ feature: League Settings
 number: 17
 source-paths:
   - src/pages/admin/SettingsAdmin.tsx
+  - src/utils/handicap.js
 diagram: ../diagrams/features/league-settings.md
 status: no diagram
 ---
@@ -16,6 +17,7 @@ Allows admins to configure the active season year, which controls which season's
 - Save updates settings/global with the selected season year
 - Save button is disabled until the selection differs from the current saved value
 - Change takes effect immediately for all visitors via the SeasonContext real-time Firestore listener
+- The Team Difference handicap formula floors both teams' average totals before subtracting them, applies the configured percentage to that integer difference, then floors the final handicap
 
 ## Conditional Paths
 - If settings/global document doesn't exist, the dropdown initialises with no pre-selected value

@@ -19,6 +19,22 @@
  *  - `Announcement` gains `pinned` and `expiresAt`
  */
 
+/** Handicap formula types — see src/utils/handicap.js for the calculation each one performs. */
+export type HandicapProfileType = 'teamDifference' | 'basisScore';
+
+/**
+ * One season's active handicap formula and its parameters. The league adjusts
+ * this year over year, so it lives on the per-season LeagueConfig doc rather
+ * than being hardcoded.
+ */
+export interface HandicapProfile {
+  type: HandicapProfileType;
+  /** Percentage applied to the difference, e.g. 0.85 for 85%. Used by both types. */
+  percentage: number;
+  /** Basis value each bowler's average is compared against (e.g. 220). Only used when type is "basisScore". */
+  value?: number;
+}
+
 /** LeagueConfig — one document per season storing all business rules */
 export interface LeagueConfig {
   seasonYear: string;
@@ -35,9 +51,8 @@ export interface LeagueConfig {
   numLanes: number;
   /** Number of teams that qualify for each half's playoff bracket (2–8). */
   playoffTeamCount?: number;
-  /** Handicap percentage, e.g. 0.85 for 85% */
-  handicapPct: number;
-  handicapBase: number;
+  /** Active handicap formula for this season. Missing/undefined defaults to Team Difference @ 85%. */
+  handicapProfile?: HandicapProfile;
   /** Fraction of average used for blind score */
   blindScorePct: number;
   minGamesForAvg: number;
@@ -100,6 +115,13 @@ export interface Bowler {
   blindWeeksTotal: number;
   blindWeeksRow: number;
   indPointsWon: number;
+  /** When true, this bowler is a league-wide substitute pool entry, not on any team's roster.
+   *  teamId/teamName are empty; their average is entered fresh per matchup instead of tracked here. */
+  isSubPool?: boolean;
+  /** Admin tombstone for a bowler intentionally removed from a team roster.
+   *  The record is retained for historical score/profile references and pipeline suppression. */
+  rosterRemoved?: boolean;
+  rosterRemovedAt?: string;
 }
 
 /** BowlerScore — one document per bowler per week (fact table) */
@@ -134,6 +156,11 @@ export interface BowlerScore {
   blind3?: boolean;
   isSubstitute: boolean;
   substituteFor: string | null;
+  /** Average manually entered for this substitute for this matchup — drives their handicap
+   *  contribution instead of a stored average. Null for non-substitute bowlers. */
+  substituteAvg: number | null;
+  /** Integer average entering this week, calculated from exact prior pins and games before this week's scores are added. */
+  avgBeforeThisWeek?: number | null;
   /** Running season average through this week (floor of total scratch pins ÷ total games, blind weeks excluded). null before first game. */
   rollingAvg: number | null;
   /** Total non-blind games bowled through this week — denominator for rollingAvg. */
@@ -169,7 +196,17 @@ export interface TeamSummary {
   game2Total: number;
   game3Total: number;
   scratchSeries: number;
-  handicapPerGame: number;
+  /**
+   * Handicap is computed independently per game — not one number applied to
+   * all three — since a team's active bowlers (and therefore its average) can
+   * differ from game to game.
+   */
+  handicapGame1: number;
+  handicapGame2: number;
+  handicapGame3: number;
+  /** Admin-pinned per-game handicap for this team in this matchup. null/undefined uses the configured formula. */
+  handicapOverride?: number | null;
+  /** Always handicapGame1 + handicapGame2 + handicapGame3. */
   handicapSeries: number;
   totalSeries: number;
   points: number;
