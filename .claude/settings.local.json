@@ -48,7 +48,9 @@
       "Bash(python3 -c ' *)",
       "Bash(echo \"EXIT: $?\")",
       "Bash(disown)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Skill(pr)",
+      "Skill(pr:*)"
     ],
     "deny": [],
     "ask": []
