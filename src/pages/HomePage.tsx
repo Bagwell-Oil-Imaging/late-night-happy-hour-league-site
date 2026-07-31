@@ -28,7 +28,8 @@ import AwardLeaders from '../components/AwardLeaders'
 import MatchupDetailModal from '../components/MatchupDetailModal'
 import BowlerProfileModal from '../components/BowlerProfileModal'
 import StandingsPdfModal from '../components/StandingsPdfModal'
-import { useMatchupDetails, useMatchups, useTeams, useBowlers, useBowlerScoresByWeek, useSeasons, useScheduleWeeks } from '../hooks'
+import PlayoffBracket from '../components/PlayoffBracket'
+import { useMatchupDetails, useMatchups, useTeams, useBowlers, useBowlerScoresByWeek, useSeasons, useScheduleWeeks, useLeagueConfig } from '../hooks'
 import { useSeasonYear } from '../context/SeasonContext'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import { isScheduleWeekVisible, visibleWeekNumbers } from '../utils/weekVisibility'
@@ -57,20 +58,17 @@ function calcPoints(myScore: number, oppScore: number): number {
 /**
  * Calculates the match points breakdown for both teams in a MatchupDetail.
  * Uses the Firestore schema fields: `game1Total`, `game2Total`, `game3Total`,
- * `totalSeries`, and `handicapPerGame`.
+ * `totalSeries`, and `handicapGame1/2/3`.
  *
  * @param detail - MatchupDetail document from Firestore
  * @returns Object with `team1` and `team2` point totals (max 4 points each)
  */
 function getMatchPoints(detail: MatchupDetail): { team1: number; team2: number } {
-  const t1hcp = detail.team1.handicapPerGame
-  const t2hcp = detail.team2.handicapPerGame
-
   // One point per game (3 games) + one point for overall series
   const t1 =
-    calcPoints(detail.team1.game1Total + t1hcp, detail.team2.game1Total + t2hcp) +
-    calcPoints(detail.team1.game2Total + t1hcp, detail.team2.game2Total + t2hcp) +
-    calcPoints(detail.team1.game3Total + t1hcp, detail.team2.game3Total + t2hcp) +
+    calcPoints(detail.team1.game1Total + detail.team1.handicapGame1, detail.team2.game1Total + detail.team2.handicapGame1) +
+    calcPoints(detail.team1.game2Total + detail.team1.handicapGame2, detail.team2.game2Total + detail.team2.handicapGame2) +
+    calcPoints(detail.team1.game3Total + detail.team1.handicapGame3, detail.team2.game3Total + detail.team2.handicapGame3) +
     calcPoints(detail.team1.totalSeries, detail.team2.totalSeries)
 
   return { team1: t1, team2: 4 - t1 }
@@ -114,6 +112,7 @@ function HomePage() {
 
   // Controls which panel is visible in the recap/preview toggle
   const [weekView, setWeekView] = useState<'recap' | 'preview'>('recap')
+  const [selectedRecapWeek, setSelectedRecapWeek] = useState<number | null>(null)
 
   // Fetch all matchup details and teams for the season
   const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails(SEASON_YEAR)
@@ -124,36 +123,53 @@ function HomePage() {
   const visibleScheduleWeeks = useMemo(() => scheduleWeeks.filter(isScheduleWeekVisible), [scheduleWeeks])
   const { data: bowlers } = useBowlers(SEASON_YEAR)
   const { data: seasons } = useSeasons()
+  const { data: leagueConfig, loading: configLoading } = useLeagueConfig(SEASON_YEAR)
 
   // Derive the latest week number from completed matchup records.
   // Using matchupDetails max-week is wrong: the transform writes zero-score
   // matchupDetail records for any past week, even when scores aren't in
   // LeaguePals yet, causing an unplayed week to appear as the latest recap.
   // The `matchups` collection's `completed` flag is the authoritative signal.
-  const latestWeek = useMemo(() => {
-    const completed = allMatchups.filter((m) => m.completed && visibleWeeks.has(m.week))
-    if (completed.length) return Math.max(...completed.map((m) => m.week))
-    return visibleScheduleWeeks.find((week) => week.week != null)?.week ?? 1
-  }, [allMatchups, visibleScheduleWeeks, visibleWeeks])
+  const completedWeekNumbers = useMemo(
+    () => Array.from(new Set(
+      allMatchups.filter((m) => m.completed && visibleWeeks.has(m.week)).map((m) => m.week)
+    )).sort((a, b) => a - b),
+    [allMatchups, visibleWeeks]
+  )
 
-  // Filter to only the matchups from the most recently completed week
+  const latestWeek = useMemo(() => {
+    if (completedWeekNumbers.length) return completedWeekNumbers[completedWeekNumbers.length - 1]
+    return visibleScheduleWeeks.find((week) => week.week != null)?.week ?? 1
+  }, [completedWeekNumbers, visibleScheduleWeeks])
+
+  const recapWeek = selectedRecapWeek != null && completedWeekNumbers.includes(selectedRecapWeek)
+    ? selectedRecapWeek
+    : latestWeek
+  const recapWeekIndex = completedWeekNumbers.indexOf(recapWeek)
+  const previousRecapWeek = recapWeekIndex > 0 ? completedWeekNumbers[recapWeekIndex - 1] : null
+  const followingRecapWeek = recapWeekIndex >= 0 && recapWeekIndex < completedWeekNumbers.length - 1
+    ? completedWeekNumbers[recapWeekIndex + 1]
+    : null
+
+  // Filter to only the matchups from the selected recap week
   const latestWeekDetails = useMemo(
     () => matchupDetails
-      .filter((m) => m.week === latestWeek && visibleWeeks.has(m.week))
+      .filter((m) => m.week === recapWeek && visibleWeeks.has(m.week))
       .sort((a, b) => Math.min(a.team1.lane, a.team2.lane) - Math.min(b.team1.lane, b.team2.lane)),
-    [matchupDetails, latestWeek, visibleWeeks]
+    [matchupDetails, recapWeek, visibleWeeks]
   )
 
   const latestDate = latestWeekDetails[0]?.date
 
-  // All non-blinded bowler scores for the latest completed week (individual highlights)
+  // All non-blinded bowler scores for the selected recap week (individual highlights)
   const { data: latestWeekScores, loading: scoresLoading } = useBowlerScoresByWeek(
-    latestWeek || null,
+    recapWeek || null,
     SEASON_YEAR
   )
 
   // Next week's schedule matchups (not yet completed)
   const nextWeek = visibleScheduleWeeks.find((week) => week.week != null && week.week > latestWeek && week.status !== 'completed')?.week ?? latestWeek + 1
+  const hasNextWeek = leagueConfig?.totalWeeks != null && nextWeek <= leagueConfig.totalWeeks
   const nextWeekMatchups = useMemo(
     () => allMatchups
       .filter((m) => m.week === nextWeek && visibleWeeks.has(m.week) && !m.completed)
@@ -243,7 +259,7 @@ function HomePage() {
     navigate(`/bowlers?id=${id}`)
   }
 
-  const isLoading = detailsLoading || teamsLoading || matchupsLoading || scheduleLoading || scoresLoading
+  const isLoading = detailsLoading || teamsLoading || matchupsLoading || scheduleLoading || scoresLoading || configLoading
 
   return (
     <div className="home-page">
@@ -251,35 +267,74 @@ function HomePage() {
       {/* Recap / Preview section */}
       <section className="home-section">
 
+        {!isLoading && (
+          <div className="playoff-bracket-wrap">
+            <PlayoffBracket
+              matchupDetails={matchupDetails}
+              week={recapWeek}
+              playoffTeamCount={leagueConfig?.playoffTeamCount}
+              onSelectMatchup={setSelectedMatchupId}
+            />
+          </div>
+        )}
+
         {/* Tab bar — acts as both the toggle and the section header */}
         <div className="week-view-tabs">
           <div className="week-view-tabs-left">
-            <button
-              className={`week-tab ${weekView === 'recap' ? 'active' : ''}`}
-              onClick={() => setWeekView('recap')}
-            >
-              <span className="week-tab-label">Week {latestWeek} Recap</span>
-              <span className="week-tab-date">
-                {latestDate ? formatDate(latestDate) : '\u00A0'}
-              </span>
-            </button>
-            <button
-              className={`week-tab ${weekView === 'preview' ? 'active' : ''}`}
-              onClick={() => setWeekView('preview')}
-            >
-              <span className="week-tab-label">Week {nextWeek} Preview</span>
-              <span className="week-tab-date">
-                {nextWeekDate ? formatDate(nextWeekDate) : '\u00A0'}
-              </span>
-            </button>
+            <div className="recap-week-nav">
+              <button
+                className="home-week-nav-btn"
+                onClick={() => {
+                  if (previousRecapWeek != null) setSelectedRecapWeek(previousRecapWeek)
+                  setWeekView('recap')
+                }}
+                disabled={previousRecapWeek == null}
+                aria-label="Previous recap week"
+                title="Previous recap week"
+              >
+                ←
+              </button>
+              <button
+                className={`week-tab ${weekView === 'recap' ? 'active' : ''}`}
+                onClick={() => setWeekView('recap')}
+              >
+                <span className="week-tab-label">Week {recapWeek} Recap</span>
+                <span className="week-tab-date">
+                  {latestDate ? formatDate(latestDate) : '\u00A0'}
+                </span>
+              </button>
+              <button
+                className="home-week-nav-btn"
+                onClick={() => {
+                  if (followingRecapWeek != null) setSelectedRecapWeek(followingRecapWeek)
+                  setWeekView('recap')
+                }}
+                disabled={followingRecapWeek == null}
+                aria-label="Next recap week"
+                title="Next recap week"
+              >
+                →
+              </button>
+            </div>
+            {hasNextWeek && (
+              <button
+                className={`week-tab ${weekView === 'preview' ? 'active' : ''}`}
+                onClick={() => setWeekView('preview')}
+              >
+                <span className="week-tab-label">Week {nextWeek} Preview</span>
+                <span className="week-tab-date">
+                  {nextWeekDate ? formatDate(nextWeekDate) : '\u00A0'}
+                </span>
+              </button>
+            )}
           </div>
           <div className="week-view-tabs-right">
             {/* Show standings PDF button only in Recap mode when a PDF is available */}
-            {weekView === 'recap' && getStandingsPdfId(latestWeek) && (
+            {weekView === 'recap' && getStandingsPdfId(recapWeek) && (
               <button
                 className="standings-pdf-btn"
-                onClick={() => setPdfWeek(latestWeek)}
-                aria-label={`View standings PDF for Week ${latestWeek}`}
+                onClick={() => setPdfWeek(recapWeek)}
+                aria-label={`View standings PDF for Week ${recapWeek}`}
               >
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                   <path d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5L14 4.5zm-3 0A1.5 1.5 0 019.5 3V1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4.5h-2z"/>
@@ -292,7 +347,7 @@ function HomePage() {
               onClick={() =>
                 navigate(
                   weekView === 'recap'
-                    ? `/matchups?week=${latestWeek}`
+                    ? `/matchups?week=${recapWeek}`
                     : `/matchups?week=${nextWeek}`
                 )
               }
@@ -469,7 +524,7 @@ function HomePage() {
         )}
 
         {/* ── Preview panel ── */}
-        {weekView === 'preview' && (
+        {hasNextWeek && weekView === 'preview' && (
           <>
             {isLoading && (
               <p style={{ color: '#888', textAlign: 'center' }}>Loading matchup data…</p>

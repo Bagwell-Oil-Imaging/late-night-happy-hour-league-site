@@ -101,7 +101,10 @@ export function useBowlers(seasonYear: string, teamId?: string) {
       ]
     : [where('seasonYear', '==', seasonYear)];
 
-  return useCollection<Bowler>('bowlers', constraints, [seasonYear, teamId]);
+  const result = useCollection<Bowler>('bowlers', constraints, [seasonYear, teamId]);
+  // Substitute-pool and roster-removed records remain in Firestore for admin
+  // workflows and historical identity, but must not surface in public views.
+  return { ...result, data: result.data.filter(b => !b.isSubPool && !b.rosterRemoved) };
 }
 
 /**

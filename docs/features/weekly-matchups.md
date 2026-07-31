@@ -16,6 +16,7 @@ Shows which teams faced each other each week and lets users drill into the detai
 - Select week via WeekSelector
 - View grid of team matchups for that week
 - Click a matchup to open MatchupDetailModal with game-by-game scores per bowler
+- The per-bowler Avg column and team handicap use the stored `avgBeforeThisWeek`; legacy documents without it use a best-effort rolling-average fallback until re-ingested
 
 ## Conditional Paths
 - If matchup detail document doesn't exist yet (week not complete), modal shows empty/loading state

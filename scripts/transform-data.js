@@ -24,6 +24,7 @@ import { join, dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import { createRequire } from 'module'
 import admin from 'firebase-admin'
+import { calculateGameHandicap, DEFAULT_HANDICAP_PROFILE } from '../src/utils/handicap.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -581,19 +582,25 @@ const weekNumMap = buildWeekNumMap()
  * Each entry contains both teams' bowler scores (g1/g2/g3/series), game totals,
  * team scratch averages, and computed handicap per game and series.
  *
- * Handicap formula (pctOfOpponent @ 85%):
- *   handicapPerGame = max(0, floor((opponentTeamAvg - myTeamAvg) * 0.85))
- *   handicapSeries  = handicapPerGame * 3
+ * Handicap formula lives in src/utils/handicap.js — see calculateGameHandicap().
+ * Type/percentage/value come from the season's leagueConfig doc (handicapConfig
+ * param below), falling back to the league default (Team Difference @ 85%).
+ * Handicap is computed independently per game (see the calculateGameHandicap
+ * calls below), not once for the whole week.
  *
- * Team averages are the sum of season `average` fields for bowlers who actually
- * bowled that week (series > 0). This matches how LeaguePals computes team avg.
+ * Team averages are the sum of each active bowler's average ENTERING that
+ * week (running average through the prior week, not their current/live
+ * season average) for bowlers who actually bowled that week (series > 0).
+ * Using a point-in-time average keeps historical handicaps stable — they no
+ * longer drift every time the pipeline reruns later in the season.
  *
  * The `id` field mirrors the corresponding historicalMatches.json entry so
  * components can cross-reference by match ID.
  *
+ * @param {Partial<import('../src/types').LeagueConfig>} [handicapConfig] - Season's handicapMethod/handicapPct; defaults applied when absent.
  * @returns {object[]}
  */
-function buildWeeklyMatchupDetails() {
+function buildWeeklyMatchupDetails(handicapConfig = {}) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -606,7 +613,6 @@ function buildWeeklyMatchupDetails() {
   const weeks = schedule.schedule ?? []
   const results = []
   let matchId = 1
-  const HDCP_PCT = 0.85
   const BOWLERS_PER_TEAM = 4
 
   // ── Blind score penalty (mirrors populateBowlerScores logic) ───────────────
@@ -668,18 +674,25 @@ function buildWeeklyMatchupDetails() {
       if (!entry) continue
       const games = entry.games ?? []
 
-      // Absent bowlers have "-" string or null game markers in the LP data.
-      const blinded = games.some(g => g === '-' || g === null)
+      // A fully absent bowler has no numeric game scores. A partial week such
+      // as [98, "-", 170, 268] still contributes the two actual games to the
+      // bowler's running average and must not be converted into a full blind.
+      const actualGames = games.slice(0, 3).filter(g => typeof g === 'number')
+      const blinded = actualGames.length === 0
+
+      // Average entering this week (running pins/games accumulated so far this
+      // season, falling back to the season-entering average for week 1). Used
+      // for both the blind score AND as this bowler's contribution to team
+      // average/handicap — using the bowler's current live average instead
+      // would make handicap drift every time the pipeline reruns later in the
+      // season, since `b.average` keeps changing but past weeks shouldn't.
+      const running = bowlerPinsMap.get(b._id)
+      const enteringAvg = (running && running.games > 0)
+        ? Math.floor(running.pins / running.games)
+        : (b.enteringAvg ?? b.average ?? 0)
 
       if (blinded) {
-        // Use running average if available, otherwise fall back to entering average.
-        // This matches the formula in populateBowlerScores so the team total in
-        // matchupDetails aligns with the sum of individual BowlerScore documents.
-        const running = bowlerPinsMap.get(b._id)
-        const avg = (running && running.games > 0)
-          ? Math.floor(running.pins / running.games)
-          : (b.enteringAvg ?? b.average ?? 0)
-        const blindScore = avg > 0 ? avg - Math.floor(avg * blindPenaltyPct) : 0
+        const blindScore = enteringAvg > 0 ? enteringAvg - Math.floor(enteringAvg * blindPenaltyPct) : 0
         if (blindScore > 0) {
           blindCandidates.push({
             name: b.name,
@@ -687,29 +700,28 @@ function buildWeeklyMatchupDetails() {
             g2: blindScore,
             g3: blindScore,
             series: blindScore * 3,
-            average: b.average ?? 0,
+            average: enteringAvg,
             gamesBeforeWeek: running?.games ?? 0,
-            averageBeforeWeek: avg,
+            averageBeforeWeek: enteringAvg,
           })
         }
       } else {
-        const series = games[3]
-        if (typeof series !== 'number' || series <= 0) continue
+        const series = actualGames.reduce((sum, game) => sum + game, 0)
+        if (series <= 0) continue
 
-        // Update rolling average so subsequent blind-week calculations are accurate.
+        // Update rolling average so subsequent weeks' calculations are accurate.
         if (b._id) {
           const prev = bowlerPinsMap.get(b._id) ?? { pins: 0, games: 0 }
-          const gamesThisWeek = [games[0], games[1], games[2]].filter(g => typeof g === 'number').length
-          bowlerPinsMap.set(b._id, { pins: prev.pins + series, games: prev.games + gamesThisWeek })
+          bowlerPinsMap.set(b._id, { pins: prev.pins + series, games: prev.games + actualGames.length })
         }
 
         activeBowlers.push({
           name: b.name,
-          g1: games[0],
-          g2: games[1],
-          g3: games[2],
+          g1: typeof games[0] === 'number' ? games[0] : null,
+          g2: typeof games[1] === 'number' ? games[1] : null,
+          g3: typeof games[2] === 'number' ? games[2] : null,
           series,
-          average: b.average ?? 0,
+          average: enteringAvg,
         })
       }
     }
@@ -785,26 +797,40 @@ function buildWeeklyMatchupDetails() {
 
       // Lower-average team gets the handicap. Vacant matchups are scratch-only:
       // the vacant side gets 90% of the active opponent's team average.
-      const t1Hdcp = hasVacantTeam ? 0 : Math.max(0, Math.floor((team2.teamAvg - team1.teamAvg) * HDCP_PCT))
-      const t2Hdcp = hasVacantTeam ? 0 : Math.max(0, Math.floor((team1.teamAvg - team2.teamAvg) * HDCP_PCT))
+      // Handicap is computed independently per game — today every active
+      // bowler plays all 3 games (LeaguePals doesn't report partial-week
+      // substitutions), so the 3 calls currently always agree, but this is
+      // structured to be correct once per-game roster differences exist.
+      const team1BowlerAvgs = team1.bowlers.map(b => b.average)
+      const team2BowlerAvgs = team2.bowlers.map(b => b.average)
+      const t1Hdcp = hasVacantTeam ? 0 : calculateGameHandicap(
+        { teamAvg: team1.teamAvg, opponentAvg: team2.teamAvg, bowlerAverages: team1BowlerAvgs }, handicapConfig,
+      )
+      const t2Hdcp = hasVacantTeam ? 0 : calculateGameHandicap(
+        { teamAvg: team2.teamAvg, opponentAvg: team1.teamAvg, bowlerAverages: team2BowlerAvgs }, handicapConfig,
+      )
 
-      team1.handicapPerGame = t1Hdcp
-      team1.handicapSeries = t1Hdcp * 3
+      team1.handicapGame1 = t1Hdcp
+      team1.handicapGame2 = t1Hdcp
+      team1.handicapGame3 = t1Hdcp
+      team1.handicapSeries = team1.handicapGame1 + team1.handicapGame2 + team1.handicapGame3
       team1.totalSeries = team1.scratchSeries + team1.handicapSeries
 
-      team2.handicapPerGame = t2Hdcp
-      team2.handicapSeries = t2Hdcp * 3
+      team2.handicapGame1 = t2Hdcp
+      team2.handicapGame2 = t2Hdcp
+      team2.handicapGame3 = t2Hdcp
+      team2.handicapSeries = team2.handicapGame1 + team2.handicapGame2 + team2.handicapGame3
       team2.totalSeries = team2.scratchSeries + team2.handicapSeries
 
       // Game-by-game points: compare each game + series with handicap applied.
       // Mirrors the gPoint logic used in DataCorrectionAdmin.tsx.
       const gp = (a, b) => a > b ? 1 : a < b ? 0 : 0.5
-      const t1G1 = team1.gameTotals.g1 + t1Hdcp
-      const t1G2 = team1.gameTotals.g2 + t1Hdcp
-      const t1G3 = team1.gameTotals.g3 + t1Hdcp
-      const t2G1 = team2.gameTotals.g1 + t2Hdcp
-      const t2G2 = team2.gameTotals.g2 + t2Hdcp
-      const t2G3 = team2.gameTotals.g3 + t2Hdcp
+      const t1G1 = team1.gameTotals.g1 + team1.handicapGame1
+      const t1G2 = team1.gameTotals.g2 + team1.handicapGame2
+      const t1G3 = team1.gameTotals.g3 + team1.handicapGame3
+      const t2G1 = team2.gameTotals.g1 + team2.handicapGame1
+      const t2G2 = team2.gameTotals.g2 + team2.handicapGame2
+      const t2G3 = team2.gameTotals.g3 + team2.handicapGame3
       const t1Points = gp(t1G1, t2G1) + gp(t1G2, t2G2) + gp(t1G3, t2G3) + gp(team1.totalSeries, team2.totalSeries)
       team1.points = t1Points
       team2.points = 4 - t1Points
@@ -908,8 +934,13 @@ function buildBowlerStats() {
  *
  * Attempts to read `leaguepals-data/league-public.json` and maps known API fields
  * to the canonical leagueConfig schema. Fields not available from the LeaguePals API
- * (handicapPct, handicapBase, gamesPerNight, numTeams, bowlingCenter) are always
- * set to known-good hardcoded values from league rules.
+ * (gamesPerNight, numTeams, bowlingCenter) are always set to known-good hardcoded
+ * values from league rules.
+ *
+ * handicapProfile is NOT hardcoded here — it's taken from `handicapConfig`
+ * (already resolved in main() from the existing Firestore doc, falling back
+ * to the league default) so an admin-chosen formula survives every pipeline
+ * re-run instead of being overwritten back to the default each time.
  *
  * If `league-public.json` is missing (e.g., not yet fetched), the function falls
  * back to a full set of hardcoded defaults so the script remains runnable in any
@@ -920,9 +951,10 @@ function buildBowlerStats() {
  * and no batch chunking is needed.
  *
  * @param {string} seasonYear - Firestore document ID, e.g. "2025-2026"
+ * @param {{ handicapProfile: import('../src/types').HandicapProfile }} handicapConfig - Resolved handicapProfile to persist.
  * @returns {Promise<void>}
  */
-async function populateLeagueConfig(seasonYear) {
+async function populateLeagueConfig(seasonYear, handicapConfig) {
   if (!db) {
     console.warn('[populateLeagueConfig] Skipping leagueConfig — Firestore not initialized')
     return
@@ -972,9 +1004,7 @@ async function populateLeagueConfig(seasonYear) {
       // Physical setup
       numLanes: typeof api.numLanes === 'number' ? api.numLanes : 26,
 
-      // Handicap formula — these values are defined by league rules, not the API
-      handicapPct: 0.85,
-      handicapBase: 220,
+      // handicapProfile is set below from the preserved handicapConfig.
 
       // Blind score: API field is `againstBlindScorePct` (a percentage value 0-100).
       // Convert to a decimal fraction (e.g., 10 → 0.10) if the API value looks like
@@ -1023,8 +1053,7 @@ async function populateLeagueConfig(seasonYear) {
       totalWeeks: 33,
       playoffTeamCount: 8,
       numLanes: 26,
-      handicapPct: 0.85,
-      handicapBase: 220,
+      // handicapProfile is set below from the preserved handicapConfig.
       blindScorePct: 0.9,
       minGamesForAvg: 3,
       prevSeasonMinGames: 21,
@@ -1035,6 +1064,8 @@ async function populateLeagueConfig(seasonYear) {
       leaguePalsId: '',
     }
   }
+
+  doc.handicapProfile = handicapConfig.handicapProfile
 
   // Single-document write — no batch needed since there is exactly one config doc per season
   await db.collection('leagueConfig').doc(seasonYear).set(doc, { merge: true })
@@ -1586,7 +1617,9 @@ async function populateMatchupDetails(seasonYear, matchupIdMap = new Map()) {
 
         scratchSeries: team.scratchSeries ?? 0,
         teamAvg: team.teamAvg ?? 0,
-        handicapPerGame: team.handicapPerGame ?? 0,
+        handicapGame1: team.handicapGame1 ?? 0,
+        handicapGame2: team.handicapGame2 ?? 0,
+        handicapGame3: team.handicapGame3 ?? 0,
         handicapSeries: team.handicapSeries ?? 0,
         totalSeries: team.totalSeries ?? 0,
         points: team.points ?? 0,
@@ -2066,9 +2099,11 @@ async function populateBowlerScores(seasonYear) {
           const games = weekEntry.games ?? []
 
           // ── Blind detection ───────────────────────────────────────────────
-          // An absent bowler's games array contains "-" string markers (e.g. ["-","-","-",0]).
-          // We also check for null values defensively.
-          const blinded = games.some(g => g === '-' || g === null)
+          // Only a week with zero numeric games is fully blind. LeaguePals can
+          // emit partial weeks (for example [98, "-", 170, 268]); preserve and
+          // count those actual games instead of discarding the whole week.
+          const actualGames = games.slice(0, 3).filter(g => typeof g === 'number')
+          const blinded = actualGames.length === 0
 
           // ── Pre-bowl detection ────────────────────────────────────────────
           // isMatch === false means the bowler bowled on a different night than the
@@ -2097,16 +2132,16 @@ async function populateBowlerScores(seasonYear) {
 
           // ── Individual game scores ────────────────────────────────────────
           // games[3] is the series total — skip it; we only want games[0..2].
-          // Store null (not 0) when blinded so aggregates remain uncontaminated.
-          const game1 = blinded ? null : (typeof games[0] === 'number' ? games[0] : null)
-          const game2 = blinded ? null : (typeof games[1] === 'number' ? games[1] : null)
-          const game3 = blinded ? null : (typeof games[2] === 'number' ? games[2] : null)
+          // Preserve each numeric game independently; missing games stay null.
+          const game1 = typeof games[0] === 'number' ? games[0] : null
+          const game2 = typeof games[1] === 'number' ? games[1] : null
+          const game3 = typeof games[2] === 'number' ? games[2] : null
 
           // Compute series from individual games to avoid relying on games[3] (which
-          // may be 0 for absent bowlers). Returns null when blinded.
-          const series = blinded
-            ? null
-            : ([game1, game2, game3].filter(g => typeof g === 'number').reduce((a, b) => a + b, 0) || null)
+          // may be 0 for absent bowlers). Returns null only when no game was bowled.
+          const series = actualGames.length > 0
+            ? actualGames.reduce((sum, game) => sum + game, 0)
+            : null
 
           bowlerScoreDocs.push({
             // ── Bowler identity ─────────────────────────────────────────────
@@ -2145,10 +2180,11 @@ async function populateBowlerScores(seasonYear) {
             preBowled,
             blinded,
 
-            // Substitute tracking: defaulted to false/null.
-            // TODO: Phase 5 admin UI will allow marking actual substitutes.
+            // Substitute tracking: defaulted to false/null. Admin Data Correction
+            // panel is the only place isSubstitute/substituteAvg get set.
             isSubstitute: false,
             substituteFor: null,
+            substituteAvg: null,
           })
         }
       }
@@ -2201,6 +2237,7 @@ async function populateBowlerScores(seasonYear) {
           blinded: false,
           isSubstitute: false,
           substituteFor: null,
+          substituteAvg: null,
         })
       }
     }
@@ -2330,6 +2367,7 @@ async function populateBowlerScores(seasonYear) {
         blinded: true,
         isSubstitute: false,
         substituteFor: null,
+        substituteAvg: null,
       })
     }
   }
@@ -2358,16 +2396,21 @@ async function populateBowlerScores(seasonYear) {
     let totalPins = 0
     let totalGames = 0
     for (const doc of docs) {
+      // Persist the exact point-in-time integer average before this week's
+      // scores are applied. Consumers must not reverse it from rollingAvg,
+      // because rollingAvg has already discarded the fractional pin remainder.
+      const avgBeforeThisWeek = totalGames > 0
+        ? Math.floor(totalPins / totalGames)
+        : (enteringAvgMap.get(doc.bowlerId) ?? 0)
+      doc.avgBeforeThisWeek = avgBeforeThisWeek
+
       if (doc.blinded) {
         // Compute blind score from the running average at this point in the season.
         // If no scratch games have been bowled yet, fall back to the entering average.
         // Formula: blindScore = avg - floor(avg * penaltyPct)
         // The blind score counts toward team totals but NOT toward the bowler's average.
-        const avgAtThisPoint = totalGames > 0
-          ? Math.floor(totalPins / totalGames)
-          : (enteringAvgMap.get(doc.bowlerId) ?? 0)
-        const penalty = Math.floor(avgAtThisPoint * blindPenaltyPct)
-        const blindScore = avgAtThisPoint - penalty
+        const penalty = Math.floor(avgBeforeThisWeek * blindPenaltyPct)
+        const blindScore = avgBeforeThisWeek - penalty
         doc.game1 = blindScore
         doc.game2 = blindScore
         doc.game3 = blindScore
@@ -2564,6 +2607,20 @@ async function main() {
   console.log(`Active teams: ${teamIdMap.size}`)
   console.log(`Schedule weeks: ${(schedule.schedule ?? []).length}\n`)
 
+  const SEASON = '2025-2026'
+
+  // Read the season's existing handicapProfile (if an admin has set one) so
+  // weeklyMatchupDetails and the leagueConfig doc stay in sync — the pipeline
+  // must not overwrite a season's chosen formula on every re-run.
+  let handicapProfile = DEFAULT_HANDICAP_PROFILE
+  if (db) {
+    const existingConfigSnap = await db.collection('leagueConfig').doc(SEASON).get()
+    if (existingConfigSnap.exists && existingConfigSnap.data().handicapProfile) {
+      handicapProfile = existingConfigSnap.data().handicapProfile
+    }
+  }
+  const handicapConfig = { handicapProfile }
+
   // 1. Build and write teams
   console.log('Building teams.json...')
   const teams = buildTeams()
@@ -2590,7 +2647,7 @@ async function main() {
 
   // 4. Build and write weekly matchup details
   console.log('\nBuilding weeklyMatchupDetails.json...')
-  const matchupDetails = buildWeeklyMatchupDetails()
+  const matchupDetails = buildWeeklyMatchupDetails(handicapConfig)
   write('weeklyMatchupDetails.json', matchupDetails)
 
   // 5. Build and write bowler stats
@@ -2619,15 +2676,13 @@ async function main() {
   //   → matchups (returns matchupIdMap) → matchupDetails → bowlerScores
   //   → announcements → events → carouselImages
 
-  const SEASON = '2025-2026'
-
   console.log('\n─────────────────────────────────────────')
   console.log('Firestore population...')
 
   // 1. League configuration — single doc, no FK dependencies
   console.log('\n[1/11] leagueConfig...')
   // Preserve admin-managed configuration such as the playoff field across imports.
-  await populateLeagueConfig(SEASON)
+  await populateLeagueConfig(SEASON, handicapConfig)
 
   // 2. Seasons — derived from standings; no FK dependencies
   console.log('\n[2/11] seasons...')

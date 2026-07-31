@@ -62,7 +62,7 @@ function computeBlindScore(enteringAvg: number): number | null {
  */
 function computeTeamAvgFromRows(rows: MatchupBowlerRow[]): number {
   return rows
-    .filter(r => r.game1 !== null || r.blinded)
+    .filter(r => r.game1 !== null || r.game2 !== null || r.game3 !== null || r.blinded)
     .reduce((sum, r) => sum + (r.avgBeforeThisWeek ?? 0), 0)
 }
 
@@ -88,18 +88,23 @@ function buildBowlerRows(roster: Bowler[], scores: BowlerScore[]): MatchupBowler
    * Computes the bowler's average ENTERING this week (before this week's games
    * are counted). Used for handicap and blind score display.
    *
-   * For blind weeks: rollingAvg already excludes the blind, so it IS the entering avg.
-   * For non-blind weeks: reverse out this week's 3 games from the cumulative.
-   *   approxPinsBefore = rollingAvg × rollingGames − series  (±1 pin due to floor)
-   * Falls back to enteringAvg when no prior games exist (e.g. week 1).
+   * New score documents persist this exact point-in-time value during ingestion.
+   * Older documents fall back to reversing this week's numeric games out of the
+   * cumulative rolling average. That legacy calculation can be off by a pin
+   * because rollingAvg was already floored.
    */
   const computeAvgBeforeThisWeek = (s: BowlerScore): number | null => {
+    if (typeof s.avgBeforeThisWeek === 'number') return s.avgBeforeThisWeek
+
     const enteringAvg = rosterById.get(s.bowlerId)?.enteringAvg ?? 0
     if (s.blinded) {
       // Blind weeks don't accumulate — rollingAvg is already the pre-week average
       return s.rollingAvg ?? (enteringAvg > 0 ? enteringAvg : null)
     }
-    const gamesBeforeWeek = (s.rollingGames ?? 0) - 3
+    const gamesThisWeek = [s.game1, s.game2, s.game3]
+      .filter((game): game is number => typeof game === 'number')
+      .length
+    const gamesBeforeWeek = (s.rollingGames ?? 0) - gamesThisWeek
     if (gamesBeforeWeek <= 0) {
       return enteringAvg > 0 ? enteringAvg : null
     }
@@ -169,7 +174,9 @@ function buildBowlerRows(roster: Bowler[], scores: BowlerScore[]): MatchupBowler
   // Apply blind selection rule: of all rows marked blinded, only the top N
   // (by games-before-this-week desc, then avg desc) actually count.
   // Excess blind rows are demoted to absent so they show dashes and no B badge.
-  const actualBowlerCount = rows.filter(r => !r.blinded && r.game1 !== null).length
+  const actualBowlerCount = rows.filter(r =>
+    !r.blinded && (r.game1 !== null || r.game2 !== null || r.game3 !== null)
+  ).length
   const allowedBlinds = Math.min(3, Math.max(0, 4 - actualBowlerCount))
   const blindRows = rows.filter(r => r.blinded)
 
@@ -281,11 +288,29 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
   const t1Scratches = getScratches(match.team1, team1Rows)
   const t2Scratches = getScratches(match.team2, team2Rows)
 
-  // Handicap-adjusted per-game totals — used for per-game winner colouring
-  const t1GameTotals = t1Scratches.map(g => g + match.team1.handicapPerGame)
-  const t2GameTotals = t2Scratches.map(g => g + match.team2.handicapPerGame)
-  const t1TotalSeries = t1Scratches.reduce((s, g) => s + g, 0) + match.team1.handicapSeries
-  const t2TotalSeries = t2Scratches.reduce((s, g) => s + g, 0) + match.team2.handicapSeries
+  // Handicap-adjusted per-game totals — used for per-game winner colouring.
+  // Older Firestore documents only have handicapPerGame, so retain a read-time
+  // fallback until those historical records are reingested with per-game fields.
+  const getHandicapGames = (team: typeof match.team1): [number, number, number] => {
+    const legacyPerGame = (team as typeof team & { handicapPerGame?: number }).handicapPerGame
+    const seriesPerGame = Number.isFinite(team.handicapSeries) ? Math.round(team.handicapSeries / 3) : 0
+    const fallback = Number.isFinite(legacyPerGame) ? legacyPerGame! : seriesPerGame
+    return [team.handicapGame1, team.handicapGame2, team.handicapGame3]
+      .map(value => Number.isFinite(value) ? value : fallback) as [number, number, number]
+  }
+
+  const t1HandicapGames = getHandicapGames(match.team1)
+  const t2HandicapGames = getHandicapGames(match.team2)
+  const t1HandicapSeries = Number.isFinite(match.team1.handicapSeries)
+    ? match.team1.handicapSeries
+    : t1HandicapGames.reduce((sum, value) => sum + value, 0)
+  const t2HandicapSeries = Number.isFinite(match.team2.handicapSeries)
+    ? match.team2.handicapSeries
+    : t2HandicapGames.reduce((sum, value) => sum + value, 0)
+  const t1GameTotals = t1Scratches.map((g, i) => g + t1HandicapGames[i])
+  const t2GameTotals = t2Scratches.map((g, i) => g + t2HandicapGames[i])
+  const t1TotalSeries = t1Scratches.reduce((s, g) => s + g, 0) + t1HandicapSeries
+  const t2TotalSeries = t2Scratches.reduce((s, g) => s + g, 0) + t2HandicapSeries
 
   // Winner determined from corrected totals, not stale stored totalSeries
   const team1Won = t1TotalSeries > t2TotalSeries
@@ -320,6 +345,8 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
               const [scratchGame1, scratchGame2, scratchGame3] = idx === 0 ? t1Scratches : t2Scratches
               const scratchTotal  = scratchGame1 + scratchGame2 + scratchGame3
               const grandTotal    = idx === 0 ? t1TotalSeries : t2TotalSeries
+              const handicapGames = idx === 0 ? t1HandicapGames : t2HandicapGames
+              const handicapSeries = idx === 0 ? t1HandicapSeries : t2HandicapSeries
 
               // Per-game totals vs opponent for cell-level win/loss colouring
               const myGameTotals  = idx === 0 ? t1GameTotals : t2GameTotals
@@ -463,32 +490,32 @@ function MatchupDetailModal({ matchupId, onClose, onSelectBowler }: MatchupDetai
                               <td className="col-game scores-unavailable-cell">—</td>
                               <td className="col-series scores-unavailable-cell">—</td></>
                           ) : (
-                            <><td className="col-game">+{team.handicapPerGame}</td>
-                              <td className="col-game">+{team.handicapPerGame}</td>
-                              <td className="col-game">+{team.handicapPerGame}</td>
-                              <td className="col-series">+{team.handicapSeries}</td></>
+                            <><td className="col-game">+{handicapGames[0]}</td>
+                              <td className="col-game">+{handicapGames[1]}</td>
+                              <td className="col-game">+{handicapGames[2]}</td>
+                              <td className="col-series">+{handicapSeries}</td></>
                           )}
                         </tr>
                         <tr className={`totals-row grand-total-row ${isWinner ? 'winner' : ''}`}>
                           <td className="col-name">Total</td>
                           <td className="col-avg"></td>
-                          <td className={`col-game ${gameClass(0)}`}>{scratchGame1 + team.handicapPerGame}</td>
-                          <td className={`col-game ${gameClass(1)}`}>{scratchGame2 + team.handicapPerGame}</td>
-                          <td className={`col-game ${gameClass(2)}`}>{scratchGame3 + team.handicapPerGame}</td>
+                          <td className={`col-game ${gameClass(0)}`}>{scratchGame1 + handicapGames[0]}</td>
+                          <td className={`col-game ${gameClass(1)}`}>{scratchGame2 + handicapGames[1]}</td>
+                          <td className={`col-game ${gameClass(2)}`}>{scratchGame3 + handicapGames[2]}</td>
                           <td className={`col-series ${seriesClass}`}>
                             {team.individualScoresUnavailable ? (
                               team.totalSeries
                             ) : (
                               <>
-                                <span title={`Scratch: ${scratchTotal} + HDCP: ${team.handicapSeries}`}>
+                                <span title={`Scratch: ${scratchTotal} + HDCP: ${handicapSeries}`}>
                                   {grandTotal}
                                 </span>
-                                {team.handicapSeries > 0 && (
+                                {handicapSeries > 0 && (
                                   <span
                                     className="score-hcp"
-                                    title={`Scratch: ${scratchTotal} + HDCP: ${team.handicapSeries}`}
+                                    title={`Scratch: ${scratchTotal} + HDCP: ${handicapSeries}`}
                                   >
-                                    (+{team.handicapSeries})
+                                    (+{handicapSeries})
                                   </span>
                                 )}
                               </>

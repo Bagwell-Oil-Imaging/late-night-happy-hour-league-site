@@ -164,6 +164,7 @@ function ScoresTable({ scores, bowler }: ScoresTableProps) {
             <th className="col-game">G2</th>
             <th className="col-game">G3</th>
             <th className="col-series">Series</th>
+            <th className="col-avg">Avg</th>
           </tr>
         </thead>
         <tbody>
@@ -212,6 +213,9 @@ function ScoresTable({ scores, bowler }: ScoresTableProps) {
                 </td>
                 <td className={`col-series ${isHighSeries ? 'high-series' : ''}`}>
                   {score.series === null ? '-' : score.series}
+                </td>
+                <td className="col-avg">
+                  {score.rollingAvg ?? '—'}
                 </td>
               </tr>
             )

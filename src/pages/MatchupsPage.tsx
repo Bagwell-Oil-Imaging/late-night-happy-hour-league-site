@@ -49,16 +49,13 @@ function calcPoints(myScore: number, oppScore: number): number {
  * @returns Object containing team1 and team2 point totals (sum is always 4)
  */
 function getMatchPoints(detail: MatchupDetail): { team1: number; team2: number } {
-  const t1hcp = detail.team1.handicapPerGame
-  const t2hcp = detail.team2.handicapPerGame
-
   // game1Total/game2Total/game3Total replace the old gameTotals.g1/g2/g3 fields
-  const t1g1 = detail.team1.game1Total + t1hcp
-  const t2g1 = detail.team2.game1Total + t2hcp
-  const t1g2 = detail.team1.game2Total + t1hcp
-  const t2g2 = detail.team2.game2Total + t2hcp
-  const t1g3 = detail.team1.game3Total + t1hcp
-  const t2g3 = detail.team2.game3Total + t2hcp
+  const t1g1 = detail.team1.game1Total + detail.team1.handicapGame1
+  const t2g1 = detail.team2.game1Total + detail.team2.handicapGame1
+  const t1g2 = detail.team1.game2Total + detail.team1.handicapGame2
+  const t2g2 = detail.team2.game2Total + detail.team2.handicapGame2
+  const t1g3 = detail.team1.game3Total + detail.team1.handicapGame3
+  const t2g3 = detail.team2.game3Total + detail.team2.handicapGame3
 
   const t1 =
     calcPoints(t1g1, t2g1) +

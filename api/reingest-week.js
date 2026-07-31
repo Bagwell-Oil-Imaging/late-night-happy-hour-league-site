@@ -6,10 +6,10 @@
  */
 
 import admin from 'firebase-admin';
+import { calculateGameHandicap } from '../src/utils/handicap.js';
 
 const LEAGUE_ID = '688118301406d3982ec379a1';
 const BASE_URL = 'https://www.leaguepals.com';
-const HDCP_PCT = 0.85;
 const BOWLERS_PER_TEAM = 4;
 
 function initFirebaseAdmin() {
@@ -186,11 +186,14 @@ function buildBowlerScores({ teamsById, weekNumByDate, laneLookup, leaguePublic,
         if (!week) continue;
 
         const laneInfo = laneLookup.get(scheduledDate)?.get(teamId) ?? laneLookup.get(dateKey)?.get(teamId);
-        const blinded = games.some(g => g === '-' || g === null);
-        const game1 = blinded ? null : (typeof games[0] === 'number' ? games[0] : null);
-        const game2 = blinded ? null : (typeof games[1] === 'number' ? games[1] : null);
-        const game3 = blinded ? null : (typeof games[2] === 'number' ? games[2] : null);
-        const series = blinded ? null : ([game1, game2, game3].filter(g => typeof g === 'number').reduce((a, b) => a + b, 0) || null);
+        const actualGames = games.slice(0, 3).filter(g => typeof g === 'number');
+        const blinded = actualGames.length === 0;
+        const game1 = typeof games[0] === 'number' ? games[0] : null;
+        const game2 = typeof games[1] === 'number' ? games[1] : null;
+        const game3 = typeof games[2] === 'number' ? games[2] : null;
+        const series = actualGames.length > 0
+          ? actualGames.reduce((sum, score) => sum + score, 0)
+          : null;
 
         docs.push({
           bowlerId: player._id ?? '',
@@ -214,6 +217,7 @@ function buildBowlerScores({ teamsById, weekNumByDate, laneLookup, leaguePublic,
           blinded,
           isSubstitute: false,
           substituteFor: null,
+          substituteAvg: null,
         });
       }
     }
@@ -311,6 +315,7 @@ function completeTeamWeeks(docs, teamRosterMap, enteringAvgMap, blindPenaltyPct,
         blinded: true,
         isSubstitute: false,
         substituteFor: null,
+        substituteAvg: null,
       });
     }
   }
@@ -328,9 +333,14 @@ function applyRollingAverages(docs, enteringAvgMap, blindPenaltyPct) {
     let pins = 0;
     let games = 0;
     for (const doc of bowlerDocs) {
+      // Average entering THIS week — pins/games accumulated through the prior
+      // week only. Used for the blind score and as this bowler's contribution
+      // to team average/handicap, so those don't drift as later weeks change
+      // the bowler's overall average.
+      const avgBeforeThisWeek = games > 0 ? Math.floor(pins / games) : (enteringAvgMap.get(doc.bowlerId) ?? 0);
+      doc.avgBeforeThisWeek = avgBeforeThisWeek;
       if (doc.blinded) {
-        const avg = games > 0 ? Math.floor(pins / games) : (enteringAvgMap.get(doc.bowlerId) ?? 0);
-        const blindScore = avg - Math.floor(avg * blindPenaltyPct);
+        const blindScore = avgBeforeThisWeek - Math.floor(avgBeforeThisWeek * blindPenaltyPct);
         doc.game1 = blindScore;
         doc.game2 = blindScore;
         doc.game3 = blindScore;
@@ -350,22 +360,36 @@ function teamSummary(teamId, teamName, lane, scores) {
   const game2Total = scores.reduce((sum, score) => sum + (score.game2 ?? 0), 0);
   const game3Total = scores.reduce((sum, score) => sum + (score.game3 ?? 0), 0);
   const scratchSeries = game1Total + game2Total + game3Total;
-  const teamAvg = scores.reduce((sum, score) => {
-    if (score.blinded) return sum + (score.rollingAvg ?? 0);
+  // Per-bowler average ENTERING this week (not this week's own performance,
+  // and not their current/live average) — same source MatchupDetailModal
+  // already reconstructs, so team average/handicap doesn't drift as later
+  // weeks change a bowler's overall average. Bowlers with no usable game data
+  // are excluded rather than counted as a 0 average, since a 0 would blow up
+  // the basisScore formula (value - 0).
+  const bowlerAverages = [];
+  for (const score of scores) {
+    if (score.blinded) {
+      bowlerAverages.push(score.avgBeforeThisWeek ?? 0);
+      continue;
+    }
     const games = [score.game1, score.game2, score.game3].filter(g => typeof g === 'number').length;
-    return games > 0 ? sum + Math.floor((score.series ?? 0) / games) : sum;
-  }, 0);
+    if (games > 0) bowlerAverages.push(score.avgBeforeThisWeek ?? 0);
+  }
+  const teamAvg = bowlerAverages.reduce((sum, avg) => sum + avg, 0);
 
   return {
     teamId,
     teamName,
     lane,
     teamAvg,
+    bowlerAverages,
     game1Total,
     game2Total,
     game3Total,
     scratchSeries,
-    handicapPerGame: 0,
+    handicapGame1: 0,
+    handicapGame2: 0,
+    handicapGame3: 0,
     handicapSeries: 0,
     totalSeries: scratchSeries,
     points: 0,
@@ -376,24 +400,40 @@ function gPoint(a, b) {
   return a > b ? 1 : a < b ? 0 : 0.5;
 }
 
-function applyHandicapAndPoints(team1, team2) {
-  const t1Hdcp = Math.max(0, Math.floor((team2.teamAvg - team1.teamAvg) * HDCP_PCT));
-  const t2Hdcp = Math.max(0, Math.floor((team1.teamAvg - team2.teamAvg) * HDCP_PCT));
-  team1.handicapPerGame = t1Hdcp;
-  team1.handicapSeries = t1Hdcp * 3;
+function applyHandicapAndPoints(team1, team2, handicapConfig) {
+  // Computed independently per game — today every active bowler plays all 3
+  // games (LeaguePals doesn't report partial-week substitutions), so the 3
+  // calls currently always agree, but this is structured to be correct once
+  // per-game roster differences exist.
+  const t1Hdcp = calculateGameHandicap(
+    { teamAvg: team1.teamAvg, opponentAvg: team2.teamAvg, bowlerAverages: team1.bowlerAverages }, handicapConfig,
+  );
+  const t2Hdcp = calculateGameHandicap(
+    { teamAvg: team2.teamAvg, opponentAvg: team1.teamAvg, bowlerAverages: team2.bowlerAverages }, handicapConfig,
+  );
+  team1.handicapGame1 = t1Hdcp;
+  team1.handicapGame2 = t1Hdcp;
+  team1.handicapGame3 = t1Hdcp;
+  team1.handicapSeries = team1.handicapGame1 + team1.handicapGame2 + team1.handicapGame3;
   team1.totalSeries = team1.scratchSeries + team1.handicapSeries;
-  team2.handicapPerGame = t2Hdcp;
-  team2.handicapSeries = t2Hdcp * 3;
+  team2.handicapGame1 = t2Hdcp;
+  team2.handicapGame2 = t2Hdcp;
+  team2.handicapGame3 = t2Hdcp;
+  team2.handicapSeries = team2.handicapGame1 + team2.handicapGame2 + team2.handicapGame3;
   team2.totalSeries = team2.scratchSeries + team2.handicapSeries;
   team1.points =
-    gPoint(team1.game1Total + t1Hdcp, team2.game1Total + t2Hdcp) +
-    gPoint(team1.game2Total + t1Hdcp, team2.game2Total + t2Hdcp) +
-    gPoint(team1.game3Total + t1Hdcp, team2.game3Total + t2Hdcp) +
+    gPoint(team1.game1Total + team1.handicapGame1, team2.game1Total + team2.handicapGame1) +
+    gPoint(team1.game2Total + team1.handicapGame2, team2.game2Total + team2.handicapGame2) +
+    gPoint(team1.game3Total + team1.handicapGame3, team2.game3Total + team2.handicapGame3) +
     gPoint(team1.totalSeries, team2.totalSeries);
   team2.points = 4 - team1.points;
+  // bowlerAverages was only needed to compute the handicap above — not part
+  // of the persisted TeamSummary schema.
+  delete team1.bowlerAverages;
+  delete team2.bowlerAverages;
 }
 
-function buildWeekPayload({ laneSchedule, standings, leaguePublic, teamsById, seasonYear, week }) {
+function buildWeekPayload({ laneSchedule, standings, leaguePublic, teamsById, seasonYear, week, handicapConfig }) {
   const weekMeta = getWeekMeta(laneSchedule, week);
   if (!weekMeta) throw new Error(`Week ${week} was not found in LeaguePals schedule.`);
 
@@ -435,7 +475,7 @@ function buildWeekPayload({ laneSchedule, standings, leaguePublic, teamsById, se
     const lanePair = (match.team1_lane ?? 0) % 2 === 1 ? match.team1_lane : match.team2_lane;
     const team1 = teamSummary(match.team1_id, teamNames.get(match.team1_id) ?? '', lanePair, team1Scores);
     const team2 = teamSummary(match.team2_id, teamNames.get(match.team2_id) ?? '', lanePair, team2Scores);
-    applyHandicapAndPoints(team1, team2);
+    applyHandicapAndPoints(team1, team2, handicapConfig);
 
     matchupDetails.push({
       leaguePalsMatchId: match._id ?? '',
@@ -603,11 +643,13 @@ export default async function handler(req, res) {
 
   try {
     const db = admin.firestore();
-    const [leagueData, overrideSummary] = await Promise.all([
+    const [leagueData, overrideSummary, leagueConfigSnap] = await Promise.all([
       fetchLeagueData(),
       collectOverrideSummary(db, seasonYear, week),
+      db.collection('leagueConfig').doc(seasonYear).get(),
     ]);
-    const payload = buildWeekPayload({ ...leagueData, seasonYear, week });
+    const handicapConfig = leagueConfigSnap.exists ? leagueConfigSnap.data() : {};
+    const payload = buildWeekPayload({ ...leagueData, seasonYear, week, handicapConfig });
 
     const generated = {
       matchups: payload.matchups.length,

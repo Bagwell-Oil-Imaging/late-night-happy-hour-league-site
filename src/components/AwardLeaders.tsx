@@ -149,12 +149,21 @@ function computeAwards(
       if (bestScratchGame > t.highGameScratch)      t.highGameScratch   = bestScratchGame
       if (team.scratchSeries > t.highSeriesScratch) t.highSeriesScratch = team.scratchSeries
 
-      // Handicap game = best scratch game + per-game handicap
-      const bestHdcpGame = bestScratchGame + team.handicapPerGame
+      // Handicap game = scratch + that game's own handicap, per game (handicap can
+      // differ by game), so the best handicap game isn't necessarily the same game
+      // as the best scratch game.
+      const hdcpGames = [
+        { scratch: team.game1Total, hdcp: team.handicapGame1 },
+        { scratch: team.game2Total, hdcp: team.handicapGame2 },
+        { scratch: team.game3Total, hdcp: team.handicapGame3 },
+      ]
+      const bestHdcpGameEntry = hdcpGames.reduce((best, g) =>
+        (g.scratch + g.hdcp) > (best.scratch + best.hdcp) ? g : best)
+      const bestHdcpGame = bestHdcpGameEntry.scratch + bestHdcpGameEntry.hdcp
       if (bestHdcpGame > t.highGameHdcp) {
         t.highGameHdcp    = bestHdcpGame
-        t.hdcpGameScratch = bestScratchGame
-        t.hdcpGameHdcp    = team.handicapPerGame
+        t.hdcpGameScratch = bestHdcpGameEntry.scratch
+        t.hdcpGameHdcp    = bestHdcpGameEntry.hdcp
       }
 
       // Handicap series = scratch series + full handicap series

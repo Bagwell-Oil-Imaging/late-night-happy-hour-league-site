@@ -15,7 +15,7 @@ Provides a directory of all bowlers and lets users view any bowler's game-by-gam
 - Browse all bowlers in a sidebar grouped by team, sorted alphabetically within each team
 - Click bowler to select them; selection is tracked in the `?id=` URL param
 - View aggregate stats (average, entering avg, high game, high series, games played) in the detail panel
-- View per-week game scores in a table inside the detail panel (not a modal)
+- View per-week game scores and the cumulative rolling average through each week in a table inside the detail panel (not a modal)
 
 ## Conditional Paths
 - If bowler has no scores for the selected season, panel shows "No scores recorded yet"
