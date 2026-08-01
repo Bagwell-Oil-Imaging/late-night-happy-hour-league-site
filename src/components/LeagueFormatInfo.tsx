@@ -45,7 +45,6 @@ function LeagueFormatInfo() {
         <h3 className="info-card-title">Dues &amp; Fees</h3>
         <ul className="info-list">
           <li><span className="info-bullet">▸</span> $25 per week, covering lineage and prize fund contribution</li>
-          <li><span className="info-bullet">▸</span> End-of-season banquet fee assessed separately</li>
           <li><span className="info-bullet">▸</span> Payouts awarded per point won, plus team and individual achievement awards</li>
         </ul>
         <p className="dues-disclaimer">
