@@ -53,7 +53,10 @@
       "Skill(pr:*)",
       "Bash(echo \"EXIT:$?\")",
       "Bash(node --check api/local-admin-write.js)",
-      "Bash(node --check scripts/transform-data.js)"
+      "Bash(node --check scripts/transform-data.js)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ],
     "deny": [],
     "ask": []
