@@ -38,6 +38,13 @@ function validSeasonYear(value) {
   return typeof value === 'string' && /^\d{4}-\d{4}$/.test(value);
 }
 
+/** Season years must be two consecutive calendar years, e.g. "2026-2027". */
+function validConsecutiveSeasonYear(value) {
+  if (!validSeasonYear(value)) return false;
+  const [start, end] = value.split('-').map(Number);
+  return end === start + 1;
+}
+
 function validDate(value) {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
@@ -66,6 +73,64 @@ export default async function localAdminWrite(req, res) {
     if (body.operation === 'set-active-season') {
       if (!validSeasonYear(body.seasonYear)) return res.status(400).json({ error: 'Invalid season year.' });
       await db.collection('settings').doc('global').set({ currentSeasonYear: body.seasonYear }, { merge: true });
+    } else if (body.operation === 'set-season-status') {
+      if (typeof body.seasonActive !== 'boolean') return res.status(400).json({ error: 'Invalid season status.' });
+      if (body.upcomingSeasonYear !== null && !validSeasonYear(body.upcomingSeasonYear)) {
+        return res.status(400).json({ error: 'Invalid upcoming season year.' });
+      }
+      await db.collection('settings').doc('global').set({
+        seasonActive: body.seasonActive,
+        upcomingSeasonYear: body.upcomingSeasonYear,
+      }, { merge: true });
+    } else if (body.operation === 'create-season') {
+      if (!validConsecutiveSeasonYear(body.seasonYear)) {
+        return res.status(400).json({ error: 'Season year must be two consecutive years, e.g. 2026-2027.' });
+      }
+      if (!Number.isInteger(body.totalWeeks) || body.totalWeeks < 1 || body.totalWeeks > 52) {
+        return res.status(400).json({ error: 'Total weeks must be an integer from 1 to 52.' });
+      }
+      const seasonRef = db.collection('seasons').doc(body.seasonYear);
+      const existing = await seasonRef.get();
+      if (existing.exists) {
+        return res.status(409).json({ error: `Season ${body.seasonYear} already exists.` });
+      }
+      const batch = db.batch();
+      batch.set(seasonRef, {
+        year: body.seasonYear,
+        startDate: '',
+        endDate: '',
+        championTeamId: null,
+        championTeamName: null,
+        teams: [],
+      });
+      // Mirrors the pipeline's own no-LeaguePals-data fallback defaults
+      // (scripts/transform-data.js populateLeagueConfig) so a staged season
+      // behaves identically to one the pipeline creates from scratch.
+      batch.set(db.collection('leagueConfig').doc(body.seasonYear), {
+        seasonYear: body.seasonYear,
+        leagueName: 'Late Night Happy Hour Bowling League',
+        leagueType: 'Mens',
+        weekday: 'Thursday',
+        startTime: '8:20 PM',
+        bowlingCenter: 'Unknown',
+        sanctionNumber: 0,
+        numTeams: 13,
+        bowlersPerTeam: 4,
+        gamesPerNight: 3,
+        totalWeeks: body.totalWeeks,
+        playoffTeamCount: 8,
+        numLanes: 26,
+        handicapProfile: { type: 'teamDifference', percentage: 0.85 },
+        blindScorePct: 0.9,
+        minGamesForAvg: 3,
+        prevSeasonMinGames: 21,
+        positionRoundSchedule: 'Every other night',
+        dues: 0,
+        lineage: 0,
+        entryFee: 0,
+        leaguePalsId: '',
+      });
+      await batch.commit();
     } else if (body.operation === 'set-week-visibility') {
       if (!Array.isArray(body.updates) || body.updates.length < 1 || body.updates.length > 100) {
         return res.status(400).json({ error: 'Provide 1 to 100 visibility updates.' });

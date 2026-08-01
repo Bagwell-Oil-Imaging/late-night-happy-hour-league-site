@@ -30,7 +30,20 @@ Imports the week's bowling results from the LeaguePals API into 11 of the 12 Fir
 - Local leaguepals-data/ directory for intermediate JSON
 
 ## Known Issues
-None
+
+**Status:** Known, not urgent
+**Affected:** `scripts/fetch-league-data.js`, `scripts/transform-data.js`
+
+The pipeline is hardcoded to a single season, not driven by Firestore config:
+- `fetch-league-data.js:23` — `LEAGUE_ID` is a literal constant; it does not read `leagueConfig.leaguePalsId` even though that field exists on the type.
+- `transform-data.js`'s `buildSeasons()` hardcodes `year: '2025-2026'`, `startDate`, and `endDate` as literals.
+- `main()`'s `SEASON` constant (line ~2610) drives every `populate*` call; there is no way to target a different season without editing the script.
+
+Practical effect: the pipeline can only ever import data for one hardcoded season at a time. Switching to a new season's LeaguePals league still requires editing `LEAGUE_ID` and `SEASON` in these scripts by hand — there is no admin-panel or config-driven way to do it.
+
+**Previously also destructive, now fixed:** `populateSeasons()` used to run `clearCollection('seasons')` before writing, deleting the *entire* `seasons` collection on every `npm run update-data` run and replacing it with just the one hardcoded season — which would have silently wiped a season staged in advance via the admin Create Season control (see [League Settings](league-settings.md)). The `clearCollection('seasons')` call was removed; `populateSeasons()` now only ever upserts the current `SEASON`'s own document, leaving other seasons' `seasons` docs (historical or staged-ahead) untouched.
+
+**Fix would require (for full multi-season pipeline support):** parameterizing `SEASON`/`LEAGUE_ID`/season dates via env var or CLI arg in both scripts.
 
 ## Notes
 Pipeline is NOT transactional across collections — a failed write mid-run leaves data partially updated. Safe to re-run since each run clears and rewrites all 11 collections. Takes ~30-60 seconds for a full season. Service account JSON is gitignored.

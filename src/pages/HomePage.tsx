@@ -29,8 +29,9 @@ import MatchupDetailModal from '../components/MatchupDetailModal'
 import BowlerProfileModal from '../components/BowlerProfileModal'
 import StandingsPdfModal from '../components/StandingsPdfModal'
 import PlayoffBracket from '../components/PlayoffBracket'
+import OffSeasonLanding from '../components/OffSeasonLanding'
 import { useMatchupDetails, useMatchups, useTeams, useBowlers, useBowlerScoresByWeek, useSeasons, useScheduleWeeks, useLeagueConfig } from '../hooks'
-import { useSeasonYear } from '../context/SeasonContext'
+import { useSeasonYear, useSeasonStatus } from '../context/SeasonContext'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import { isScheduleWeekVisible, visibleWeekNumbers } from '../utils/weekVisibility'
 import type { MatchupDetail } from '../types'
@@ -104,6 +105,9 @@ function formatDate(dateString: string): string {
 function HomePage() {
   const navigate = useNavigate()
   const SEASON_YEAR = useSeasonYear()
+  const { seasonActive, upcomingSeasonYear, loading: seasonStatusLoading } = useSeasonStatus()
+  const { data: upcomingScheduleWeeks } = useScheduleWeeks(upcomingSeasonYear || '')
+  const upcomingWeek1Date = upcomingScheduleWeeks.find((w) => w.week === 1)?.date ?? null
 
   // Modal state — null means no modal is open
   const [selectedMatchupId, setSelectedMatchupId] = useState<string | null>(null)
@@ -260,6 +264,15 @@ function HomePage() {
   }
 
   const isLoading = detailsLoading || teamsLoading || matchupsLoading || scheduleLoading || scoresLoading || configLoading
+
+  // Between seasons: swap the whole dashboard for the interest-form / history / countdown landing view.
+  if (!seasonStatusLoading && !seasonActive) {
+    return (
+      <div className="home-page">
+        <OffSeasonLanding upcomingSeasonYear={upcomingSeasonYear} week1Date={upcomingWeek1Date} />
+      </div>
+    )
+  }
 
   return (
     <div className="home-page">

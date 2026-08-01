@@ -50,7 +50,10 @@
       "Bash(disown)",
       "Read(//tmp/**)",
       "Skill(pr)",
-      "Skill(pr:*)"
+      "Skill(pr:*)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(node --check api/local-admin-write.js)",
+      "Bash(node --check scripts/transform-data.js)"
     ],
     "deny": [],
     "ask": []

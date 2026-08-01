@@ -1,0 +1,49 @@
+.season-countdown {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: center;
+}
+
+.countdown-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 64px;
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-2);
+}
+
+.countdown-value {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 400;
+  color: var(--accent);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown-label {
+  font-family: var(--font-heading);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.countdown-arrived {
+  font-family: var(--font-heading);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  .season-countdown { gap: var(--space-2); }
+  .countdown-unit { min-width: 52px; padding: var(--space-2) var(--space-1); }
+  .countdown-value { font-size: var(--text-2xl); }
+}

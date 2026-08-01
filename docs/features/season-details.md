@@ -40,6 +40,7 @@ Lets admins define and maintain the season schedule (start date, total bowling w
 - On season switch (dropdown): builder collapses automatically, form state resets
 
 ## Conditional Paths
+- The season dropdown (`selected`) is populated from the `seasons` collection, so a season must exist there before it can be selected — either from a prior LeaguePals import, or staged in advance via the Create Season control (see `league-settings.md`)
 - While `useScheduleWeeks` or `useLeagueConfig` are loading, shows "Loading schedule…"
 - Section hidden entirely when `selected` is empty (briefly on initial page load)
 - When `leagueConfig.totalWeeks` is absent, the "of M configured" portion is omitted from the summary
