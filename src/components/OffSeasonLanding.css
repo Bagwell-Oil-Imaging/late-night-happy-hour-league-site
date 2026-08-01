@@ -56,11 +56,11 @@
 
 .off-season-countdown-title {
   font-family: var(--font-heading);
-  font-size: var(--text-sm);
+  font-size: var(--text-xl);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .off-season-countdown-pending {

@@ -40,7 +40,8 @@ function OffSeasonLanding({ upcomingSeasonYear, week1Date }: OffSeasonLandingPro
           {upcomingSeasonYear
             ? `We're gearing up for the ${upcomingSeasonYear} season.`
             : "We're gearing up for the next season."}
-          {' '}Interested in bowling with us? Let us know below.
+          <br />
+          Interested in bowling with us? Let us know below.
         </p>
       </div>
 
