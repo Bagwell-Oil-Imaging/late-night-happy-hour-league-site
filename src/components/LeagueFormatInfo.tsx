@@ -47,6 +47,9 @@ function LeagueFormatInfo() {
         <ul className="info-list">
           <li><span className="info-bullet">▸</span> $25 per week, covering lineage and prize fund contribution</li>
           <li><span className="info-bullet">▸</span> Payouts awarded per point won, plus team and individual achievement awards</li>
+          <li><span className="info-bullet">▸</span> Bowlers receive 2 free practice games per week</li>
+          <li><span className="info-bullet">▸</span> League rates on open bowling</li>
+          <li><span className="info-bullet">▸</span> League rates and deals on food and drink</li>
         </ul>
         <p className="dues-disclaimer">
           ⚠ League dues, lineage, and all associated fees are subject to change
