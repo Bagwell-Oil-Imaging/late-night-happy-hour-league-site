@@ -2,7 +2,8 @@
  * @file SeasonContext.tsx
  * @module context/SeasonContext
  *
- * Provides the active season year to the entire component tree via React Context.
+ * Provides the active season year — and whether the league is currently
+ * in-season — to the entire component tree via React Context.
  *
  * The value is sourced from the `settings/global` Firestore document, which the
  * admin panel can update at any time. All components that previously defined a
@@ -26,11 +27,19 @@ import { useDocument } from '../hooks/useFirestore'
 export interface AppSettings {
   /** The currently active season year string, e.g. `'2025-2026'`. */
   currentSeasonYear: string
+  /** False when the league is between seasons; missing/true means in-season. */
+  seasonActive?: boolean
+  /** Season year the site is counting down to while `seasonActive` is false. */
+  upcomingSeasonYear?: string | null
 }
 
 interface SeasonContextValue {
   /** The active season year read from Firestore settings, or the fallback. */
   currentSeasonYear: string
+  /** False when the league is between seasons; missing/undefined defaults to true. */
+  seasonActive: boolean
+  /** Season year to count down to while inactive, or null if not set. */
+  upcomingSeasonYear: string | null
   /** True while the Firestore document is being fetched on initial load. */
   loading: boolean
 }
@@ -43,6 +52,8 @@ const FALLBACK_SEASON = '2025-2026'
 
 const SeasonContext = createContext<SeasonContextValue>({
   currentSeasonYear: FALLBACK_SEASON,
+  seasonActive: true,
+  upcomingSeasonYear: null,
   loading: false,
 })
 
@@ -65,6 +76,8 @@ export function SeasonProvider({ children }: { children: ReactNode }) {
     <SeasonContext.Provider
       value={{
         currentSeasonYear: data?.currentSeasonYear ?? FALLBACK_SEASON,
+        seasonActive: data?.seasonActive ?? true,
+        upcomingSeasonYear: data?.upcomingSeasonYear ?? null,
         loading,
       }}
     >
@@ -87,4 +100,18 @@ export function SeasonProvider({ children }: { children: ReactNode }) {
  */
 export function useSeasonYear(): string {
   return useContext(SeasonContext).currentSeasonYear
+}
+
+/**
+ * Returns whether the league is currently in-season, plus the season year
+ * being counted down to when it isn't.
+ *
+ * Used by HomePage to decide whether to render the normal dashboard or the
+ * off-season landing view (interest form + history link + countdown).
+ *
+ * @returns `{ seasonActive, upcomingSeasonYear, loading }`
+ */
+export function useSeasonStatus(): { seasonActive: boolean; upcomingSeasonYear: string | null; loading: boolean } {
+  const { seasonActive, upcomingSeasonYear, loading } = useContext(SeasonContext)
+  return { seasonActive, upcomingSeasonYear, loading }
 }

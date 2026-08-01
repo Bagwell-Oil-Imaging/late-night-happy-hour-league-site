@@ -3,13 +3,14 @@ feature: Contact
 number: 11
 source-paths:
   - src/pages/ContactPage.tsx
+  - src/components/LeagueFormatInfo.tsx
 ---
 
 ## Intent
 Provides league contact information and lets prospective members express interest in joining via an embedded Google Form.
 
 ## Key Behaviors
-- View league info (team format, obligations, dues summary) in a sidebar
+- View league info (team format, obligations, dues summary) in a sidebar, rendered by the shared `LeagueFormatInfo` component
 - Submit an interest form via an embedded Google Forms iframe
 - Form submissions are delivered to the league Gmail account via Google's email notifications
 - Mailto link displayed in the sidebar as a direct contact fallback
@@ -29,3 +30,5 @@ The Google Form embed URL is hardcoded as the `GOOGLE_FORM_URL` constant in Cont
 Form fields and notifications are managed in the Google Forms UI, not in code.
 The iframe height is fixed at 1357px (matching the height Google provided in the embed code).
 See ADR-007 for the decision record on why Formspree was replaced.
+
+The Team Format / League Obligations / Dues & Fees cards were extracted into `src/components/LeagueFormatInfo.tsx` (+ `LeagueFormatInfo.css`, moved out of `ContactPage.css`) so the same content can also render on the [Home Dashboard](home-dashboard.md)'s off-season landing view without duplicating it. ContactPage still owns the "Get in Touch" and bylaws-link cards directly, which were not extracted.

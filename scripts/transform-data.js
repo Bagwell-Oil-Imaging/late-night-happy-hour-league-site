@@ -1803,8 +1803,10 @@ async function populateScheduleWeeks(seasonYear) {
 // ─── Firestore: seasons Collection ───────────────────────────────────────────
 
 /**
- * Populates the `seasons` Firestore collection with one document for the current
- * season, derived from `src/data/seasons.json` (built by `buildSeasons()`).
+ * Upserts the current season's document in the `seasons` Firestore collection,
+ * derived from `src/data/seasons.json` (built by `buildSeasons()`). Only the
+ * doc for `seasonYear` is written — other seasons' docs (historical, or a
+ * future season staged via the admin panel) are left untouched.
  *
  * Document ID: the season year string (e.g., "2025-2026").
  *
@@ -2684,9 +2686,12 @@ async function main() {
   // Preserve admin-managed configuration such as the playoff field across imports.
   await populateLeagueConfig(SEASON, handicapConfig)
 
-  // 2. Seasons — derived from standings; no FK dependencies
+  // 2. Seasons — derived from standings; no FK dependencies.
+  // Deliberately NOT cleared first: populateSeasons only ever writes the
+  // current SEASON's own doc (by ID), so clearing the whole collection here
+  // would delete every other season's record on each run — including a
+  // future season staged in advance via the admin "Create Season" control.
   console.log('\n[2/11] seasons...')
-  await clearCollection('seasons')
   await populateSeasons(SEASON)
 
   // 3. Schedule weeks — must come before matchups so the UI has week context

@@ -23,8 +23,11 @@ import './HistoryPage.css'
  * latest season.
  */
 function HistoryPage() {
-  // Firestore subscription — seasons sorted year desc
-  const { data: seasons, loading } = useSeasons()
+  // Firestore subscription — seasons sorted year desc.
+  // A season staged in advance via the admin "Create Season" control has no
+  // teams/standings yet — exclude it so "history" never shows an unplayed season.
+  const { data: allSeasons, loading } = useSeasons()
+  const seasons = allSeasons.filter((season) => season.teams.length > 0)
 
   // Track which season card is expanded; null = all collapsed
   const [expandedSeason, setExpandedSeason] = useState<string | null>(null)

@@ -16,7 +16,7 @@
  * so the dropdown stays in sync with whatever seasons have been seeded/imported.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { doc, setDoc, writeBatch } from 'firebase/firestore'
 import { auth, db } from '../../firebase'
 import { useDocument } from '../../hooks/useFirestore'
@@ -98,6 +98,28 @@ function buildWeekNotes(week: ScheduleWeek): string {
   return parts.join(' · ')
 }
 
+/**
+ * Total-weeks options offered when staging a new season. Matches
+ * SeasonScheduleBuilder's own default (32) plus a realistic surrounding range.
+ */
+const NEW_SEASON_TOTAL_WEEKS_OPTIONS = Array.from({ length: 21 }, (_, i) => 20 + i)
+const NEW_SEASON_DEFAULT_TOTAL_WEEKS = 32
+
+/**
+ * Generates the next `count` valid, non-overlapping season-year strings that
+ * follow on from the most recent existing season (each season's end year is
+ * the next season's start year — no gaps, no overlaps). Falls back to the
+ * current calendar year when no seasons exist yet.
+ *
+ * @param seasons - Season list from useSeasons(), sorted year desc
+ * @param count    - Number of sequential candidates to generate
+ */
+function getNextSeasonCandidates(seasons: { year: string }[], count = 3): string[] {
+  const latestStartYear = seasons[0]?.year ? parseInt(seasons[0].year.split('-')[0], 10) : null
+  const baseStartYear = latestStartYear != null ? latestStartYear + 1 : new Date().getFullYear()
+  return Array.from({ length: count }, (_, i) => `${baseStartYear + i}-${baseStartYear + i + 1}`)
+}
+
 // ---------------------------------------------------------------------------
 // SettingsAdmin
 // ---------------------------------------------------------------------------
@@ -117,15 +139,30 @@ function SettingsAdmin() {
   const [saving, setSaving] = useState(false)
   const [savedMsg, setSavedMsg] = useState('')
   const [error, setError] = useState('')
+  const [seasonActive, setSeasonActive] = useState(true)
+  const [upcomingSeasonYear, setUpcomingSeasonYear] = useState('')
+  const [statusSaving, setStatusSaving] = useState(false)
+  const [statusMsg, setStatusMsg] = useState('')
+  const [statusError, setStatusError] = useState('')
   const [showBuilder, setShowBuilder] = useState(false)
   const [scheduleMsg, setScheduleMsg] = useState('')
   const [visibilitySaving, setVisibilitySaving] = useState(false)
   const [visibilityMsg, setVisibilityMsg] = useState('')
+  const [showCreateSeason, setShowCreateSeason] = useState(false)
+  const [newSeasonYear, setNewSeasonYear] = useState('')
+  const [newSeasonTotalWeeks, setNewSeasonTotalWeeks] = useState(String(NEW_SEASON_DEFAULT_TOTAL_WEEKS))
+  const [creatingSeason, setCreatingSeason] = useState(false)
+  const [createSeasonMsg, setCreateSeasonMsg] = useState('')
+  const [createSeasonError, setCreateSeasonError] = useState('')
 
   // Load schedule weeks and league config for the currently *selected* season so the
   // admin can preview any season's details before saving the active-season change.
   const { data: scheduleWeeks, loading: weeksLoading } = useScheduleWeeks(selected)
   const { data: leagueConfig, loading: configLoading } = useLeagueConfig(selected || null)
+
+  // Sequential, non-overlapping season-year options for the Create Season selector —
+  // recomputed whenever the seasons list changes so it always follows the latest one.
+  const newSeasonCandidates = useMemo(() => getNextSeasonCandidates(seasons), [seasons])
 
   // Sync local state once Firestore settings load
   useEffect(() => {
@@ -134,9 +171,104 @@ function SettingsAdmin() {
     }
   }, [settings])
 
+  // Sync season-status local state once Firestore settings load
+  useEffect(() => {
+    if (settings) {
+      setSeasonActive(settings.seasonActive ?? true)
+      setUpcomingSeasonYear(settings.upcomingSeasonYear ?? '')
+    }
+  }, [settings])
+
   const isLoading = settingsLoading || seasonsLoading
   const isDirty = selected !== (settings?.currentSeasonYear ?? '')
   const authRequiredMessage = 'Failed to update week visibility: Firebase admin sign-in is required.'
+  const isSeasonYearFormat = (value: string) => /^\d{4}-\d{4}$/.test(value)
+  const isStatusDirty =
+    seasonActive !== (settings?.seasonActive ?? true)
+    || upcomingSeasonYear !== (settings?.upcomingSeasonYear ?? '')
+
+  /**
+   * Creates `seasons/{year}` and `leagueConfig/{year}` documents for a brand-new
+   * season so it can be staged (scheduled, previewed) before the LeaguePals
+   * import pipeline ever targets it. LeagueConfig fields mirror the pipeline's
+   * own no-API-data fallback defaults (scripts/transform-data.js
+   * populateLeagueConfig) so a staged season behaves identically to one the
+   * pipeline creates from scratch once it eventually runs for this year.
+   */
+  async function handleCreateSeason() {
+    setCreateSeasonError('')
+    setCreateSeasonMsg('')
+
+    const year = newSeasonYear
+    if (!year) {
+      setCreateSeasonError('Select a season year.')
+      return
+    }
+    // Defensive only — the selector only ever offers sequential, non-overlapping
+    // years, so this should not be reachable in normal use.
+    if (seasons.some((s) => s.year === year)) {
+      setCreateSeasonError(`Season ${year} already exists.`)
+      return
+    }
+    const totalWeeks = parseInt(newSeasonTotalWeeks, 10)
+    if (!Number.isInteger(totalWeeks) || totalWeeks < 1 || totalWeeks > 52) {
+      setCreateSeasonError('Total weeks must be a number from 1 to 52.')
+      return
+    }
+
+    setCreatingSeason(true)
+    try {
+      if (isLocalAdminBypass()) {
+        await localAdminWrite({ operation: 'create-season', seasonYear: year, totalWeeks })
+      } else {
+        if (!auth.currentUser) throw new Error('Firebase admin sign-in is required.')
+        const batch = writeBatch(db)
+        batch.set(doc(db, 'seasons', year), {
+          year,
+          startDate: '',
+          endDate: '',
+          championTeamId: null,
+          championTeamName: null,
+          teams: [],
+        })
+        batch.set(doc(db, 'leagueConfig', year), {
+          seasonYear: year,
+          leagueName: 'Late Night Happy Hour Bowling League',
+          leagueType: 'Mens',
+          weekday: 'Thursday',
+          startTime: '8:20 PM',
+          bowlingCenter: 'Unknown',
+          sanctionNumber: 0,
+          numTeams: 13,
+          bowlersPerTeam: 4,
+          gamesPerNight: 3,
+          totalWeeks,
+          playoffTeamCount: 8,
+          numLanes: 26,
+          handicapProfile: { type: 'teamDifference', percentage: 0.85 },
+          blindScorePct: 0.9,
+          minGamesForAvg: 3,
+          prevSeasonMinGames: 21,
+          positionRoundSchedule: 'Every other night',
+          dues: 0,
+          lineage: 0,
+          entryFee: 0,
+          leaguePalsId: '',
+        })
+        await batch.commit()
+      }
+      setCreateSeasonMsg(`Season ${year} created — select it below to build its schedule.`)
+      setSelected(year)
+      setNewSeasonYear('')
+      setNewSeasonTotalWeeks(String(NEW_SEASON_DEFAULT_TOTAL_WEEKS))
+      setShowCreateSeason(false)
+    } catch (err) {
+      setCreateSeasonError(err instanceof Error ? err.message : 'Failed to create season. Please try again.')
+      console.error('[SettingsAdmin] create-season error:', err)
+    } finally {
+      setCreatingSeason(false)
+    }
+  }
 
   /**
    * Writes the selected season year to `settings/global`.
@@ -159,6 +291,39 @@ function SettingsAdmin() {
       console.error('[SettingsAdmin] setDoc error:', err)
     } finally {
       setSaving(false)
+    }
+  }
+
+  /**
+   * Writes the between-seasons status to `settings/global`: whether the
+   * league is currently active, and which season year the public landing
+   * page should count down to when it isn't.
+   */
+  async function handleSaveStatus() {
+    setStatusError('')
+    setStatusMsg('')
+    const trimmedUpcoming = upcomingSeasonYear.trim()
+    if (!seasonActive && trimmedUpcoming && !isSeasonYearFormat(trimmedUpcoming)) {
+      setStatusError('Upcoming season must be in YYYY-YYYY format, e.g. 2026-2027.')
+      return
+    }
+    setStatusSaving(true)
+    try {
+      const payload = {
+        seasonActive,
+        upcomingSeasonYear: seasonActive ? null : (trimmedUpcoming || null),
+      }
+      if (isLocalAdminBypass()) {
+        await localAdminWrite({ operation: 'set-season-status', ...payload })
+      } else {
+        await setDoc(doc(db, 'settings', 'global'), payload, { merge: true })
+      }
+      setStatusMsg(seasonActive ? 'League marked as in-season.' : 'League marked as between seasons.')
+    } catch (err) {
+      setStatusError('Failed to save season status. Please try again.')
+      console.error('[SettingsAdmin] season status setDoc error:', err)
+    } finally {
+      setStatusSaving(false)
     }
   }
 
@@ -217,6 +382,138 @@ function SettingsAdmin() {
     <div className="admin-panel">
       <div className="admin-panel-header">
         <h1 className="admin-panel-title">Site Settings</h1>
+      </div>
+
+      {/* ── Create Season: stages a brand-new season's Firestore records ──── */}
+      <div className="admin-form-card" style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: showCreateSeason ? '1rem' : 0 }}>
+          <div>
+            <h2 className="admin-form-section-title" style={{ margin: 0 }}>Create Season</h2>
+            {!showCreateSeason && (
+              <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: 'rgba(255,255,255,0.38)' }}>
+                Stage a new season's records so you can build its schedule ahead of time.
+              </p>
+            )}
+          </div>
+          {!showCreateSeason && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowCreateSeason(true)
+                setCreateSeasonMsg('')
+                setCreateSeasonError('')
+                setNewSeasonYear(newSeasonCandidates[0] ?? '')
+              }}
+              style={{
+                flexShrink: 0,
+                background: 'linear-gradient(135deg, #c9a84c 0%, #e8c96a 100%)',
+                border: 'none',
+                borderRadius: '6px',
+                color: '#0f0f1a',
+                padding: '0.5rem 1rem',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+              }}
+            >
+              + New Season
+            </button>
+          )}
+        </div>
+
+        {showCreateSeason && (
+          <>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.38)', lineHeight: 1.5 }}>
+              Creates <code>seasons</code> and <code>leagueConfig</code> documents with sensible
+              defaults (matching what the LeaguePals import pipeline would use on its own first
+              run). Build the week-by-week schedule for it under Season Details below once created.
+            </p>
+            <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 160px' }}>
+                <label htmlFor="new-season-year" style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem' }}>
+                  Season Year
+                </label>
+                <select
+                  id="new-season-year"
+                  className="admin-input"
+                  style={{ width: '100%' }}
+                  value={newSeasonYear}
+                  onChange={(e) => setNewSeasonYear(e.target.value)}
+                >
+                  {newSeasonCandidates.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: '0 1 120px' }}>
+                <label htmlFor="new-season-weeks" style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem' }}>
+                  Total Weeks
+                </label>
+                <select
+                  id="new-season-weeks"
+                  className="admin-input"
+                  style={{ width: '100%' }}
+                  value={newSeasonTotalWeeks}
+                  onChange={(e) => setNewSeasonTotalWeeks(e.target.value)}
+                >
+                  {NEW_SEASON_TOTAL_WEEKS_OPTIONS.map((weeks) => (
+                    <option key={weeks} value={weeks}>{weeks}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '0.625rem', marginTop: '1rem' }}>
+              <button
+                type="button"
+                onClick={handleCreateSeason}
+                disabled={creatingSeason || !newSeasonYear.trim()}
+                style={{
+                  background: !creatingSeason && newSeasonYear.trim()
+                    ? 'linear-gradient(135deg, #c9a84c 0%, #e8c96a 100%)'
+                    : 'rgba(201,168,76,0.12)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: !creatingSeason && newSeasonYear.trim() ? '#0f0f1a' : 'rgba(201,168,76,0.35)',
+                  padding: '0.55rem 1.25rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  cursor: !creatingSeason && newSeasonYear.trim() ? 'pointer' : 'default',
+                }}
+              >
+                {creatingSeason ? 'Creating…' : 'Create'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowCreateSeason(false); setNewSeasonYear(''); setCreateSeasonError('') }}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: '6px',
+                  color: 'rgba(255,255,255,0.55)',
+                  padding: '0.55rem 1.25rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+
+        {createSeasonMsg && (
+          <p className="admin-success-msg" style={{ marginTop: '0.625rem', marginBottom: 0 }}>{createSeasonMsg}</p>
+        )}
+        {createSeasonError && (
+          <p className="admin-error-msg" style={{ marginTop: '0.625rem', marginBottom: 0 }}>{createSeasonError}</p>
+        )}
       </div>
 
       <div className="admin-form-card">
@@ -323,6 +620,115 @@ function SettingsAdmin() {
         )}
         {error && (
           <p className="admin-error-msg" style={{ marginTop: '0.625rem', marginBottom: 0 }}>{error}</p>
+        )}
+      </div>
+
+      {/* ── Season Status: toggles the public between-seasons landing page ── */}
+      <div className="admin-form-card" style={{ marginTop: '1.5rem' }}>
+        <h2 className="admin-form-section-title" style={{ margin: '0 0 0.4rem' }}>Season Status</h2>
+        <p style={{ margin: '0 0 1.1rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.38)', lineHeight: 1.5 }}>
+          When marked "Between Seasons," the homepage swaps its dashboard for a landing view
+          promoting the league interest form and a link to season history, with a countdown to
+          Week 1 of the upcoming season (pulled from that season's schedule).
+        </p>
+
+        {isLoading ? (
+          <p className="admin-loading">Loading settings…</p>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: upcomingSeasonYear || !seasonActive ? '1rem' : 0 }}>
+              <button
+                type="button"
+                onClick={() => setSeasonActive(true)}
+                style={{
+                  flex: 1,
+                  background: seasonActive ? 'linear-gradient(135deg, #c9a84c 0%, #e8c96a 100%)' : 'transparent',
+                  border: seasonActive ? 'none' : '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: '6px',
+                  color: seasonActive ? '#0f0f1a' : 'rgba(255,255,255,0.55)',
+                  padding: '0.55rem 1rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+              >
+                In Season
+              </button>
+              <button
+                type="button"
+                onClick={() => setSeasonActive(false)}
+                style={{
+                  flex: 1,
+                  background: !seasonActive ? 'linear-gradient(135deg, #c9a84c 0%, #e8c96a 100%)' : 'transparent',
+                  border: !seasonActive ? 'none' : '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: '6px',
+                  color: !seasonActive ? '#0f0f1a' : 'rgba(255,255,255,0.55)',
+                  padding: '0.55rem 1rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                }}
+              >
+                Between Seasons
+              </button>
+            </div>
+
+            {!seasonActive && (
+              <div>
+                <label htmlFor="upcoming-season" style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: '0.4rem' }}>
+                  Upcoming Season (for countdown)
+                </label>
+                <input
+                  id="upcoming-season"
+                  className="admin-input"
+                  style={{ width: '100%' }}
+                  placeholder="e.g. 2026-2027"
+                  value={upcomingSeasonYear}
+                  onChange={(e) => setUpcomingSeasonYear(e.target.value)}
+                />
+                <p className="admin-form-hint" style={{ marginTop: '0.4rem' }}>
+                  Countdown reads Week 1's date from that season's schedule. There is currently
+                  no admin path to create a brand-new season's Firestore records (the LeaguePals
+                  import pipeline is hardcoded to one season — see known issues), so this only
+                  works today for a season year that already exists.
+                </p>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSaveStatus}
+              disabled={statusSaving || !isStatusDirty}
+              style={{
+                marginTop: '1rem',
+                background: isStatusDirty && !statusSaving
+                  ? 'linear-gradient(135deg, #c9a84c 0%, #e8c96a 100%)'
+                  : 'rgba(201,168,76,0.12)',
+                border: 'none',
+                borderRadius: '6px',
+                color: isStatusDirty && !statusSaving ? '#0f0f1a' : 'rgba(201,168,76,0.35)',
+                padding: '0.55rem 1.25rem',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                cursor: isStatusDirty && !statusSaving ? 'pointer' : 'default',
+              }}
+            >
+              {statusSaving ? 'Saving…' : 'Save'}
+            </button>
+          </>
+        )}
+
+        {statusMsg && (
+          <p className="admin-success-msg" style={{ marginTop: '0.625rem', marginBottom: 0 }}>{statusMsg}</p>
+        )}
+        {statusError && (
+          <p className="admin-error-msg" style={{ marginTop: '0.625rem', marginBottom: 0 }}>{statusError}</p>
         )}
       </div>
 

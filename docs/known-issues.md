@@ -30,3 +30,10 @@ The script cannot currently determine the correct snapshot ID for each week. The
 **Workaround:** Weekly standings PDFs are not currently auto-uploaded. The feature is wired into the front-end (`StandingsPdfModal`) but the Drive folder contains no valid PDFs.
 
 See [Standings PDF Download](features/standings-pdf-download.md) for full detail.
+
+## Data Pipeline Is Hardcoded to One Season
+
+**Status:** Known, not urgent
+**Affected:** `scripts/fetch-league-data.js`, `scripts/transform-data.js`
+
+`LEAGUE_ID` and the season year/dates are literal constants, not read from Firestore or any config — switching the pipeline to a new season's LeaguePals league still requires editing these scripts by hand. (The previously destructive part — `npm run update-data` wiping the entire `seasons` collection every run — has been fixed; a season staged in advance via the admin Create Season control now survives pipeline runs for the current season.) See [Weekly Data Sync](features/weekly-data-sync.md) for full detail.

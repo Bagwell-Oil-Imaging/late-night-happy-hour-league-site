@@ -17,7 +17,7 @@ Lets users browse final standings and results from all recorded seasons via an a
 - View final standings table (rank, team, W/L, points) and champion team name inside expanded card
 
 ## Conditional Paths
-- If a season has no teams embedded in its document, standings table renders no rows
+- Seasons with an empty `teams` array are excluded from the list entirely (not just empty standings) — this hides a season staged in advance via the admin Create Season control before it has been played
 - If loading, page shows "Loading history…" placeholder
 
 ## External Dependencies
@@ -29,3 +29,5 @@ None
 
 ## Notes
 HistoryPage reads only the `seasons` collection — historical team data is embedded in each Season document as `season.teams[]`, not queried from the `teams` collection. HistoryPage manages its own local season selection state independent of SeasonContext.
+
+The `teams.length > 0` filter exists specifically because a season can now exist in Firestore before it has been played (see [League Settings](league-settings.md) — Create Season). Without it, a freshly staged season with blank `startDate`/`endDate` would render as an "Invalid Date – Invalid Date" card with an empty standings table.
