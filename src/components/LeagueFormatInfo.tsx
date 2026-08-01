@@ -24,6 +24,7 @@ function LeagueFormatInfo() {
           <li><span className="info-bullet">▸</span> Individual handicap scoring is based on each bowler's current weekly rolling average</li>
           <li><span className="info-bullet">▸</span> Up to 4 points per match (1 per game + series)</li>
           <li><span className="info-bullet">▸</span> Substitute bowlers allowed with advance notice</li>
+          <li><span className="info-bullet">▸</span> Pre-bowling is allowed, but must be scheduled with the house ahead of time</li>
         </ul>
       </div>
 
