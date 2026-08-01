@@ -137,8 +137,13 @@
 .off-season-format .league-format-info {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
   gap: var(--space-4);
   width: 100%;
+}
+
+.off-season-format .info-card {
+  height: 100%;
 }
 
 @media (max-width: 860px) {
