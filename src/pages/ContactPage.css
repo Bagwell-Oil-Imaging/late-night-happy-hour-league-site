@@ -152,20 +152,30 @@
   .contact-info { order: 2; }
   .contact-form-panel { order: 1; }
   /*
+   * Google Forms doesn't cooperate with iframe-resizer / postMessage, so a
+   * cross-origin iframe can't truly auto-size to its content — the height
+   * below is always a value we choose, not something the browser derives.
    * The embedded form reflows taller as its own width narrows (question
-   * labels/help text wrap to more lines), and exactly how much taller
-   * varies with the visitor's device fonts/DPI — a fixed pixel guess
-   * either clips the submit button (too short) or leaves a dead gap below
-   * the form (too tall, as measured only against one headless render).
-   * A viewport-relative height plus the iframe's own native internal
-   * scrolling sidesteps both: it's never wildly taller than the screen,
-   * and any remaining overflow just scrolls inside the form itself.
+   * text wraps to more lines) but plateaus once the iframe is wider than
+   * ~420px, so one height comfortably covers this whole tier without
+   * capping (no internal scrollbar) or overshooting (no dead space).
+   * Heights are measured against the live form at the widths each tier's
+   * viewport range actually produces — re-measure if form questions change.
    */
-  .contact-iframe { height: 78vh; min-height: 620px; max-height: 1100px; }
+  .contact-iframe { height: 1440px; }
   /* Reduce padding on small screens so the iframe has maximum horizontal room */
   .contact-form-panel { padding: var(--space-4); }
 }
 
 @media (max-width: 480px) {
   .contact-form-panel { padding: var(--space-3); }
+  .contact-iframe { height: 1500px; }
+}
+
+@media (max-width: 400px) {
+  .contact-iframe { height: 1560px; }
+}
+
+@media (max-width: 360px) {
+  .contact-iframe { height: 1650px; }
 }
