@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- `Footer` - Extract from inline JSX in `App.tsx` into `src/components/Footer.tsx` so it can read `useSeasonYear()`; adds a live "Season YYYY-YYYY" line (same admin-managed setting as the header) above the copyright line, which stays pinned to the site's 2025 launch year instead of drifting with the season.
+
 ### Added
 - `Header` + `QRCodeModal` - Add a **QR Code** option to the hamburger dropdown menu that opens a modal with a scannable QR code for the production site URL, plus Copy Image (Clipboard API) and Download (PNG) actions. QR generation is client-side via the new `qrcode` dependency — no network call, no external QR service. Sitewide via the header, not just the off-season landing page.
 - `SettingsAdmin` - Add a **Create Season** control that stages a brand-new season by writing `seasons/{year}` and `leagueConfig/{year}` documents with defaults matching the LeaguePals pipeline's own no-API-data fallback; season year and total weeks are both selectors (year auto-generates the next sequential, non-overlapping options after the latest existing season, e.g. 2026-2027 → 2027-2028; total weeks defaults to 32) rather than free text, so a season can't be entered as overlapping or malformed. The new season immediately appears in the Active Season and Season Details dropdowns so its schedule can be built ahead of time (`create-season` operation added to `api/local-admin-write.js`).

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
 import Header from './components/Header'
+import Footer from './components/Footer'
 import AnnouncementsModal from './components/AnnouncementsModal'
 import BylawsModal from './components/BylawsModal'
 import QRCodeModal from './components/QRCodeModal'
@@ -105,12 +106,7 @@ function App() {
                 <Route path="/lanes" element={<LanesPage />} />
               </Routes>
             </main>
-            <footer className="footer">
-              <div className="footer-inner">
-                <span className="footer-brand">Late Night Happy Hour</span>
-                <span className="footer-copy">&copy; 2025 Bowling League &mdash; Thursday Nights</span>
-              </div>
-            </footer>
+            <Footer />
             <BylawsModal isOpen={showBylaws} onClose={() => setShowBylaws(false)} />
             <QRCodeModal isOpen={showQrCode} onClose={() => setShowQrCode(false)} />
             <AnnouncementsModal
