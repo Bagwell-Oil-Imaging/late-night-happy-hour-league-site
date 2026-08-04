@@ -165,11 +165,14 @@
   .contact-iframe { height: 1440px; }
   /* Cut horizontal padding on small screens so the form fills the panel's width; keep vertical padding for breathing room around the title. */
   .contact-form-panel { padding: var(--space-4) var(--space-2); }
+  /* The iframe itself needs the panel's full width, but the title still needs its own left inset or it reads flush against the card edge. */
+  .form-panel-title { padding-left: var(--space-3); }
 }
 
 @media (max-width: 480px) {
   .contact-form-panel { padding: var(--space-3) var(--space-1); }
   .contact-iframe { height: 1450px; }
+  .form-panel-title { padding-left: var(--space-3); }
 }
 
 @media (max-width: 400px) {
