@@ -68,33 +68,6 @@
   text-transform: uppercase;
   letter-spacing: 1.5px;
   color: var(--text-secondary);
-  /* Leave room so long titles don't run under the QR button */
-  padding-right: 36px;
-}
-
-.off-season-qr-trigger {
-  position: absolute;
-  top: -4px;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  background: transparent;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.off-season-qr-trigger:hover {
-  background: rgba(240, 180, 41, 0.10);
-  border-color: var(--border-strong);
-  color: var(--accent);
 }
 
 .off-season-countdown-pending {

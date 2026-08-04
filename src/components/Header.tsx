@@ -8,19 +8,20 @@ interface HeaderProps {
   onOpenAnnouncements: () => void
   announcementsCount: number
   onOpenBylaws: () => void
+  onOpenQrCode: () => void
 }
 
 /**
  * Site-wide sticky header.
  *
  * Layout: logo | inline nav (Standings, Schedule, Teams, Bowlers, Announcements) |
- *         Join the League CTA | hamburger dropdown (all nav links + Bylaws).
+ *         Join the League CTA | hamburger dropdown (all nav links + Bylaws + QR Code).
  *
  * The inline nav is hidden on mobile — the hamburger dropdown covers those routes.
  * Announcements lives only in the inline nav (not the dropdown).
  * Standings, Schedule, Teams, and Bowlers appear in both locations.
  */
-function Header({ onOpenAnnouncements, announcementsCount, onOpenBylaws }: HeaderProps) {
+function Header({ onOpenAnnouncements, announcementsCount, onOpenBylaws, onOpenQrCode }: HeaderProps) {
   const currentSeasonYear = useSeasonYear()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuWrapperRef = useRef<HTMLDivElement>(null)
@@ -56,6 +57,11 @@ function Header({ onOpenAnnouncements, announcementsCount, onOpenBylaws }: Heade
 
   const handleBylawsClick = () => {
     onOpenBylaws()
+    closeMenu()
+  }
+
+  const handleQrCodeClick = () => {
+    onOpenQrCode()
     closeMenu()
   }
 
@@ -106,6 +112,7 @@ function Header({ onOpenAnnouncements, announcementsCount, onOpenBylaws }: Heade
                 <Link to="/bowlers" className="dropdown-link" onClick={closeMenu} role="menuitem">Bowlers</Link>
                 <Link to="/history" className="dropdown-link" onClick={closeMenu} role="menuitem">History</Link>
                 <div className="dropdown-divider" role="separator" />
+                <button className="dropdown-link" onClick={handleQrCodeClick} role="menuitem">QR Code</button>
                 <button className="dropdown-link" onClick={handleBylawsClick} role="menuitem">Bylaws</button>
               </nav>
             )}

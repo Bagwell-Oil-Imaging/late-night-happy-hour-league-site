@@ -4,6 +4,7 @@ import './App.css'
 import Header from './components/Header'
 import AnnouncementsModal from './components/AnnouncementsModal'
 import BylawsModal from './components/BylawsModal'
+import QRCodeModal from './components/QRCodeModal'
 import HomePage from './pages/HomePage'
 import StandingsPage from './pages/StandingsPage'
 import MatchupsPage from './pages/MatchupsPage'
@@ -41,6 +42,7 @@ import { useAnnouncements } from './hooks'
 function App() {
   const [showAnnouncements, setShowAnnouncements] = useState(false)
   const [showBylaws, setShowBylaws] = useState(false)
+  const [showQrCode, setShowQrCode] = useState(false)
   // Fetch live announcement count from Firestore for the Header badge
   const { data: announcements } = useAnnouncements()
 
@@ -88,6 +90,7 @@ function App() {
               onOpenAnnouncements={() => setShowAnnouncements(true)}
               announcementsCount={announcements.length}
               onOpenBylaws={() => setShowBylaws(true)}
+              onOpenQrCode={() => setShowQrCode(true)}
             />
             <main className="main-content">
               <Routes>
@@ -109,6 +112,7 @@ function App() {
               </div>
             </footer>
             <BylawsModal isOpen={showBylaws} onClose={() => setShowBylaws(false)} />
+            <QRCodeModal isOpen={showQrCode} onClose={() => setShowQrCode(false)} />
             <AnnouncementsModal
               isOpen={showAnnouncements}
               onClose={() => setShowAnnouncements(false)}
