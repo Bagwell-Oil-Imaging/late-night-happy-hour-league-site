@@ -163,19 +163,19 @@
    * viewport range actually produces — re-measure if form questions change.
    */
   .contact-iframe { height: 1440px; }
-  /* Reduce padding on small screens so the iframe has maximum horizontal room */
-  .contact-form-panel { padding: var(--space-4); }
+  /* Cut horizontal padding on small screens so the form fills the panel's width; keep vertical padding for breathing room around the title. */
+  .contact-form-panel { padding: var(--space-4) var(--space-2); }
 }
 
 @media (max-width: 480px) {
-  .contact-form-panel { padding: var(--space-3); }
-  .contact-iframe { height: 1500px; }
+  .contact-form-panel { padding: var(--space-3) var(--space-1); }
+  .contact-iframe { height: 1450px; }
 }
 
 @media (max-width: 400px) {
-  .contact-iframe { height: 1560px; }
+  .contact-iframe { height: 1510px; }
 }
 
 @media (max-width: 360px) {
-  .contact-iframe { height: 1650px; }
+  .contact-iframe { height: 1570px; }
 }
