@@ -23,7 +23,7 @@ Provides league contact information and lets prospective members express interes
 - No Firestore reads; no env vars required
 
 ## Known Issues
-None
+A small gap (roughly tens to ~100px depending on device) can appear below the form, above the card's bottom edge, on some phones — the mobile iframe heights in `ContactPage.css` are a measured guess, not a true content-fit, since Google Forms exposes no resize API for us to read its real height from. Padding the guess enough to guarantee the submit button is never clipped necessarily overshoots slightly on devices that render more compactly than the reference measurement. Accepted trade-off — see the sizing methodology note below before spending more time tuning the exact pixel values further.
 
 ## Notes
 The Google Form embed URL is hardcoded as the `GOOGLE_FORM_URL` constant in ContactPage.tsx.
