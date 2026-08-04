@@ -153,21 +153,19 @@
   .contact-form-panel { order: 1; }
   /*
    * The embedded form reflows taller as its own width narrows (question
-   * labels/help text wrap to more lines). The fixed 1357px above is tuned
-   * for the ~640px+ desktop iframe width and clips the bottom of the form
-   * (submit button unreachable) once the panel goes narrower than that.
-   * Heights below are measured against the live form at the iframe widths
-   * each breakpoint actually produces, not desktop-tuned guesses.
+   * labels/help text wrap to more lines), and exactly how much taller
+   * varies with the visitor's device fonts/DPI — a fixed pixel guess
+   * either clips the submit button (too short) or leaves a dead gap below
+   * the form (too tall, as measured only against one headless render).
+   * A viewport-relative height plus the iframe's own native internal
+   * scrolling sidesteps both: it's never wildly taller than the screen,
+   * and any remaining overflow just scrolls inside the form itself.
    */
-  .contact-iframe { height: 1420px; }
-}
-
-@media (max-width: 560px) {
+  .contact-iframe { height: 78vh; min-height: 620px; max-height: 1100px; }
   /* Reduce padding on small screens so the iframe has maximum horizontal room */
-  .contact-form-panel { padding: var(--space-5); }
-  .contact-iframe { height: 1510px; }
+  .contact-form-panel { padding: var(--space-4); }
 }
 
-@media (max-width: 360px) {
-  .contact-iframe { height: 1620px; }
+@media (max-width: 480px) {
+  .contact-form-panel { padding: var(--space-3); }
 }
