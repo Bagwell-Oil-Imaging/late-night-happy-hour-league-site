@@ -28,7 +28,7 @@ None
 ## Notes
 The Google Form embed URL is hardcoded as the `GOOGLE_FORM_URL` constant in ContactPage.tsx.
 Form fields and notifications are managed in the Google Forms UI, not in code.
-The iframe height is fixed at 1357px (matching the height Google provided in the embed code).
+The iframe height is fixed per breakpoint in `ContactPage.css`: 1357px at desktop widths (≥861px, matching the height Google provided in the embed code), stepping up to 1420px (≤860px), 1510px (≤560px), and 1620px (≤360px). The embedded form reflows taller as its own width narrows — question text wraps to more lines — so a single fixed height clips the bottom of the form (submit button unreachable) on phones. Heights were measured directly against the live form at each breakpoint's actual iframe width, not guessed; re-measure if form questions are added/edited in the Google Forms UI.
 See ADR-007 for the decision record on why Formspree was replaced.
 
 The Team Format / League Obligations / Dues & Fees cards were extracted into `src/components/LeagueFormatInfo.tsx` (+ `LeagueFormatInfo.css`, moved out of `ContactPage.css`) so the same content can also render on the [Home Dashboard](home-dashboard.md)'s off-season landing view without duplicating it. ContactPage still owns the "Get in Touch" and bylaws-link cards directly, which were not extracted.
