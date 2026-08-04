@@ -3,6 +3,7 @@ feature: Lane Analytics
 number: 8
 source-paths:
   - src/pages/LanesPage.tsx
+  - src/components/SeasonPlaceholder.tsx
 diagram: ../diagrams/features/lane-assignments.md
 status: no diagram
 ---
@@ -21,6 +22,7 @@ Shows per-lane-pair performance analytics for the season — average scratch ser
 - If no matchupDetails exist yet, loading state shows "Loading lanes…" placeholder
 - If a bowler has no scores on a selected lane pair, empty message shown in detail panel
 - Lane cards highlight when a selected team or bowler has appearances on that pair
+- If `seasonActive` is false on `settings/global` (between seasons), `LanesPage` renders `SeasonPlaceholder` instead of the lane pair cards and detail panel — checked before the loading state above
 
 ## External Dependencies
 - Firestore: matchupDetails (lane pair data derived client-side by aggregateLaneData helper), bowlers, bowlerScores

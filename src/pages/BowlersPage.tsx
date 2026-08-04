@@ -15,7 +15,8 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useBowlers, useBowlerScores } from '../hooks'
-import { useSeasonYear } from '../context/SeasonContext'
+import { useSeasonYear, useSeasonStatus } from '../context/SeasonContext'
+import SeasonPlaceholder from '../components/SeasonPlaceholder'
 import type { Bowler, BowlerScore } from '../types'
 import '../components/BowlerProfileModal.css'
 import './BowlersPage.css'
@@ -243,6 +244,7 @@ function ScoresTable({ scores, bowler }: ScoresTableProps) {
  */
 function BowlersPage() {
   const SEASON_YEAR = useSeasonYear()
+  const { seasonActive, loading: seasonStatusLoading } = useSeasonStatus()
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Fetch all bowlers for the current season from Firestore
@@ -281,6 +283,15 @@ function BowlersPage() {
       a.teamName.localeCompare(b.teamName)
     )
   }, [sortedBowlers])
+
+  if (!seasonStatusLoading && !seasonActive) {
+    return (
+      <SeasonPlaceholder
+        pageTitle="Bowler Stats"
+        whatYoullSee="you'll see every bowler's stats, averages, and week-by-week scores."
+      />
+    )
+  }
 
   return (
     <div className="bowlers-page">

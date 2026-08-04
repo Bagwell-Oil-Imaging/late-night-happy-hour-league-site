@@ -30,6 +30,8 @@ import './WeekMatchupsModal.css'
 interface WeekMatchupsModalProps {
   /** The schedule week to display — null means the modal is closed. */
   weekEntry: ScheduleWeek | null
+  /** Season year to query matchup data for; must match weekEntry's season. */
+  seasonYear: string
   onClose: () => void
 }
 
@@ -41,7 +43,7 @@ interface WeekMatchupsModalProps {
  * @param onClose   - Callback invoked when the modal requests dismissal.
  * @returns Modal JSX, or null when weekEntry is null.
  */
-function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
+function WeekMatchupsModal({ weekEntry, seasonYear, onClose }: WeekMatchupsModalProps) {
   const navigate = useNavigate()
   const isOpen = weekEntry !== null
 
@@ -52,16 +54,16 @@ function WeekMatchupsModal({ weekEntry, onClose }: WeekMatchupsModalProps) {
   const [pdfWeek, setPdfWeek] = useState<number | null>(null)
 
   // Fetch all matchup detail records (completed weeks scoreboard)
-  const { data: matchupDetails } = useMatchupDetails('2025-2026')
+  const { data: matchupDetails } = useMatchupDetails(seasonYear)
 
   // Fetch lightweight matchup records for upcoming week pairings
-  const { data: upcomingMatchups } = useMatchups('2025-2026')
+  const { data: upcomingMatchups } = useMatchups(seasonYear)
 
   // Fetch teams to build a leaguePalsId → name lookup for upcoming pairings
-  const { data: teams } = useTeams('2025-2026')
+  const { data: teams } = useTeams(seasonYear)
 
   // League config drives the playoff bracket's field size
-  const { data: leagueConfig } = useLeagueConfig('2025-2026')
+  const { data: leagueConfig } = useLeagueConfig(seasonYear)
 
   /* ── Lock body scroll while open ────────────────────────────────────────── */
   useEffect(() => {
