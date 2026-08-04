@@ -12,11 +12,12 @@
  *  3. "View Matchups" button per play week opens a modal
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useScheduleWeeks } from '../hooks'
 import WeekMatchupsModal from '../components/WeekMatchupsModal'
 import StandingsPdfModal from '../components/StandingsPdfModal'
-import { useSeasonYear } from '../context/SeasonContext'
+import SeasonPlaceholder from '../components/SeasonPlaceholder'
+import { useSeasonYear, useSeasonStatus } from '../context/SeasonContext'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import { isScheduleWeekVisible } from '../utils/weekVisibility'
 import type { ScheduleWeek } from '../types'
@@ -56,6 +57,18 @@ function MonthCalendar({
   })
   const today = new Date().toISOString().slice(0, 10)
 
+  /* Skip-week reason tooltip: shown on hover (desktop) or tap (mobile/keyboard).
+     Tracks the "YYYY-MM-DD" of the currently open tooltip, or null if closed. */
+  const [openSkipDate, setOpenSkipDate] = useState<string | null>(null)
+
+  /* Dismiss an open tap-triggered tooltip on the next tap anywhere else. */
+  useEffect(() => {
+    if (!openSkipDate) return
+    const closeTooltip = () => setOpenSkipDate(null)
+    document.addEventListener('click', closeTooltip)
+    return () => document.removeEventListener('click', closeTooltip)
+  }, [openSkipDate])
+
   /* Build flat cell array: null for padding slots, day number otherwise */
   const cells: (number | null)[] = [
     ...Array<null>(firstDayOfWeek).fill(null),
@@ -88,6 +101,9 @@ function MonthCalendar({
           let statusClass = ''
           let title = ''
           const isPlayWeek = entry && entry.status !== 'skip'
+          const isSkipWeek = entry && entry.status === 'skip'
+          const skipReason = entry?.skipReason || 'No bowling this week'
+          const tooltipOpen = isSkipWeek && openSkipDate === dateStr
 
           if (entry) {
             if (entry.status === 'completed') {
@@ -99,29 +115,57 @@ function MonthCalendar({
               title = `Week ${entry.week} — upcoming`
             }
             if (entry.status === 'skip') {
-              title = `No bowling — ${entry.skipReason}`
+              statusClass = 'cal-cell--skip'
             }
           }
+
+          /* Skip cells toggle the tap tooltip; play cells open the matchups modal. */
+          const toggleSkipTooltip = () =>
+            setOpenSkipDate(prev => (prev === dateStr ? null : dateStr))
 
           return (
             <div
               key={i}
               className={`cal-cell ${statusClass} ${isToday ? 'cal-cell--today' : ''} ${isPlayWeek ? 'cal-cell--clickable' : ''}`}
-              title={title || undefined}
-              onClick={() => isPlayWeek && onEntryClick(entry)}
-              role={isPlayWeek ? 'button' : undefined}
-              tabIndex={isPlayWeek ? 0 : undefined}
+              title={isPlayWeek ? title || undefined : undefined}
+              onClick={e => {
+                if (isPlayWeek) { onEntryClick(entry); return }
+                if (isSkipWeek) { e.stopPropagation(); toggleSkipTooltip() }
+              }}
+              onMouseEnter={() => isSkipWeek && setOpenSkipDate(dateStr)}
+              onMouseLeave={() => isSkipWeek && setOpenSkipDate(prev => (prev === dateStr ? null : prev))}
+              onFocus={() => isSkipWeek && setOpenSkipDate(dateStr)}
+              onBlur={() => isSkipWeek && setOpenSkipDate(prev => (prev === dateStr ? null : prev))}
+              role={isPlayWeek || isSkipWeek ? 'button' : undefined}
+              tabIndex={isPlayWeek || isSkipWeek ? 0 : undefined}
+              aria-label={isSkipWeek ? `No bowling — ${skipReason}` : undefined}
               onKeyDown={e => {
-                if ((e.key === 'Enter' || e.key === ' ') && isPlayWeek)
+                if (isPlayWeek && (e.key === 'Enter' || e.key === ' ')) {
                   onEntryClick(entry)
+                } else if (isSkipWeek) {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSkipTooltip() }
+                  if (e.key === 'Escape') setOpenSkipDate(null)
+                }
               }}
             >
               <span className="cal-day-num">{day}</span>
-              {isPlayWeek && (
+              {isPlayWeek && entry.week != null && (
                 <span
-                  className={`cal-dot cal-dot--${entry.status}`}
+                  className={`cal-week-num cal-week-num--${entry.status}`}
                   aria-hidden="true"
-                />
+                >
+                  [{entry.week}]
+                </span>
+              )}
+              {isSkipWeek && <span className="cal-skip-x" aria-hidden="true" />}
+              {tooltipOpen && (
+                <div
+                  className="cal-skip-tooltip"
+                  role="tooltip"
+                  onClick={e => e.stopPropagation()}
+                >
+                  {skipReason}
+                </div>
               )}
             </div>
           )
@@ -144,11 +188,18 @@ function MonthCalendar({
  */
 function SchedulePage() {
   const SEASON_YEAR = useSeasonYear()
+  const { seasonActive, upcomingSeasonYear, loading: seasonStatusLoading } = useSeasonStatus()
   const [selectedWeek, setSelectedWeek] = useState<ScheduleWeek | null>(null)
   const [pdfWeek, setPdfWeek] = useState<number | null>(null)
 
-  // Firestore subscription for all schedule weeks in the current season
-  const { data: scheduleWeeks, loading } = useScheduleWeeks(SEASON_YEAR)
+  // Between seasons, preview the upcoming season's schedule (once staged via
+  // admin Create Season + Season Details) instead of the just-finished season's.
+  // No fallback to SEASON_YEAR here — that would silently relabel the prior,
+  // already-played season's schedule as an "upcoming" preview.
+  const displaySeasonYear = seasonActive ? SEASON_YEAR : upcomingSeasonYear
+
+  // Firestore subscription for all schedule weeks in the displayed season
+  const { data: scheduleWeeks, loading } = useScheduleWeeks(displaySeasonYear ?? '')
   const visibleScheduleWeeks = useMemo(
     () => scheduleWeeks.filter(isScheduleWeekVisible),
     [scheduleWeeks]
@@ -161,12 +212,18 @@ function SchedulePage() {
     return map
   }, [visibleScheduleWeeks])
 
-  /* ── Calendar month range: Sept 2025 – May 2026 ─────────────────────── */
+  /* ── Calendar month range: derived from the displayed season's own dates
+     so this works for whichever season year is being shown, rather than a
+     fixed range tied to one season. ─────────────────────────────────── */
   const calendarMonths = useMemo(() => {
+    if (scheduleWeeks.length === 0) return []
+    const dates = scheduleWeeks.map(w => w.date).sort()
+    const [startYear, startMonth] = dates[0].split('-').map(Number)
+    const [endYear, endMonth] = dates[dates.length - 1].split('-').map(Number)
     const months: { year: number; month: number }[] = []
-    let y = 2025
-    let m = 8 // September (0-indexed)
-    while (y < 2026 || (y === 2026 && m <= 4)) {
+    let y = startYear
+    let m = startMonth - 1 // 0-indexed
+    while (y < endYear || (y === endYear && m <= endMonth - 1)) {
       months.push({ year: y, month: m })
       m++
       if (m > 11) {
@@ -175,7 +232,7 @@ function SchedulePage() {
       }
     }
     return months
-  }, [])
+  }, [scheduleWeeks])
 
   /* ── Date formatter ─────────────────────────────────────────────────── */
   const formatDate = (dateStr: string) =>
@@ -185,21 +242,41 @@ function SchedulePage() {
       year: 'numeric',
     })
 
+  // Between seasons with no upcoming season year set, or none staged yet — nothing to preview.
+  if (!seasonStatusLoading && !seasonActive && (!upcomingSeasonYear || (!loading && scheduleWeeks.length === 0))) {
+    return (
+      <SeasonPlaceholder
+        pageTitle="Schedule"
+        whatYoullSee="you'll see the season calendar and week-by-week schedule table."
+      />
+    )
+  }
+
   // Show loading state while Firestore data arrives
-  if (loading) {
+  if (loading || seasonStatusLoading) {
     return (
       <div className="schedule-page">
         <h2 className="section-title">Season Schedule</h2>
-        <p className="schedule-subtitle">2025 – 2026 Season · Thursday Nights</p>
+        <p className="schedule-subtitle">{displaySeasonYear ?? SEASON_YEAR} Season · Thursday Nights</p>
         <p className="loading-message">Loading schedule…</p>
       </div>
     )
   }
 
+  // Past the guards above: seasonActive is true (displaySeasonYear = SEASON_YEAR), or
+  // seasonActive is false with upcomingSeasonYear confirmed set (displaySeasonYear = it).
+  // Either way this is a real season year string.
+  const effectiveSeasonYear = displaySeasonYear as string
+
   return (
     <div className="schedule-page">
       <h2 className="section-title">Season Schedule</h2>
-      <p className="schedule-subtitle">2025 – 2026 Season · Thursday Nights</p>
+      <p className="schedule-subtitle">{effectiveSeasonYear} Season · Thursday Nights</p>
+      {!seasonActive && (
+        <p className="schedule-preview-banner">
+          <strong>Between Seasons</strong> — previewing the {effectiveSeasonYear} schedule. Games haven't started yet, so every week below is still upcoming.
+        </p>
+      )}
 
       {/* ── Monthly calendars ─────────────────────────────────────────── */}
       <section className="calendars-section" aria-label="Season calendar">
@@ -228,7 +305,7 @@ function SchedulePage() {
                 <th className="sch-col-week">Week</th>
                 <th className="sch-col-date">Date</th>
                 <th className="sch-col-notes">Notes</th>
-                <th className="sch-col-action"></th>
+                <th className="sch-col-action">Matchups</th>
               </tr>
             </thead>
             <tbody>
@@ -260,9 +337,13 @@ function SchedulePage() {
                       )}
                     </td>
 
-                    {/* Date */}
+                    {/* Date — skip reason repeats here (mobile-only) since the
+                        Notes column is hidden below 768px */}
                     <td className="sch-col-date sch-date-cell">
                       {formatDate(entry.date)}
+                      {isSkip && entry.skipReason && (
+                        <span className="sch-skip-reason-mobile">{entry.skipReason}</span>
+                      )}
                     </td>
 
                     {/* Notes: position round badge, event label, or skip reason */}
@@ -321,6 +402,7 @@ function SchedulePage() {
       {/* ── Week matchups modal ───────────────────────────────────────── */}
       <WeekMatchupsModal
         weekEntry={selectedWeek}
+        seasonYear={effectiveSeasonYear}
         onClose={() => setSelectedWeek(null)}
       />
 

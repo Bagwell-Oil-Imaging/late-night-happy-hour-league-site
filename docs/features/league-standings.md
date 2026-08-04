@@ -5,8 +5,9 @@ source-paths:
   - src/pages/StandingsPage.tsx
   - src/components/LeagueStandings.tsx
   - src/components/AwardLeaders.tsx
+  - src/components/SeasonPlaceholder.tsx
 diagram: ../diagrams/features/league-standings.md
-status: current
+status: stale
 ---
 
 ## Intent
@@ -62,6 +63,7 @@ Note: First half `hasData` is hardcoded `true` — it shows live leaders from we
 
 ## Conditional Paths
 - AwardLeaders loading gate: if any of the 3 hook fetches is loading, render placeholder instead of award panels
+- If `seasonActive` is false on `settings/global` (between seasons), `StandingsPage` renders `SeasonPlaceholder` instead of the standings table and award panels — prevents stale prior-season data from being shown as current
 
 ## External Dependencies
 - Firestore `teams` — ordered by points desc; consumed by `LeagueStandings` with hardcoded season year

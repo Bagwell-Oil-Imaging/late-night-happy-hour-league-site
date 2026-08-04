@@ -4,6 +4,7 @@ number: 5
 source-paths:
   - src/pages/BowlersPage.tsx
   - src/components/BowlerProfileModal.tsx
+  - src/components/SeasonPlaceholder.tsx
 diagram: ../diagrams/features/bowler-profiles.md
 status: no diagram
 ---
@@ -20,6 +21,7 @@ Provides a directory of all bowlers and lets users view any bowler's game-by-gam
 ## Conditional Paths
 - If bowler has no scores for the selected season, panel shows "No scores recorded yet"
 - If loading, page shows "Loading bowlers…" placeholder
+- If `seasonActive` is false on `settings/global` (between seasons), `BowlersPage` renders `SeasonPlaceholder` instead of the sidebar and detail panel
 
 ## External Dependencies
 - Firestore: bowlers, bowlerScores

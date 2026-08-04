@@ -19,6 +19,23 @@
   text-transform: uppercase;
 }
 
+/* ── Between-seasons preview banner ──────────────────────────────────────── */
+.schedule-preview-banner {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.schedule-preview-banner strong {
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════════
    CALENDAR LEGEND
 ══════════════════════════════════════════════════════════════════════════════ */
@@ -172,6 +189,93 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
+}
+
+/* League week number — positioned below the date number, in the dot's old spot */
+.cal-week-num {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-heading);
+  font-size: 0.55rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cal-week-num--completed { color: var(--green-glow); }
+.cal-week-num--upcoming  { color: var(--accent); }
+
+/* Skip weeks — tappable/hoverable for the reason tooltip */
+.cal-cell--skip {
+  cursor: pointer;
+}
+
+.cal-cell--skip:hover,
+.cal-cell--skip:focus-visible {
+  background: rgba(239, 68, 68, 0.16) !important;
+  outline: none;
+}
+
+/* Red X drawn across the cell — two crossed bars, layered under the date number */
+.cal-skip-x {
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+}
+
+.cal-skip-x::before,
+.cal-skip-x::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 78%;
+  background: var(--red-bright);
+  opacity: 0.7;
+  border-radius: 1px;
+}
+
+.cal-skip-x::before { transform: translate(-50%, -50%) rotate(45deg); }
+.cal-skip-x::after  { transform: translate(-50%, -50%) rotate(-45deg); }
+
+.cal-cell--skip .cal-day-num {
+  position: relative;
+  z-index: 1;
+}
+
+/* Skip-reason tooltip — opens on hover (desktop) or tap/focus (mobile, keyboard) */
+.cal-skip-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  background: var(--bg-card-inner);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  white-space: normal;
+  width: max-content;
+  max-width: 180px;
+  text-align: center;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+.cal-skip-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--border-strong);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -368,6 +472,12 @@
   opacity: 0.8;
 }
 
+/* Mobile-only duplicate of the skip reason, shown under the date since the
+   Notes column itself is hidden below 768px (see RESPONSIVE section). */
+.sch-skip-reason-mobile {
+  display: none;
+}
+
 .sch-event-label {
   display: inline-block;
   background: rgba(240, 180, 41, 0.12);
@@ -385,6 +495,10 @@
 /* ── Action column ──────────────────────────────────────────────────────────── */
 .sch-col-action {
   vertical-align: middle;
+  text-align: right;
+}
+
+.schedule-table th.sch-col-action {
   text-align: right;
 }
 
@@ -449,11 +563,47 @@
 }
 
 @media (max-width: 768px) {
+  /* table-layout: fixed makes the browser respect the column widths below
+     instead of expanding the table to fit the nowrap "View Matchups" button —
+     that expansion (well past 640px) was what forced the horizontal scrollbar. */
+  .schedule-table {
+    min-width: 0;
+    table-layout: fixed;
+  }
   .sch-col-notes { display: none; }
-  .sch-col-date  { width: 100px; }
-  .sch-col-action{ width: 110px; }
-  .schedule-table td { padding: 10px 10px; }
-  .schedule-table th { padding: 9px 10px; letter-spacing: 1.5px; }
+  .sch-col-week  { width: 46px; }
+  .sch-col-date  { width: auto; }
+  .sch-date-cell { text-align: center; }
+  .sch-col-action{ width: 96px; }
+  .schedule-table td { padding: 10px 6px; }
+  .schedule-table th { padding: 9px 6px; letter-spacing: 1.5px; }
+
+  .sch-week-badge {
+    min-width: 30px;
+    height: 30px;
+    font-size: 0.65rem;
+  }
+
+  .sch-view-btn {
+    white-space: normal;
+    line-height: 1.25;
+    padding: 6px 8px;
+    font-size: 0.56rem;
+    letter-spacing: 0.5px;
+  }
+
+  .sch-skip-reason-mobile {
+    display: block;
+    text-align: center;
+    font-family: var(--font-heading);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--red-bright);
+    opacity: 0.8;
+    margin-top: 2px;
+  }
 }
 
 @media (max-width: 500px) {

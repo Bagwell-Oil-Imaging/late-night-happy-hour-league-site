@@ -15,6 +15,8 @@
 
 import { useMemo, useState } from 'react'
 import { useMatchupDetails, useBowlers, useBowlerScores } from '../hooks'
+import { useSeasonStatus } from '../context/SeasonContext'
+import SeasonPlaceholder from '../components/SeasonPlaceholder'
 import type { MatchupDetail } from '../types'
 import './LanesPage.css'
 
@@ -311,6 +313,7 @@ function LanesPage() {
   const [selectedLane, setSelectedLane] = useState<number | null>(null)
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null)
+  const { seasonActive, loading: seasonStatusLoading } = useSeasonStatus()
 
   const { data: matchupDetails, loading } = useMatchupDetails('2025-2026')
   const { data: bowlers } = useBowlers('2025-2026', selectedTeamId ?? undefined)
@@ -387,6 +390,15 @@ function LanesPage() {
         }
       })
   }, [matchupDetails, selectedData, selectedTeamId, selectedBowlerId])
+
+  if (!seasonStatusLoading && !seasonActive) {
+    return (
+      <SeasonPlaceholder
+        pageTitle="Lane Analytics"
+        whatYoullSee="you'll see lane-pair performance analytics for the season."
+      />
+    )
+  }
 
   if (loading) return <div className="loading">Loading lanes…</div>
 

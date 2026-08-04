@@ -22,7 +22,9 @@ import MatchupDetailModal from '../components/MatchupDetailModal'
 import BowlerProfileModal from '../components/BowlerProfileModal'
 import StandingsPdfModal from '../components/StandingsPdfModal'
 import PlayoffBracket, { FIRST_HALF, SECOND_HALF } from '../components/PlayoffBracket'
+import SeasonPlaceholder from '../components/SeasonPlaceholder'
 import { useLeagueConfig, useMatchups, useMatchupDetails, useScheduleWeeks } from '../hooks'
+import { useSeasonStatus } from '../context/SeasonContext'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import { visibleWeekNumbers } from '../utils/weekVisibility'
 import type { MatchupDetail } from '../types'
@@ -79,6 +81,7 @@ function MatchupsPage() {
   const [selectedMatchupId, setSelectedMatchupId] = useState<string | null>(null)
   const [selectedBowlerId, setSelectedBowlerId] = useState<string | null>(null)
   const [pdfWeek, setPdfWeek] = useState<number | null>(null)
+  const { seasonActive, loading: seasonStatusLoading } = useSeasonStatus()
 
   const seasonYear = '2025-2026'
 
@@ -149,6 +152,15 @@ function MatchupsPage() {
       .map(([week, date]) => ({ week, date }))
       .sort((a, b) => a.week - b.week)
   }, [matchupDetails, visibleWeeks, minWeek, earliestVisibleWeek, scheduleWeeks])
+
+  if (!seasonStatusLoading && !seasonActive) {
+    return (
+      <SeasonPlaceholder
+        pageTitle="Matchups"
+        whatYoullSee="you'll see each week's team-vs-team scoreboard with full per-bowler score breakdowns."
+      />
+    )
+  }
 
   if (loading) return <div className="loading">Loading matchups…</div>
 

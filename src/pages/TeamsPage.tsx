@@ -18,6 +18,8 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTeams, useMatchupDetails, useMatchups, useBowlerScoresByTeamWeek, useBowlers } from '../hooks'
 import StandingsPdfModal from '../components/StandingsPdfModal'
+import SeasonPlaceholder from '../components/SeasonPlaceholder'
+import { useSeasonStatus } from '../context/SeasonContext'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import type { TeamSummary, BowlerScore } from '../types'
 import { LanePairGraphic, aggregateLaneData } from './LanesPage'
@@ -290,6 +292,7 @@ function TeamsPage() {
   const [selectedLane, setSelectedLane] = useState<number | null>(null)
   const [laneSelectedTeamId, setLaneSelectedTeamId] = useState<string | null>(null)
   const [pdfWeek, setPdfWeek] = useState<number | null>(null)
+  const { seasonActive, loading: seasonStatusLoading } = useSeasonStatus()
 
   const { data: teams, loading: teamsLoading } = useTeams('2025-2026')
   const { data: matchupDetails, loading: detailsLoading } = useMatchupDetails('2025-2026')
@@ -382,6 +385,15 @@ function TeamsPage() {
         }
       })
   }, [matchupDetails, selectedLaneData, laneSelectedTeamId])
+
+  if (!seasonStatusLoading && !seasonActive) {
+    return (
+      <SeasonPlaceholder
+        pageTitle="Teams"
+        whatYoullSee="you'll see team rosters, win/loss records, and weekly match breakdowns."
+      />
+    )
+  }
 
   if (teamsLoading || detailsLoading) {
     return <div className="loading">Loading teams…</div>
