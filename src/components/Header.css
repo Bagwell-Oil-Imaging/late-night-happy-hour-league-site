@@ -93,6 +93,9 @@
   align-items: center;
   gap: var(--space-3);
   flex-shrink: 0;
+  /* Falls back to pushing itself flush right when .nav is hidden (mobile) and
+     its own margin-left: auto is no longer redundant with .nav's. */
+  margin-left: auto;
 }
 
 /* ── Join the League CTA ──────────────────────────────────────────────── */
@@ -244,11 +247,13 @@
 }
 
 @media (max-width: 480px) {
-  .header-content { padding: var(--space-2) var(--space-3); }
-  .logo-image { height: 44px; }
+  .header-content { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+  .logo { gap: var(--space-2); }
+  .logo-image { height: 40px; }
   .logo-text h1 { font-size: var(--text-xl); }
   .logo-text .subtitle { display: none; }
   .logo-text .season-indicator { display: none; }
+  .hamburger { width: 32px; height: 32px; }
 
   .nav-link-contact { display: none; }
 }
