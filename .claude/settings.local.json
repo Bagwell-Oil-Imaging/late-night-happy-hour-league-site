@@ -56,7 +56,13 @@
       "Bash(node --check scripts/transform-data.js)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npx vite *)",
+      "Bash(node \"C:\\\\Users\\\\jmbag\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\l--Projects-Repos-late-night-happy-hour-league-site\\\\23856df2-2ead-4f9a-a40f-70a472b8155f\\\\scratchpad\\\\screenshot-header.js\" \"C:\\\\Users\\\\jmbag\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\l--Projects-Repos-late-night-happy-hour-league-site\\\\23856df2-2ead-4f9a-a40f-70a472b8155f\\\\scratchpad\\\\header-mobile-after.png\")",
+      "Bash(node scratch-screenshot.cjs \"C:\\\\Users\\\\jmbag\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\l--Projects-Repos-late-night-happy-hour-league-site\\\\23856df2-2ead-4f9a-a40f-70a472b8155f\\\\scratchpad\\\\header-mobile-after.png\")",
+      "Bash(node scratch-screenshot.cjs \"C:\\\\Users\\\\jmbag\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\l--Projects-Repos-late-night-happy-hour-league-site\\\\23856df2-2ead-4f9a-a40f-70a472b8155f\\\\scratchpad\\\\h320.png\" \"C:\\\\Users\\\\jmbag\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\l--Projects-Repos-late-night-happy-hour-league-site\\\\23856df2-2ead-4f9a-a40f-70a472b8155f\\\\scratchpad\\\\h320m.png\" 320)",
+      "Bash(node scratch-screenshot.cjs *)",
+      "Bash(node scratch-screenshot.cjs \"C:\\\\Users\\\\jmbag\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\l--Projects-Repos-late-night-happy-hour-league-site\\\\23856df2-2ead-4f9a-a40f-70a472b8155f\\\\scratchpad\\\\h320-fix.png\" \"C:\\\\Users\\\\jmbag\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\l--Projects-Repos-late-night-happy-hour-league-site\\\\23856df2-2ead-4f9a-a40f-70a472b8155f\\\\scratchpad\\\\h320m-fix.png\" 320)"
     ],
     "deny": [],
     "ask": []

@@ -52,6 +52,14 @@
   text-transform: uppercase;
 }
 
+.footer-season {
+  font-family: var(--font-heading);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
 .footer-copy {
   font-family: var(--font-heading);
   font-size: var(--text-xs);

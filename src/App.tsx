@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
 import Header from './components/Header'
+import Footer from './components/Footer'
 import AnnouncementsModal from './components/AnnouncementsModal'
 import BylawsModal from './components/BylawsModal'
+import QRCodeModal from './components/QRCodeModal'
 import HomePage from './pages/HomePage'
 import StandingsPage from './pages/StandingsPage'
 import MatchupsPage from './pages/MatchupsPage'
@@ -41,6 +43,7 @@ import { useAnnouncements } from './hooks'
 function App() {
   const [showAnnouncements, setShowAnnouncements] = useState(false)
   const [showBylaws, setShowBylaws] = useState(false)
+  const [showQrCode, setShowQrCode] = useState(false)
   // Fetch live announcement count from Firestore for the Header badge
   const { data: announcements } = useAnnouncements()
 
@@ -88,6 +91,7 @@ function App() {
               onOpenAnnouncements={() => setShowAnnouncements(true)}
               announcementsCount={announcements.length}
               onOpenBylaws={() => setShowBylaws(true)}
+              onOpenQrCode={() => setShowQrCode(true)}
             />
             <main className="main-content">
               <Routes>
@@ -102,13 +106,9 @@ function App() {
                 <Route path="/lanes" element={<LanesPage />} />
               </Routes>
             </main>
-            <footer className="footer">
-              <div className="footer-inner">
-                <span className="footer-brand">Late Night Happy Hour</span>
-                <span className="footer-copy">&copy; 2025 Bowling League &mdash; Thursday Nights</span>
-              </div>
-            </footer>
+            <Footer />
             <BylawsModal isOpen={showBylaws} onClose={() => setShowBylaws(false)} />
+            <QRCodeModal isOpen={showQrCode} onClose={() => setShowQrCode(false)} />
             <AnnouncementsModal
               isOpen={showAnnouncements}
               onClose={() => setShowAnnouncements(false)}

@@ -151,9 +151,34 @@
   /* Reorder: iframe panel appears first (top), sidebar below */
   .contact-info { order: 2; }
   .contact-form-panel { order: 1; }
+  /*
+   * Google Forms doesn't cooperate with iframe-resizer / postMessage, so a
+   * cross-origin iframe can't truly auto-size to its content — the height
+   * below is always a value we choose, not something the browser derives.
+   * The embedded form reflows taller as its own width narrows (question
+   * text wraps to more lines) but plateaus once the iframe is wider than
+   * ~420px, so one height comfortably covers this whole tier without
+   * capping (no internal scrollbar) or overshooting (no dead space).
+   * Heights are measured against the live form at the widths each tier's
+   * viewport range actually produces — re-measure if form questions change.
+   */
+  .contact-iframe { height: 1440px; }
+  /* Cut horizontal padding on small screens so the form fills the panel's width; keep vertical padding for breathing room around the title. */
+  .contact-form-panel { padding: var(--space-4) var(--space-2); }
+  /* The iframe itself needs the panel's full width, but the title still needs its own left inset or it reads flush against the card edge. */
+  .form-panel-title { padding-left: var(--space-3); }
 }
 
-@media (max-width: 560px) {
-  /* Reduce padding on small screens so the iframe has maximum horizontal room */
-  .contact-form-panel { padding: var(--space-5); }
+@media (max-width: 480px) {
+  .contact-form-panel { padding: var(--space-3) var(--space-1); }
+  .contact-iframe { height: 1450px; }
+  .form-panel-title { padding-left: var(--space-3); }
+}
+
+@media (max-width: 400px) {
+  .contact-iframe { height: 1510px; }
+}
+
+@media (max-width: 360px) {
+  .contact-iframe { height: 1570px; }
 }
