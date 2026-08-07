@@ -10,11 +10,24 @@
  *      The season automatically extends one additional date at the end so the
  *      total bowling-week count stays correct.
  *   3. Add an optional note for each skipped date (e.g. "Thanksgiving Break").
- *   4. Review the live-updating preview table and click "Save Schedule".
+ *   4. "Dues?" defaults checked on every non-skip date; uncheck it for a week
+ *      where teams don't owe dues (e.g. a banquet night). Skip weeks are
+ *      always unchecked — no bowling means no dues.
+ *   5. Tag a week as playoffs/championship via the "Event" dropdown — renders
+ *      a bronze/silver/gold trophy or gold crown badge on the public schedule
+ *      (see `ScheduleEventBadge`). Skip weeks can't be tagged.
+ *   6. Edit the "Notes" and "Public?" columns for any non-completed week.
+ *   7. Review the live-updating preview table and click "Save Schedule".
+ *
+ * This is the only place notes, dues, event tags, and public visibility can be
+ * edited for upcoming/skip weeks — none of it writes until "Save Schedule" is
+ * clicked, unlike the always-editable inline controls this replaced.
  *
  * Firestore write behaviour:
  *   - Batch-sets every upcoming and skip entry in scheduleWeeks/{YYYY-MM-DD}.
- *   - Never overwrites documents whose status is 'completed' (bowled weeks).
+ *   - Never overwrites documents whose status is 'completed' (bowled weeks) —
+ *     their notes/dues/event/visibility can only be changed via the bulk
+ *     visibility actions or a direct Firestore edit.
  *   - Deletes orphaned upcoming/skip documents that are no longer in the new
  *     schedule (only relevant when editing an existing schedule).
  *
@@ -27,7 +40,9 @@ import { useState, useMemo } from 'react'
 import { writeBatch, doc } from 'firebase/firestore'
 import { db } from '../../firebase'
 import { isLocalAdminBypass, localAdminWrite } from '../../utils/localAdmin'
-import type { ScheduleWeek } from '../../types'
+import { SCHEDULE_EVENT_CONFIG, SCHEDULE_EVENT_OPTIONS } from '../../utils/scheduleEvents'
+import ScheduleEventBadge from '../../components/ScheduleEventBadge'
+import type { ScheduleWeek, ScheduleWeekEvent } from '../../types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -48,6 +63,14 @@ interface GeneratedEntry {
   skipReason: string
   /** True for completed weeks — cannot be toggled or overwritten */
   locked: boolean
+  /** Whether teams owe weekly dues for this date. Always false for skip entries. */
+  duesOwed: boolean
+  /** Playoff/championship tag, if any. Always null for skip entries. */
+  specialEvent: ScheduleWeekEvent | null
+  /** Free-text admin note. Empty string means none — converted to null on save. */
+  notes: string
+  /** Public visibility for this date. */
+  visible: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -104,6 +127,10 @@ function formatDate(dateStr: string): string {
  * @param totalBowlingWeeks  - Target number of bowling (non-skip) weeks
  * @param skipDates          - Map of YYYY-MM-DD → admin note for holiday weeks
  * @param completedWeeks     - Existing Firestore documents with status 'completed'
+ * @param duesOffDates       - Set of YYYY-MM-DD dates admin has unchecked "Dues?" for
+ * @param specialEvents      - Map of YYYY-MM-DD → admin-selected playoff/championship tag
+ * @param notesOverrides     - Map of YYYY-MM-DD → admin-entered free-text note
+ * @param publicOffDates     - Set of YYYY-MM-DD dates admin has unchecked "Public?" for
  * @returns Ordered list of GeneratedEntry objects covering the full season
  */
 function buildSchedule(
@@ -111,6 +138,10 @@ function buildSchedule(
   totalBowlingWeeks: number,
   skipDates: Record<string, string>,
   completedWeeks: ScheduleWeek[],
+  duesOffDates: Set<string>,
+  specialEvents: Record<string, ScheduleWeekEvent>,
+  notesOverrides: Record<string, string>,
+  publicOffDates: Set<string>,
 ): GeneratedEntry[] {
   if (!startDate || totalBowlingWeeks < 1) return []
 
@@ -129,7 +160,9 @@ function buildSchedule(
     const completed = completedMap.get(dateStr)
 
     if (completed) {
-      // Completed week: locked, preserves the existing Firestore week number
+      // Completed week: locked, preserves the existing Firestore week number,
+      // dues flag, event tag, note, and visibility — the builder never
+      // rewrites completed documents, so these are display-only.
       bowlingCount++
       entries.push({
         date: dateStr,
@@ -137,18 +170,28 @@ function buildSchedule(
         status: 'completed',
         skipReason: '',
         locked: true,
+        duesOwed: completed.duesOwed ?? true,
+        specialEvent: completed.specialEvent ?? null,
+        notes: completed.notes ?? '',
+        visible: completed.visible ?? true,
       })
     } else if (dateStr in skipDates) {
-      // Admin-marked holiday: doesn't consume a bowling week slot
+      // Admin-marked holiday: doesn't consume a bowling week slot, no bowling
+      // happens so dues are never owed and no playoff/championship tag applies
       entries.push({
         date: dateStr,
         week: null,
         status: 'skip',
         skipReason: skipDates[dateStr],
         locked: false,
+        duesOwed: false,
+        specialEvent: null,
+        notes: notesOverrides[dateStr] ?? '',
+        visible: !publicOffDates.has(dateStr),
       })
     } else {
-      // Regular bowling week
+      // Regular bowling week — dues owed by default, admin can uncheck;
+      // no playoff/championship tag unless admin selects one
       bowlingCount++
       entries.push({
         date: dateStr,
@@ -156,6 +199,10 @@ function buildSchedule(
         status: 'upcoming',
         skipReason: '',
         locked: false,
+        duesOwed: !duesOffDates.has(dateStr),
+        specialEvent: specialEvents[dateStr] ?? null,
+        notes: notesOverrides[dateStr] ?? '',
+        visible: !publicOffDates.has(dateStr),
       })
     }
 
@@ -244,6 +291,42 @@ function SeasonScheduleBuilder({
     ),
   )
 
+  // Dates where the admin has unchecked "Dues?" for an upcoming week. Only
+  // exceptions are tracked so every new/unmarked date defaults to checked.
+  const [duesOffDates, setDuesOffDates] = useState<Set<string>>(() => new Set(
+    existingWeeks
+      .filter(w => w.status === 'upcoming' && w.duesOwed === false)
+      .map(w => w.date),
+  ))
+
+  // Admin-selected playoff/championship tag per upcoming date. Only dates with
+  // a tag are stored — everything else defaults to "no tag".
+  const [specialEvents, setSpecialEvents] = useState<Record<string, ScheduleWeekEvent>>(() =>
+    Object.fromEntries(
+      existingWeeks
+        .filter((w): w is ScheduleWeek & { specialEvent: ScheduleWeekEvent } => w.status === 'upcoming' && !!w.specialEvent)
+        .map(w => [w.date, w.specialEvent]),
+    ),
+  )
+
+  // Free-text note per non-completed date. Only dates with a note are stored;
+  // everything else defaults to empty (no note).
+  const [notesOverrides, setNotesOverrides] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      existingWeeks
+        .filter(w => w.status !== 'completed' && w.notes)
+        .map(w => [w.date, w.notes as string]),
+    ),
+  )
+
+  // Dates where the admin has unchecked "Public?". Only exceptions are
+  // tracked so every new/unmarked date defaults to checked (visible).
+  const [publicOffDates, setPublicOffDates] = useState<Set<string>>(() => new Set(
+    existingWeeks
+      .filter(w => w.status !== 'completed' && w.visible === false)
+      .map(w => w.date),
+  ))
+
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
@@ -252,8 +335,8 @@ function SeasonScheduleBuilder({
   // ---------------------------------------------------------------------------
 
   const schedule = useMemo(
-    () => buildSchedule(startDate, totalWeeks, skipDates, completedWeeks),
-    [startDate, totalWeeks, skipDates, completedWeeks],
+    () => buildSchedule(startDate, totalWeeks, skipDates, completedWeeks, duesOffDates, specialEvents, notesOverrides, publicOffDates),
+    [startDate, totalWeeks, skipDates, completedWeeks, duesOffDates, specialEvents, notesOverrides, publicOffDates],
   )
 
   const bowlingWeekCount = schedule.filter(e => e.week !== null).length
@@ -295,6 +378,70 @@ function SeasonScheduleBuilder({
   }
 
   /**
+   * Toggles whether teams owe weekly dues for an upcoming date.
+   * Not called for skip rows (always false) or completed rows (read-only,
+   * never rewritten by this builder).
+   *
+   * @param date - YYYY-MM-DD upcoming date to toggle
+   */
+  function toggleDues(date: string) {
+    setDuesOffDates(prev => {
+      const next = new Set(prev)
+      if (next.has(date)) next.delete(date)
+      else next.add(date)
+      return next
+    })
+  }
+
+  /**
+   * Sets or clears the playoff/championship tag for an upcoming date.
+   * Not called for skip rows (always null) or completed rows (read-only,
+   * never rewritten by this builder).
+   *
+   * @param date  - YYYY-MM-DD upcoming date to tag
+   * @param value - Selected `ScheduleWeekEvent`, or '' to clear the tag
+   */
+  function updateSpecialEvent(date: string, value: string) {
+    setSpecialEvents(prev => {
+      if (!value) {
+        const next = { ...prev }
+        delete next[date]
+        return next
+      }
+      return { ...prev, [date]: value as ScheduleWeekEvent }
+    })
+  }
+
+  /**
+   * Updates the free-text note for a non-completed date. Committed to
+   * Firestore only when "Save Schedule" is clicked, like every other field
+   * in this table — typing here never writes on its own.
+   *
+   * @param date - YYYY-MM-DD date to update
+   * @param note - New note text (may be empty)
+   */
+  function updateNotes(date: string, note: string) {
+    setNotesOverrides(prev => ({ ...prev, [date]: note }))
+  }
+
+  /**
+   * Toggles public visibility for a non-completed date.
+   * Not called for completed rows (read-only, never rewritten by this
+   * builder) — completed weeks' visibility is adjusted via the bulk
+   * "Show all" / "Hide weeks" actions on the non-editing Season Details view.
+   *
+   * @param date - YYYY-MM-DD date to toggle
+   */
+  function togglePublic(date: string) {
+    setPublicOffDates(prev => {
+      const next = new Set(prev)
+      if (next.has(date)) next.delete(date)
+      else next.add(date)
+      return next
+    })
+  }
+
+  /**
    * Batch-writes the generated schedule to Firestore.
    *
    * - Skips completed weeks (never overwritten).
@@ -328,8 +475,10 @@ function SeasonScheduleBuilder({
                 status: entry.status === 'skip' ? 'skip' : 'upcoming',
                 skipReason: entry.status === 'skip' ? (entry.skipReason || null) : null,
                 positionRound: false,
-                visible: existingWeeks.find(week => week.date === entry.date)?.visible ?? true,
-                event: null,
+                visible: entry.visible,
+                notes: entry.notes.trim() || null,
+                duesOwed: entry.duesOwed,
+                specialEvent: entry.specialEvent,
               },
             })),
           deleteDates: existingWeeks
@@ -346,7 +495,6 @@ function SeasonScheduleBuilder({
       // Write upcoming and skip entries
       for (const entry of schedule) {
         if (completedDates.has(entry.date)) continue
-        const existingVisibility = existingWeeks.find(w => w.date === entry.date)?.visible
         batch.set(doc(db, 'scheduleWeeks', entry.date), {
           seasonYear,
           date: entry.date,
@@ -354,8 +502,10 @@ function SeasonScheduleBuilder({
           status: entry.status === 'skip' ? 'skip' : 'upcoming',
           skipReason: entry.status === 'skip' ? (entry.skipReason || null) : null,
           positionRound: false,
-          visible: existingVisibility ?? true,
-          event: null,
+          visible: entry.visible,
+          notes: entry.notes.trim() || null,
+          duesOwed: entry.duesOwed,
+          specialEvent: entry.specialEvent,
         })
       }
 
@@ -458,7 +608,7 @@ function SeasonScheduleBuilder({
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
               <thead>
                 <tr>
-                  {['Wk', 'Date', 'Skip?', 'Holiday Note'].map(col => (
+                  {['Wk', 'Date', 'Skip?', 'Holiday Note', 'Dues?', 'Event', 'Notes', 'Public?'].map(col => (
                     <th
                       key={col}
                       style={{
@@ -571,6 +721,126 @@ function SeasonScheduleBuilder({
                           </span>
                         ) : (
                           <span style={{ color: 'rgba(255,255,255,0.12)' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* Dues toggle — no bowling on skip weeks means no dues;
+                          completed weeks are read-only (never rewritten) */}
+                      <td style={{ padding: '0.6rem 0.875rem', verticalAlign: 'middle', width: '5rem' }}>
+                        {isSkip ? (
+                          <span style={{ color: 'rgba(255,255,255,0.12)' }}>—</span>
+                        ) : entry.locked ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            fontSize: '0.68rem',
+                            fontWeight: 600,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: entry.duesOwed ? '#4ade80' : '#6b7280',
+                          }}>
+                            <span style={{
+                              width: '5px', height: '5px', borderRadius: '50%',
+                              backgroundColor: entry.duesOwed ? '#4ade80' : '#6b7280',
+                              flexShrink: 0,
+                            }} />
+                            {entry.duesOwed ? 'Owed' : 'Waived'}
+                          </span>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={entry.duesOwed}
+                            onChange={() => toggleDues(entry.date)}
+                            style={{ cursor: 'pointer', width: '1rem', height: '1rem', accentColor: '#c9a84c' }}
+                            aria-label={`Dues owed for ${formatDate(entry.date)}`}
+                          />
+                        )}
+                      </td>
+
+                      {/* Playoff/championship tag — skip rows never get one;
+                          completed rows are read-only (never rewritten) */}
+                      <td style={{ padding: '0.6rem 0.875rem', verticalAlign: 'middle', width: '9rem' }}>
+                        {isSkip ? (
+                          <span style={{ color: 'rgba(255,255,255,0.12)' }}>—</span>
+                        ) : entry.locked ? (
+                          entry.specialEvent ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' }}>
+                              <ScheduleEventBadge event={entry.specialEvent} size={14} />
+                              {SCHEDULE_EVENT_CONFIG[entry.specialEvent].label}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'rgba(255,255,255,0.12)' }}>—</span>
+                          )
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            {entry.specialEvent && <ScheduleEventBadge event={entry.specialEvent} size={14} />}
+                            <select
+                              className="admin-input"
+                              value={entry.specialEvent ?? ''}
+                              onChange={e => updateSpecialEvent(entry.date, e.target.value)}
+                              style={{ padding: '0.25rem 0.4rem', fontSize: '0.75rem', width: '100%' }}
+                              aria-label={`Playoff/championship tag for ${formatDate(entry.date)}`}
+                            >
+                              <option value="">— None —</option>
+                              {SCHEDULE_EVENT_OPTIONS.map(option => (
+                                <option key={option} value={option}>{SCHEDULE_EVENT_CONFIG[option].label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Free-text note — completed rows are read-only (never rewritten) */}
+                      <td style={{ padding: '0.6rem 0.875rem', verticalAlign: 'middle', minWidth: '160px' }}>
+                        {entry.locked ? (
+                          entry.notes ? (
+                            <span style={{ color: 'rgba(255,255,255,0.5)', whiteSpace: 'pre-line' }}>{entry.notes}</span>
+                          ) : (
+                            <span style={{ color: 'rgba(255,255,255,0.12)' }}>—</span>
+                          )
+                        ) : (
+                          <textarea
+                            className="admin-input"
+                            placeholder="Add a note…"
+                            rows={1}
+                            value={entry.notes}
+                            onChange={e => updateNotes(entry.date, e.target.value)}
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', width: '100%', resize: 'vertical', fontFamily: 'inherit' }}
+                            aria-label={`Note for ${formatDate(entry.date)}`}
+                          />
+                        )}
+                      </td>
+
+                      {/* Public toggle — completed weeks are adjusted via the bulk
+                          actions on the non-editing view instead (read-only here) */}
+                      <td style={{ padding: '0.6rem 0.875rem', verticalAlign: 'middle', width: '5rem' }}>
+                        {entry.locked ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            fontSize: '0.68rem',
+                            fontWeight: 600,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: entry.visible ? '#4ade80' : '#6b7280',
+                          }}>
+                            <span style={{
+                              width: '5px', height: '5px', borderRadius: '50%',
+                              backgroundColor: entry.visible ? '#4ade80' : '#6b7280',
+                              flexShrink: 0,
+                            }} />
+                            {entry.visible ? 'Visible' : 'Hidden'}
+                          </span>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={entry.visible}
+                            onChange={() => togglePublic(entry.date)}
+                            style={{ cursor: 'pointer', width: '1rem', height: '1rem', accentColor: '#c9a84c' }}
+                            aria-label={`Public visibility for ${formatDate(entry.date)}`}
+                          />
                         )}
                       </td>
                     </tr>

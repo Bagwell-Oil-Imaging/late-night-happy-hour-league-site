@@ -24,6 +24,7 @@ Allows admins to configure the active season year, which controls which season's
 - On successful creation, the new year is auto-selected in the Season Details preview so the admin can jump straight to building its schedule
 - The Team Difference handicap formula floors both teams' average totals before subtracting them, applies the configured percentage to that integer difference, then floors the final handicap
 - **Venue card** (Season Details, via `VenueSettings`): edit the selected season's bowling center name and street address, written to that season's `leagueConfig` document; the address drives the Google Maps embed on the off-season landing page (see `home-dashboard.md`) once that season becomes the upcoming season
+- **Dues card** (Season Details, via `DuesSettings`): edit the selected season's active lineup size (`leagueConfig.bowlersPerTeam`, 1–10) and per-bowler weekly dues (`leagueConfig.lineage`, dollars), written to that season's `leagueConfig` document; shows a live "Team owes $N per week" preview as either field changes. Bowlers on an extended roster beyond the lineup size (bench/sub-pool) don't count toward the weekly total. Both fields drive the dues indicator on the public Season Schedule page (see `season-schedule.md`)
 
 ## Conditional Paths
 - If settings/global document doesn't exist, the dropdown initialises with no pre-selected value
@@ -38,7 +39,7 @@ Allows admins to configure the active season year, which controls which season's
 - Firestore: settings (read/write — document ID is "global", fields `currentSeasonYear`, `seasonActive`, `upcomingSeasonYear`)
 - Firestore: seasons (read/write — useSeasons hook populates the season dropdowns; Create Season writes a new document)
 - Firestore: leagueConfig (write — Create Season writes a new document; Venue card writes `bowlingCenter`/`bowlingCenterAddress` to an existing one)
-- Local admin bypass: `set-active-season`, `set-season-status`, `create-season`, and `set-venue` operations in `api/local-admin-write.js`
+- Local admin bypass: `set-active-season`, `set-season-status`, `create-season`, `set-venue`, and `set-dues` operations in `api/local-admin-write.js`
 - Firebase Auth (route guard)
 
 ## Known Issues

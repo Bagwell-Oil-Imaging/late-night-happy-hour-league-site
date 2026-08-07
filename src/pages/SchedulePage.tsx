@@ -13,10 +13,11 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { useScheduleWeeks } from '../hooks'
+import { useScheduleWeeks, useLeagueConfig } from '../hooks'
 import WeekMatchupsModal from '../components/WeekMatchupsModal'
 import StandingsPdfModal from '../components/StandingsPdfModal'
 import SeasonPlaceholder from '../components/SeasonPlaceholder'
+import ScheduleEventBadge from '../components/ScheduleEventBadge'
 import { useSeasonYear, useSeasonStatus } from '../context/SeasonContext'
 import { getStandingsPdfId } from '../utils/weeklyStandingsPdf'
 import { isScheduleWeekVisible } from '../utils/weekVisibility'
@@ -157,6 +158,9 @@ function MonthCalendar({
                   [{entry.week}]
                 </span>
               )}
+              {isPlayWeek && entry.specialEvent && (
+                <ScheduleEventBadge event={entry.specialEvent} size={13} className="cal-event-badge" />
+              )}
               {isSkipWeek && <span className="cal-skip-x" aria-hidden="true" />}
               {tooltipOpen && (
                 <div
@@ -191,6 +195,13 @@ function SchedulePage() {
   const { seasonActive, upcomingSeasonYear, loading: seasonStatusLoading } = useSeasonStatus()
   const [selectedWeek, setSelectedWeek] = useState<ScheduleWeek | null>(null)
   const [pdfWeek, setPdfWeek] = useState<number | null>(null)
+  /* Dues tooltip: shown on hover (desktop) or tap/keyboard (mobile), one row at a
+     time. Tracks the "YYYY-MM-DD" of the currently open tooltip, or null if closed. */
+  const [openDuesDate, setOpenDuesDate] = useState<string | null>(null)
+  /* Mobile-only note reveal: the Notes column is hidden below 768px (no room),
+     so its content is reachable via a small tap-to-expand button in the Date
+     column instead. Tracks the "YYYY-MM-DD" of the currently expanded row. */
+  const [openInfoDate, setOpenInfoDate] = useState<string | null>(null)
 
   // Between seasons, preview the upcoming season's schedule (once staged via
   // admin Create Season + Season Details) instead of the just-finished season's.
@@ -200,6 +211,30 @@ function SchedulePage() {
 
   // Firestore subscription for all schedule weeks in the displayed season
   const { data: scheduleWeeks, loading } = useScheduleWeeks(displaySeasonYear ?? '')
+  const { data: leagueConfig } = useLeagueConfig(displaySeasonYear ?? null)
+  // Weekly dues owed per bowler and the active lineup size (excludes bench/sub-pool
+  // roster additions — a team can carry extra bowlers, but only this many play and
+  // owe dues each week). Both must be positive for the dues indicator to render.
+  const duesPerBowler = leagueConfig?.lineage ?? null
+  const duesLineupSize = leagueConfig?.bowlersPerTeam ?? null
+  const showDues = !!duesPerBowler && duesPerBowler > 0 && !!duesLineupSize && duesLineupSize > 0
+
+  /* Dismiss an open tap-triggered dues tooltip on the next tap anywhere else. */
+  useEffect(() => {
+    if (!openDuesDate) return
+    const closeTooltip = () => setOpenDuesDate(null)
+    document.addEventListener('click', closeTooltip)
+    return () => document.removeEventListener('click', closeTooltip)
+  }, [openDuesDate])
+
+  /* Dismiss an open mobile note panel on the next tap anywhere else. */
+  useEffect(() => {
+    if (!openInfoDate) return
+    const closePanel = () => setOpenInfoDate(null)
+    document.addEventListener('click', closePanel)
+    return () => document.removeEventListener('click', closePanel)
+  }, [openInfoDate])
+
   const visibleScheduleWeeks = useMemo(
     () => scheduleWeeks.filter(isScheduleWeekVisible),
     [scheduleWeeks]
@@ -340,28 +375,112 @@ function SchedulePage() {
                     {/* Date — skip reason repeats here (mobile-only) since the
                         Notes column is hidden below 768px */}
                     <td className="sch-col-date sch-date-cell">
-                      {formatDate(entry.date)}
+                      <span className="sch-date-row">
+                        <span className="sch-date-text">{formatDate(entry.date)}</span>
+                        {/* Icon cluster pinned to the right of the row (margin-left: auto)
+                            so the date stays left-aligned regardless of how many icons a
+                            given week has. */}
+                        <span className="sch-date-icons">
+                        {/* Mobile-only: Notes column (and its event badge) is hidden below
+                            768px, so the trophy/crown stays visible here without a tap.
+                            Ordered trophy → notes → dues, dues rightmost. */}
+                        {entry.specialEvent && (
+                          <ScheduleEventBadge event={entry.specialEvent} size={16} className="sch-event-badge-mobile" />
+                        )}
+                        {/* Skip rows already show their reason via the always-visible
+                            element below, so only offer the trigger for content that
+                            isn't already visible on this row. */}
+                        {(entry.positionRound || entry.notes || (entry.skipReason && !isSkip)) && (
+                          <button
+                            type="button"
+                            className="sch-note-trigger"
+                            aria-label={`View notes for ${formatDate(entry.date)}`}
+                            aria-expanded={openInfoDate === entry.date}
+                            onClick={e => {
+                              e.stopPropagation()
+                              setOpenInfoDate(prev => (prev === entry.date ? null : entry.date))
+                            }}
+                          >
+                            <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true">
+                              <rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                              <line x1="7.5" y1="9.5" x2="16.5" y2="9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                              <line x1="7.5" y1="13" x2="16.5" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                              <line x1="7.5" y1="16.5" x2="13" y2="16.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                        )}
+                        {!isSkip && entry.duesOwed !== false && showDues && entry.week != null && (
+                          <span className="sch-dues-wrap">
+                            <button
+                              type="button"
+                              className="sch-dues-badge"
+                              aria-label={`Weekly dues for week ${entry.week}`}
+                              aria-expanded={openDuesDate === entry.date}
+                              onClick={e => {
+                                e.stopPropagation()
+                                setOpenDuesDate(prev => (prev === entry.date ? null : entry.date))
+                              }}
+                              onMouseEnter={() => setOpenDuesDate(entry.date)}
+                              onMouseLeave={() => setOpenDuesDate(prev => (prev === entry.date ? null : prev))}
+                              onFocus={() => setOpenDuesDate(entry.date)}
+                              onBlur={() => setOpenDuesDate(prev => (prev === entry.date ? null : prev))}
+                              onKeyDown={e => {
+                                if (e.key === 'Escape') setOpenDuesDate(null)
+                              }}
+                            >
+                              $
+                            </button>
+                            {openDuesDate === entry.date && (
+                              <span className="sch-dues-note" role="status">
+                                Each team owes ${(duesLineupSize as number) * (duesPerBowler as number)} for week {entry.week}, (${duesPerBowler} per bowler)
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        </span>
+                      </span>
                       {isSkip && entry.skipReason && (
                         <span className="sch-skip-reason-mobile">{entry.skipReason}</span>
                       )}
+                      {openInfoDate === entry.date && (
+                        <div className="sch-info-card sch-info-card--mobile">
+                          <div className="sch-info-text">
+                            {entry.positionRound && (
+                              <span className="sch-position-round-badge">Position Round</span>
+                            )}
+                            {entry.skipReason && !isSkip && (
+                              <p className="sch-info-line sch-info-line--skip">{entry.skipReason}</p>
+                            )}
+                            {entry.notes && (
+                              <p className="sch-info-line sch-info-line--notes">{entry.notes}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </td>
 
-                    {/* Notes: position round badge, event label, or skip reason */}
+                    {/* Notes: playoff/championship badge, position round badge, admin note, and
+                        skip reason all grouped into a single card instead of separate floating
+                        elements, so a row with several of these reads as one unit. The event
+                        badge sits to the left of the text column instead of on its own line. */}
                     <td className="sch-col-notes sch-notes-cell">
-                      {/* Position round visual badge — shown when this week is
-                          a position round where teams bowl in standings order */}
-                      {entry.positionRound && (
-                        <span className="sch-position-round-badge">
-                          Position Round
-                        </span>
-                      )}
-                      {entry.skipReason && (
-                        <span className="sch-skip-reason">
-                          {entry.skipReason}
-                        </span>
-                      )}
-                      {entry.event && (
-                        <span className="sch-event-label">{entry.event}</span>
+                      {(entry.specialEvent || entry.positionRound || entry.skipReason || entry.notes) && (
+                        <div className="sch-info-card">
+                          {entry.specialEvent && (
+                            <ScheduleEventBadge event={entry.specialEvent} size={22} className="sch-event-badge" />
+                          )}
+                          <div className="sch-info-text">
+                            {entry.positionRound && (
+                              <span className="sch-position-round-badge">Position Round</span>
+                            )}
+                            {entry.skipReason && (
+                              <p className="sch-info-line sch-info-line--skip">{entry.skipReason}</p>
+                            )}
+                            {entry.notes && (
+                              <p className="sch-info-line sch-info-line--notes">{entry.notes}</p>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </td>
 
