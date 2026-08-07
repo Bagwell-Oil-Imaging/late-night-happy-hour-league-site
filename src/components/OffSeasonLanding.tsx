@@ -11,6 +11,7 @@
 import { Link } from 'react-router-dom'
 import SeasonCountdown from './SeasonCountdown'
 import LeagueFormatInfo from './LeagueFormatInfo'
+import LeagueMap from './LeagueMap'
 import './OffSeasonLanding.css'
 
 interface OffSeasonLandingProps {
@@ -18,6 +19,10 @@ interface OffSeasonLandingProps {
   upcomingSeasonYear: string | null
   /** Week 1 date (`YYYY-MM-DD`) from the upcoming season's schedule, or null if not built yet. */
   week1Date: string | null
+  /** Bowling center name for the upcoming season, or null if unset. */
+  bowlingCenter: string | null
+  /** Bowling center street address for the upcoming season, or null if unset — hides the map. */
+  bowlingCenterAddress: string | null
 }
 
 /**
@@ -30,7 +35,7 @@ function formatWeek1Date(dateStr: string): string {
   return `${month}/${day}/${year}`
 }
 
-function OffSeasonLanding({ upcomingSeasonYear, week1Date }: OffSeasonLandingProps) {
+function OffSeasonLanding({ upcomingSeasonYear, week1Date, bowlingCenter, bowlingCenterAddress }: OffSeasonLandingProps) {
   return (
     <div className="off-season-landing">
       <div className="off-season-hero">
@@ -57,6 +62,10 @@ function OffSeasonLanding({ upcomingSeasonYear, week1Date }: OffSeasonLandingPro
           <p className="off-season-countdown-pending">Schedule coming soon — check back for a kickoff date.</p>
         )}
       </div>
+
+      {bowlingCenterAddress && (
+        <LeagueMap address={bowlingCenterAddress} label={bowlingCenter ?? undefined} />
+      )}
 
       <div className="off-season-actions">
         <Link to="/contact" className="off-season-cta off-season-cta-primary">

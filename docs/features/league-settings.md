@@ -23,6 +23,7 @@ Allows admins to configure the active season year, which controls which season's
 - Create Season takes a season-year selector (auto-generated sequential, non-overlapping options following the latest existing season, e.g. 2026-2027, 2027-2028, 2028-2029) and a total-weeks selector (20-40, defaults to 32); the resulting season immediately appears in the Active Season and Season Details dropdowns for schedule building
 - On successful creation, the new year is auto-selected in the Season Details preview so the admin can jump straight to building its schedule
 - The Team Difference handicap formula floors both teams' average totals before subtracting them, applies the configured percentage to that integer difference, then floors the final handicap
+- **Venue card** (Season Details, via `VenueSettings`): edit the selected season's bowling center name and street address, written to that season's `leagueConfig` document; the address drives the Google Maps embed on the off-season landing page (see `home-dashboard.md`) once that season becomes the upcoming season
 
 ## Conditional Paths
 - If settings/global document doesn't exist, the dropdown initialises with no pre-selected value
@@ -36,8 +37,8 @@ Allows admins to configure the active season year, which controls which season's
 ## External Dependencies
 - Firestore: settings (read/write — document ID is "global", fields `currentSeasonYear`, `seasonActive`, `upcomingSeasonYear`)
 - Firestore: seasons (read/write — useSeasons hook populates the season dropdowns; Create Season writes a new document)
-- Firestore: leagueConfig (write — Create Season writes a new document)
-- Local admin bypass: `set-active-season`, `set-season-status`, and `create-season` operations in `api/local-admin-write.js`
+- Firestore: leagueConfig (write — Create Season writes a new document; Venue card writes `bowlingCenter`/`bowlingCenterAddress` to an existing one)
+- Local admin bypass: `set-active-season`, `set-season-status`, `create-season`, and `set-venue` operations in `api/local-admin-write.js`
 - Firebase Auth (route guard)
 
 ## Known Issues
