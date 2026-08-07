@@ -108,6 +108,7 @@ function HomePage() {
   const { seasonActive, upcomingSeasonYear, loading: seasonStatusLoading } = useSeasonStatus()
   const { data: upcomingScheduleWeeks } = useScheduleWeeks(upcomingSeasonYear || '')
   const upcomingWeek1Date = upcomingScheduleWeeks.find((w) => w.week === 1)?.date ?? null
+  const { data: upcomingLeagueConfig } = useLeagueConfig(upcomingSeasonYear)
 
   // Modal state — null means no modal is open
   const [selectedMatchupId, setSelectedMatchupId] = useState<string | null>(null)
@@ -269,7 +270,12 @@ function HomePage() {
   if (!seasonStatusLoading && !seasonActive) {
     return (
       <div className="home-page">
-        <OffSeasonLanding upcomingSeasonYear={upcomingSeasonYear} week1Date={upcomingWeek1Date} />
+        <OffSeasonLanding
+          upcomingSeasonYear={upcomingSeasonYear}
+          week1Date={upcomingWeek1Date}
+          bowlingCenter={upcomingLeagueConfig?.bowlingCenter ?? null}
+          bowlingCenterAddress={upcomingLeagueConfig?.bowlingCenterAddress ?? null}
+        />
       </div>
     )
   }

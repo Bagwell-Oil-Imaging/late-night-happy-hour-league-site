@@ -43,6 +43,8 @@ export interface LeagueConfig {
   weekday: string;
   startTime: string;
   bowlingCenter: string;
+  /** Street address of the bowling center, used to embed a Google Maps view on the off-season landing page. Optional — the map is hidden when unset. */
+  bowlingCenterAddress?: string;
   sanctionNumber: number;
   numTeams: number;
   bowlersPerTeam: number;

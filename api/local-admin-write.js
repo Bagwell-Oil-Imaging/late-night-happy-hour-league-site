@@ -148,6 +148,15 @@ export default async function localAdminWrite(req, res) {
         return res.status(400).json({ error: 'Playoff team count must be an integer from 2 to 8.' });
       }
       await db.collection('leagueConfig').doc(body.seasonYear).set({ playoffTeamCount: body.playoffTeamCount }, { merge: true });
+    } else if (body.operation === 'set-venue') {
+      if (!validSeasonYear(body.seasonYear) || typeof body.bowlingCenter !== 'string' || !body.bowlingCenter.trim()
+        || body.bowlingCenter.length > 200 || typeof body.bowlingCenterAddress !== 'string' || body.bowlingCenterAddress.length > 300) {
+        return res.status(400).json({ error: 'Invalid venue.' });
+      }
+      await db.collection('leagueConfig').doc(body.seasonYear).set({
+        bowlingCenter: body.bowlingCenter.trim(),
+        bowlingCenterAddress: body.bowlingCenterAddress.trim(),
+      }, { merge: true });
     } else if (body.operation === 'set-handicap-profile') {
       const profile = body.handicapProfile;
       const validType = profile?.type === 'teamDifference' || profile?.type === 'basisScore';
