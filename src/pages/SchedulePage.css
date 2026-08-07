@@ -421,11 +421,21 @@
 }
 
 /* Flex row instead of relying on inline vertical-align, which put the dues
-   badge visibly off-center against the date text at this font size. */
+   badge visibly off-center against the date text at this font size. Full
+   width so the date can stay pinned left with the icon cluster pushed right
+   (see .sch-date-icons) rather than the two drifting together as one
+   centered block on narrow/compact layouts. */
 .sch-date-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.sch-date-icons {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
 }
 
 /* ── Weekly dues indicator ─────────────────────────────────────────────────────
@@ -478,6 +488,41 @@
   white-space: normal;
   max-width: 240px;
   line-height: 1.4;
+}
+
+/* ── Mobile note access ─────────────────────────────────────────────────────────
+   The Notes column (and its event badge) is hidden below 768px for space, so
+   the event badge gets a small persistent copy in the Date column, and any
+   other note content becomes reachable via a tap-to-expand button — both
+   hidden here and switched on in the 768px media query below. */
+.sch-event-badge-mobile {
+  display: none;
+}
+
+.sch-note-trigger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-strong);
+  color: var(--accent);
+  padding: 3px;
+  cursor: pointer;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.sch-note-trigger:hover,
+.sch-note-trigger:focus-visible,
+.sch-note-trigger[aria-expanded="true"] {
+  background: rgba(240, 180, 41, 0.16);
+  box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.12);
+}
+
+.sch-info-card--mobile {
+  display: none;
 }
 
 /* ── Matchup pairs list ─────────────────────────────────────────────────────── */
@@ -681,7 +726,7 @@
   .sch-col-notes { display: none; }
   .sch-col-week  { width: 46px; }
   .sch-col-date  { width: auto; }
-  .sch-date-cell { text-align: center; }
+  .sch-date-cell { text-align: left; }
   .sch-col-action{ width: 96px; }
   .schedule-table td { padding: 10px 6px; }
   .schedule-table th { padding: 9px 6px; letter-spacing: 1.5px; }
@@ -711,6 +756,20 @@
     color: var(--red-bright);
     opacity: 0.8;
     margin-top: 2px;
+  }
+
+  .sch-event-badge-mobile {
+    display: inline-flex;
+  }
+
+  .sch-note-trigger {
+    display: inline-flex;
+  }
+
+  .sch-info-card--mobile {
+    display: flex;
+    margin: 6px 0 0;
+    text-align: left;
   }
 }
 

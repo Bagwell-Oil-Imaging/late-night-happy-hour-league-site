@@ -198,6 +198,10 @@ function SchedulePage() {
   /* Dues tooltip: shown on hover (desktop) or tap/keyboard (mobile), one row at a
      time. Tracks the "YYYY-MM-DD" of the currently open tooltip, or null if closed. */
   const [openDuesDate, setOpenDuesDate] = useState<string | null>(null)
+  /* Mobile-only note reveal: the Notes column is hidden below 768px (no room),
+     so its content is reachable via a small tap-to-expand button in the Date
+     column instead. Tracks the "YYYY-MM-DD" of the currently expanded row. */
+  const [openInfoDate, setOpenInfoDate] = useState<string | null>(null)
 
   // Between seasons, preview the upcoming season's schedule (once staged via
   // admin Create Season + Season Details) instead of the just-finished season's.
@@ -222,6 +226,14 @@ function SchedulePage() {
     document.addEventListener('click', closeTooltip)
     return () => document.removeEventListener('click', closeTooltip)
   }, [openDuesDate])
+
+  /* Dismiss an open mobile note panel on the next tap anywhere else. */
+  useEffect(() => {
+    if (!openInfoDate) return
+    const closePanel = () => setOpenInfoDate(null)
+    document.addEventListener('click', closePanel)
+    return () => document.removeEventListener('click', closePanel)
+  }, [openInfoDate])
 
   const visibleScheduleWeeks = useMemo(
     () => scheduleWeeks.filter(isScheduleWeekVisible),
@@ -365,6 +377,10 @@ function SchedulePage() {
                     <td className="sch-col-date sch-date-cell">
                       <span className="sch-date-row">
                         <span className="sch-date-text">{formatDate(entry.date)}</span>
+                        {/* Icon cluster pinned to the right of the row (margin-left: auto)
+                            so the date stays left-aligned regardless of how many icons a
+                            given week has. */}
+                        <span className="sch-date-icons">
                         {!isSkip && entry.duesOwed !== false && showDues && entry.week != null && (
                           <span className="sch-dues-wrap">
                             <button
@@ -393,9 +409,52 @@ function SchedulePage() {
                             )}
                           </span>
                         )}
+                        {/* Mobile-only: Notes column (and its event badge) is hidden below
+                            768px, so the trophy/crown stays visible here without a tap. */}
+                        {entry.specialEvent && (
+                          <ScheduleEventBadge event={entry.specialEvent} size={16} className="sch-event-badge-mobile" />
+                        )}
+                        {/* Skip rows already show their reason via the always-visible
+                            element below, so only offer the trigger for content that
+                            isn't already visible on this row. */}
+                        {(entry.positionRound || entry.notes || (entry.skipReason && !isSkip)) && (
+                          <button
+                            type="button"
+                            className="sch-note-trigger"
+                            aria-label={`View notes for ${formatDate(entry.date)}`}
+                            aria-expanded={openInfoDate === entry.date}
+                            onClick={e => {
+                              e.stopPropagation()
+                              setOpenInfoDate(prev => (prev === entry.date ? null : entry.date))
+                            }}
+                          >
+                            <svg viewBox="0 0 24 24" width="100%" height="100%" aria-hidden="true">
+                              <rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                              <line x1="7.5" y1="9.5" x2="16.5" y2="9.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                              <line x1="7.5" y1="13" x2="16.5" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                              <line x1="7.5" y1="16.5" x2="13" y2="16.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                        )}
+                        </span>
                       </span>
                       {isSkip && entry.skipReason && (
                         <span className="sch-skip-reason-mobile">{entry.skipReason}</span>
+                      )}
+                      {openInfoDate === entry.date && (
+                        <div className="sch-info-card sch-info-card--mobile">
+                          <div className="sch-info-text">
+                            {entry.positionRound && (
+                              <span className="sch-position-round-badge">Position Round</span>
+                            )}
+                            {entry.skipReason && !isSkip && (
+                              <p className="sch-info-line sch-info-line--skip">{entry.skipReason}</p>
+                            )}
+                            {entry.notes && (
+                              <p className="sch-info-line sch-info-line--notes">{entry.notes}</p>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </td>
 
