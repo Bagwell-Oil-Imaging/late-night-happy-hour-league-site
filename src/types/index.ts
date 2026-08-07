@@ -16,6 +16,7 @@
  *  - `CarouselImage.image` → `imageUrl`
  *  - `Season.champion: string` → `championTeamId: string | null` + `championTeamName: string | null`
  *  - `ScheduleWeek.dataWeek` removed; `positionRound: boolean` added
+ *  - `ScheduleWeek.event` → `notes` (admin-editable free-text week note)
  *  - `Announcement` gains `pinned` and `expiresAt`
  */
 
@@ -235,6 +236,24 @@ export interface MatchupDetail {
   team2: TeamSummary;
 }
 
+/**
+ * Playoff/championship designation for a ScheduleWeek. Purely a display tag —
+ * doesn't drive any bracket/standings logic. Rendered as a trophy (bronze =
+ * playoffs week 1, silver = playoffs week 2, gold = half championship) or a
+ * gold crown (league championship) on the public schedule; see
+ * `ScheduleEventBadge`. The first-half/second-half variants render identically
+ * (metal color alone distinguishes week 1 vs week 2 vs championship) — the
+ * half is kept in the value only so the admin dropdown can label it clearly.
+ */
+export type ScheduleWeekEvent =
+  | 'first-half-playoffs-1'
+  | 'first-half-playoffs-2'
+  | 'first-half-championship'
+  | 'second-half-playoffs-1'
+  | 'second-half-playoffs-2'
+  | 'second-half-championship'
+  | 'league-championship';
+
 /** ScheduleWeek — one document per calendar date in the season */
 export interface ScheduleWeek {
   id?: string;
@@ -246,7 +265,12 @@ export interface ScheduleWeek {
   visible?: boolean;
   positionRound: boolean;
   skipReason: string | null;
-  event: string | null;
+  /** Free-text, multi-line admin note shown on the public schedule (e.g. "Bring canned goods for food drive"). */
+  notes: string | null;
+  /** Whether teams owe weekly dues for this week. Missing/true means owed; skip weeks are always false. */
+  duesOwed?: boolean;
+  /** Playoff/championship tag for this week, if any. Null/missing means a regular week. */
+  specialEvent?: ScheduleWeekEvent | null;
 }
 
 /** SeasonTeam — snapshot of a team's final standings within a Season */

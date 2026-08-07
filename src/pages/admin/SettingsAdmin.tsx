@@ -28,6 +28,7 @@ import { isScheduleWeekVisible } from '../../utils/weekVisibility'
 import PlayoffSettings from '../../components/admin/PlayoffSettings'
 import HandicapSettings from '../../components/admin/HandicapSettings'
 import VenueSettings from '../../components/admin/VenueSettings'
+import DuesSettings from '../../components/admin/DuesSettings'
 import { isLocalAdminBypass, localAdminWrite } from '../../utils/localAdmin'
 import '../admin/AnnouncementsAdmin.css'
 
@@ -84,22 +85,6 @@ function formatWeekDate(dateStr: string): string {
 }
 
 /**
- * Builds a human-readable notes string from a ScheduleWeek's metadata flags.
- * Position-round flag leads, followed by event name, then skip reason, so the
- * most bowling-significant label appears first.
- *
- * @param week - The ScheduleWeek document to derive notes from
- * @returns Pipe-delimited notes string, or empty string if none apply
- */
-function buildWeekNotes(week: ScheduleWeek): string {
-  const parts: string[] = []
-  if (week.positionRound) parts.push('Position Round')
-  if (week.event) parts.push(week.event)
-  if (week.skipReason) parts.push(week.skipReason)
-  return parts.join(' · ')
-}
-
-/**
  * Total-weeks options offered when staging a new season. Matches
  * SeasonScheduleBuilder's own default (32) plus a realistic surrounding range.
  */
@@ -149,6 +134,9 @@ function SettingsAdmin() {
   const [scheduleMsg, setScheduleMsg] = useState('')
   const [visibilitySaving, setVisibilitySaving] = useState(false)
   const [visibilityMsg, setVisibilityMsg] = useState('')
+  // Local edit buffer for the per-week notes text inputs, keyed by date. Only
+  // holds an entry while a given row has unsaved keystrokes; falls back to
+  // week.notes otherwise so the input always reflects the last committed value.
   const [showCreateSeason, setShowCreateSeason] = useState(false)
   const [newSeasonYear, setNewSeasonYear] = useState('')
   const [newSeasonTotalWeeks, setNewSeasonTotalWeeks] = useState(String(NEW_SEASON_DEFAULT_TOTAL_WEEKS))
@@ -325,28 +313,6 @@ function SettingsAdmin() {
       console.error('[SettingsAdmin] season status setDoc error:', err)
     } finally {
       setStatusSaving(false)
-    }
-  }
-
-  async function handleWeekVisibilityChange(week: ScheduleWeek, visible: boolean) {
-    if (!isLocalAdminBypass() && !auth.currentUser) {
-      setVisibilityMsg(authRequiredMessage)
-      return
-    }
-    setVisibilitySaving(true)
-    setVisibilityMsg('')
-    try {
-      if (isLocalAdminBypass()) {
-        await localAdminWrite({ operation: 'set-week-visibility', updates: [{ date: week.date, visible }] })
-      } else {
-        await setDoc(doc(db, 'scheduleWeeks', week.date), { visible }, { merge: true })
-      }
-      setVisibilityMsg(`${week.week == null ? formatWeekDate(week.date) : `Week ${week.week}`} is now ${visible ? 'visible' : 'hidden'}.`)
-    } catch (err) {
-      setVisibilityMsg('Failed to update week visibility. Please try again.')
-      console.error('[SettingsAdmin] visibility update error:', err)
-    } finally {
-      setVisibilitySaving(false)
     }
   }
 
@@ -795,6 +761,7 @@ function SettingsAdmin() {
           <PlayoffSettings seasonYear={selected} />
           <HandicapSettings seasonYear={selected} />
           <VenueSettings seasonYear={selected} />
+          <DuesSettings seasonYear={selected} />
 
           <div style={{ marginTop: '1.75rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
             {/* ── Schedule ────────────────────────────────────────────────── */}
@@ -835,7 +802,6 @@ function SettingsAdmin() {
           {visibilityMsg && (
             <p className={visibilityMsg.startsWith('Failed') ? 'admin-error-msg' : 'admin-success-msg'} style={{ marginBottom: '1rem' }}>{visibilityMsg}</p>
           )}
-
           {/* ── Builder mode ──────────────────────────────────────────────── */}
           {showBuilder ? (
             <>
@@ -926,7 +892,9 @@ function SettingsAdmin() {
                         <tbody>
                           {scheduleWeeks.map((week) => {
                             const cfg = STATUS_CONFIG[week.status]
-                            const notes = buildWeekNotes(week)
+                            const autoHint = [week.positionRound ? 'Position Round' : null, week.skipReason]
+                              .filter(Boolean)
+                              .join(' · ')
                             const isSkip = week.status === 'skip'
                             const isVisible = isScheduleWeekVisible(week)
                             return (
@@ -986,26 +954,42 @@ function SettingsAdmin() {
                                   </span>
                                 </td>
 
-                                {/* Notes */}
+                                {/* Notes — read-only here; edit via "Edit Schedule" so changes
+                                    only take effect on explicit Save, like every other builder field */}
                                 <td style={{
                                   padding: '0.6rem 0.875rem',
                                   verticalAlign: 'middle',
                                   color: 'rgba(255,255,255,0.35)',
                                   fontSize: '0.8rem',
+                                  whiteSpace: 'pre-line',
                                 }}>
-                                  {notes || <span style={{ color: 'rgba(255,255,255,0.12)' }}>—</span>}
+                                  {week.notes || <span style={{ color: 'rgba(255,255,255,0.12)' }}>—</span>}
+                                  {autoHint && (
+                                    <div style={{ marginTop: '0.25rem', fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>
+                                      {autoHint}
+                                    </div>
+                                  )}
                                 </td>
                                 <td style={{ padding: '0.6rem 0.875rem', verticalAlign: 'middle', textAlign: 'right' }}>
-                                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', color: isVisible ? '#4ade80' : 'rgba(255,255,255,0.35)', fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: visibilitySaving ? 'default' : 'pointer' }}>
-                                    <span>{isVisible ? 'Visible' : 'Hidden'}</span>
-                                    <input
-                                      type="checkbox"
-                                      checked={isVisible}
-                                      disabled={visibilitySaving}
-                                      onChange={(event) => handleWeekVisibilityChange(week, event.target.checked)}
-                                      style={{ width: '18px', height: '18px', accentColor: '#c9a84c', cursor: visibilitySaving ? 'default' : 'pointer' }}
-                                    />
-                                  </label>
+                                  {/* Read-only here — edit via "Edit Schedule" so changes only
+                                      take effect on explicit Save (bulk actions above still apply instantly) */}
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.4rem',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.08em',
+                                    textTransform: 'uppercase',
+                                    color: isVisible ? '#4ade80' : 'rgba(255,255,255,0.35)',
+                                  }}>
+                                    <span style={{
+                                      width: '5px', height: '5px', borderRadius: '50%',
+                                      backgroundColor: isVisible ? '#4ade80' : 'rgba(255,255,255,0.35)',
+                                      flexShrink: 0,
+                                    }} />
+                                    {isVisible ? 'Visible' : 'Hidden'}
+                                  </span>
                                 </td>
                               </tr>
                             )

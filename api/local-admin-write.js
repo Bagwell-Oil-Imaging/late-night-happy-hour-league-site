@@ -157,6 +157,15 @@ export default async function localAdminWrite(req, res) {
         bowlingCenter: body.bowlingCenter.trim(),
         bowlingCenterAddress: body.bowlingCenterAddress.trim(),
       }, { merge: true });
+    } else if (body.operation === 'set-dues') {
+      if (!validSeasonYear(body.seasonYear) || !Number.isInteger(body.bowlersPerTeam) || body.bowlersPerTeam < 1 || body.bowlersPerTeam > 10
+        || typeof body.lineage !== 'number' || body.lineage < 0 || body.lineage > 1000) {
+        return res.status(400).json({ error: 'Invalid dues configuration.' });
+      }
+      await db.collection('leagueConfig').doc(body.seasonYear).set({
+        bowlersPerTeam: body.bowlersPerTeam,
+        lineage: body.lineage,
+      }, { merge: true });
     } else if (body.operation === 'set-handicap-profile') {
       const profile = body.handicapProfile;
       const validType = profile?.type === 'teamDifference' || profile?.type === 'basisScore';

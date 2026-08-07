@@ -11,28 +11,37 @@ Lets admins define and maintain the season schedule (start date, total bowling w
 
 ## Key Behaviors
 
-### Read-only view
+### Week table (view mode — fully read-only)
 - Shows a summary line: "N bowling weeks of M configured across P calendar entries"
 - Renders a table of every `ScheduleWeek` document for the selected season in date order
-- Each row: week number (`—` for skips), formatted local date, colour-coded status pill, notes (position-round flag · event name · skip reason)
+- Each row: week number (`—` for skips), formatted local date, colour-coded status pill, the week's note (`ScheduleWeek.notes`, line breaks preserved) plus a small auto-generated hint below it (position-round flag · skip reason), and a Visible/Hidden status label
+- Nothing in this table is editable — Notes and Public visibility used to be inline-editable here with an instant/auto-save, which meant an admin could type or click a change without any explicit "save" step. Both now only take effect via the schedule builder's "Save Schedule" button (see below), matching how Skip?/Holiday Note/Dues?/Event already worked
+- The two "Show all" / "Hide weeks" buttons above the table remain instant-apply bulk actions — they're deliberate one-click operations, not a stray editable field, and they're the only way to change visibility for a completed (already-bowled) week, since the builder never rewrites completed documents
+- Notes and visibility shown here are what renders on the public Season Schedule page (see `season-schedule.md`)
 - Responds to the Active Season dropdown — changing the dropdown previews any season before saving
 
-### Schedule builder (Set Up / Edit)
-- The read-only schedule table includes a Public column for each week, so visibility is managed alongside that week's date, status, and notes without a duplicate table
+### Schedule builder (Set Up / Edit) — the only place to edit a non-completed week
 - "Set Up Schedule" button appears when no schedule data exists for the selected season
 - "Edit Schedule" button appears when schedule data already exists
-- Builder renders inline within the Season Details card; read-only table is replaced while builder is active
+- Builder renders inline within the Season Details card; the read-only week table is replaced while the builder is active
 - Admin enters: **season start date** (first bowling night) and **total bowling weeks**
-- Preview table updates live as inputs change — no separate "preview" step required
+- Preview table updates live as inputs change — no separate "preview" step required. Every field below is local component state until "Save Schedule" is clicked; nothing writes to Firestore per-keystroke or per-click
 - Each row in the preview has a **"Skip?" checkbox**; checking it marks that calendar date as a holiday
   - Skip weeks do NOT count toward the total bowling week target — the season extends by one additional date at the end for each skip added
   - Example: Week 1 → [skip] → Week 2 (not Week 1 → [skip week 2] → Week 3)
 - Each skip row shows a **Holiday Note** text input for the reason (e.g. "Thanksgiving Break")
-- Completed weeks (already bowled) are shown with a "Bowled" label and cannot be toggled or overwritten
+- Each non-skip row has a **"Dues?" checkbox**, defaulting checked; uncheck it for a week teams don't owe dues (e.g. a banquet night). Skip rows always show "—" (no bowling, no dues) and can't be toggled. Completed rows are read-only, showing "Owed"/"Waived" from the existing `ScheduleWeek.duesOwed` value (defaults to Owed when absent) since the builder never rewrites completed documents
+- Each non-skip row has an **"Event" dropdown** to tag it as a playoff/championship week: First/Second Half Playoffs Week 1, First/Second Half Playoffs Week 2, First/Second Half Championship, or League Championship (see `SCHEDULE_EVENT_OPTIONS` in `src/utils/scheduleEvents.ts`). Selecting one shows a live badge preview next to the dropdown. Skip rows always show "—" and can't be tagged. Completed rows are read-only, showing the badge plus its full label from the existing `ScheduleWeek.specialEvent` value
+- Every non-completed row (upcoming **and** skip) has an editable multi-line **Notes** textarea. Completed rows are read-only, showing the existing note (or "—")
+- Every non-completed row (upcoming **and** skip) has a **"Public?" checkbox**, defaulting checked. Completed rows are read-only, showing a Visible/Hidden status label — use the bulk visibility actions on the view-mode table to change a completed week's visibility
+- Completed weeks (already bowled) are shown with a "Bowled" label in the Skip? column and cannot be toggled or overwritten
 - Start date is locked when any completed weeks exist
 
 ### Save behaviour
-- Batch-writes all upcoming and skip entries to `scheduleWeeks/{YYYY-MM-DD}`
+- Batch-writes all upcoming and skip entries to `scheduleWeeks/{YYYY-MM-DD}` (full document overwrite, not a merge)
+- Writes `notes` (trimmed, or `null` if empty) and `visible` for every non-completed entry from that row's local builder state — this is the only path that persists either field for upcoming/skip weeks
+- Writes `duesOwed` for every non-completed entry: `false` for skip rows, otherwise the row's checkbox state (default `true`, tracked as an exceptions-only "unchecked dates" set so newly generated dates default checked without needing to be pre-seeded)
+- Writes `specialEvent` for every non-completed entry: `null` for skip rows, otherwise the row's dropdown selection (or `null` if left as "— None —")
 - Merges the edited total into `leagueConfig.totalWeeks` so the configured season length matches the calendar
 - Never overwrites completed documents that remain within the edited schedule
 - Deletes every calendar entry absent from the edited schedule, including a completed surplus week after reducing the total; matchup and score records are retained
@@ -50,7 +59,7 @@ Lets admins define and maintain the season schedule (start date, total bowling w
 - When editing with completed weeks: start date is locked; completed rows show "Bowled" and cannot be toggled
 
 ## External Dependencies
-- Firestore: `scheduleWeeks` (read/write — `useScheduleWeeks(selected)`, filtered by `seasonYear`, ordered by `date` asc; builder writes via `writeBatch`)
+- Firestore: `scheduleWeeks` (read/write — `useScheduleWeeks(selected)`, filtered by `seasonYear`, ordered by `date` asc; the schedule builder is the only write path for non-completed weeks, via `writeBatch`; the view-mode bulk visibility actions write via `set-week-visibility`)
 - Firestore: `leagueConfig` (read — `useLeagueConfig(selected)`, document ID = `seasonYear`, provides `totalWeeks`)
 - Active Season dropdown in `SettingsAdmin` (drives which season is viewed/edited)
 
