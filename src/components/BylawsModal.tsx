@@ -3,7 +3,12 @@
  * @module components/BylawsModal
  *
  * Modal that displays the active league bylaws document fetched live from Firestore.
- * The document is retrieved via `useActiveDocument('bylaws', '2025-2026')` and supports
+ * The season used to look up the document tracks the site's season status:
+ *  - In-season  → the current active season's finalized bylaws.
+ *  - Between seasons → the upcoming season's bylaws (proposed or finalized,
+ *    whichever the admin has marked active for that season), falling back to
+ *    the current season if no upcoming season has been set yet.
+ * The document is retrieved via `useActiveDocument('bylaws', seasonYear)` and supports
  * two render modes determined by `doc.source.type`:
  *
  *  - `'pdf'`  — renders an `<iframe>` pointing at the Drive viewer URL resolved from
@@ -21,6 +26,7 @@
 
 import { useEffect } from 'react'
 import { useActiveDocument } from '../hooks'
+import { useSeasonYear, useSeasonStatus } from '../context/SeasonContext'
 import { driveDownloadUrl, driveEmbedUrl } from '../utils/drive'
 import './BylawsModal.css'
 
@@ -42,8 +48,15 @@ interface BylawsModalProps {
  * @param onClose - Handler to call when the modal should be dismissed
  */
 function BylawsModal({ isOpen, onClose }: BylawsModalProps) {
-  // Fetch the active bylaws document for the current season
-  const { data: doc, loading } = useActiveDocument('bylaws', '2025-2026')
+  // In-season: bylaws for the current season. Between seasons: bylaws for the
+  // upcoming season (proposed or finalized), falling back to the current season
+  // if the admin hasn't set an upcoming season yet.
+  const currentSeasonYear = useSeasonYear()
+  const { seasonActive, upcomingSeasonYear } = useSeasonStatus()
+  const bylawsSeasonYear = seasonActive ? currentSeasonYear : (upcomingSeasonYear ?? currentSeasonYear)
+
+  // Fetch the active bylaws document for the resolved season
+  const { data: doc, loading } = useActiveDocument('bylaws', bylawsSeasonYear)
 
   // Lock body scroll while modal is open to prevent background scrolling
   useEffect(() => {

@@ -21,13 +21,16 @@ Lets members read or download the official league bylaws without leaving the sit
 - Loading state shown while Firestore query is in flight
 - If source.type is 'pdf': renders an iframe using driveEmbedUrl plus a download fallback link using driveDownloadUrl
 - If source.type is 'text': renders doc.source.content via dangerouslySetInnerHTML
+- While in-season (`seasonActive` true): looks up bylaws for `currentSeasonYear`
+- Between seasons (`seasonActive` false): looks up bylaws for `upcomingSeasonYear`, falling back to `currentSeasonYear` if no upcoming season has been set
 
 ## External Dependencies
-- Firestore: documents collection (useActiveDocument queries type='bylaws', seasonYear='2025-2026', active=true)
+- Firestore: documents collection (useActiveDocument queries type='bylaws', seasonYear=<resolved season>, active=true)
+- `SeasonContext` (`useSeasonYear`, `useSeasonStatus`) for resolving which season's bylaws to display
 - Google Drive embed URL constructed by driveEmbedUrl; download URL by driveDownloadUrl — both from src/utils/drive.ts
 
 ## Known Issues
-**Hardcoded season year:** `BylawsModal` calls `useActiveDocument('bylaws', '2025-2026')` (`BylawsModal.tsx:46`) with a literal season string instead of reading from `useSeasonYear()`. The bylaws document for future seasons will not display after rollover. Fix: call `useSeasonYear()` and pass the result as the second argument.
+None
 
 ## Notes
 Document file IDs are stored in Firestore; actual PDFs live in Google Drive. The modal supports both PDF (Drive iframe) and plain HTML text render modes.

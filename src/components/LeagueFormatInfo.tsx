@@ -17,7 +17,7 @@ function LeagueFormatInfo() {
         <h3 className="info-card-title">Team Format</h3>
         <ul className="info-list">
           <li><span className="info-bullet">▸</span> USBC-sanctioned league — 4 bowlers per team</li>
-          <li><span className="info-bullet">▸</span> Thursday nights, weekly — practice at 7:50 PM, league play starts 8:00 PM</li>
+          <li><span className="info-bullet">▸</span> Thursday nights, weekly — practice at 8:20 PM, league play starts 8:00 PM</li>
           <li><span className="info-bullet">▸</span> Season runs September – May, split into two 16-week halves</li>
           <li><span className="info-bullet">▸</span> Top 8 teams each half make the playoffs; half winners bowl for the league championship</li>
           <li><span className="info-bullet">▸</span> 3-game series each week</li>
